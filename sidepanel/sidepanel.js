@@ -116,6 +116,11 @@ function showData(tabName, html) {
   if (tabName === 'summary') {
     attachSummaryEventListeners(dataElement);
   }
+
+  // Attach event listeners for Restaurant tab buttons
+  if (tabName === 'restaurant') {
+    attachRestaurantEventListeners(dataElement);
+  }
 }
 
 // Attach event listeners to summary tab booking cards
@@ -168,6 +173,336 @@ function attachSummaryEventListeners(container) {
 
   // Update time since placed and apply highlighting
   updateTimeSincePlaced(container);
+}
+
+// Attach event listeners to restaurant tab buttons
+function attachRestaurantEventListeners(container) {
+  console.log('Attaching restaurant event listeners');
+
+  // Use event delegation for all button clicks
+  container.addEventListener('click', async function(event) {
+    const button = event.target.closest('button[data-action]');
+    if (!button) return;
+
+    const action = button.dataset.action;
+    console.log('Restaurant button clicked:', action);
+
+    try {
+      switch(action) {
+        case 'toggle-create':
+          toggleCreateForm(button.dataset.date);
+          break;
+
+        case 'toggle-update':
+          toggleUpdateForm(button.dataset.date, button.dataset.resosBookingId);
+          break;
+
+        case 'submit-create':
+          await submitCreateBooking(button.dataset.date);
+          break;
+
+        case 'submit-update':
+          await submitUpdateBooking(button.dataset.date, button.dataset.resosBookingId);
+          break;
+
+        case 'exclude-match':
+          await confirmExcludeMatch(
+            button.dataset.resosBookingId,
+            button.dataset.hotelBookingId,
+            button.dataset.guestName
+          );
+          break;
+
+        case 'view-comparison':
+          await loadComparisonView(
+            button.dataset.date,
+            button.dataset.bookingId,
+            button.dataset.resosBookingId
+          );
+          break;
+
+        case 'close-comparison':
+          closeComparison(button.dataset.containerId);
+          break;
+      }
+    } catch (error) {
+      console.error('Error handling restaurant action:', error);
+      alert('Error: ' + error.message);
+    }
+  });
+
+  // Helper functions for restaurant tab interactions
+  function toggleCreateForm(date) {
+    const formId = 'create-form-' + date;
+    const form = document.getElementById(formId);
+    if (!form) return;
+
+    if (form.style.display === 'none' || !form.style.display) {
+      form.style.display = 'block';
+      form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } else {
+      form.style.display = 'none';
+    }
+  }
+
+  function toggleUpdateForm(date, resosBookingId) {
+    const formId = 'update-form-' + date + '-' + resosBookingId;
+    const form = document.getElementById(formId);
+    if (!form) return;
+
+    if (form.style.display === 'none' || !form.style.display) {
+      form.style.display = 'block';
+      form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } else {
+      form.style.display = 'none';
+    }
+  }
+
+  async function submitCreateBooking(date) {
+    const formId = 'create-form-' + date;
+    const form = document.getElementById(formId);
+    if (!form) return;
+
+    const feedbackId = 'feedback-create-' + date;
+    const feedback = document.getElementById(feedbackId);
+
+    // Collect form data
+    const formData = {
+      date: date,
+      time: form.querySelector('[name="time"]').value,
+      people: form.querySelector('[name="people"]').value,
+      guest_name: form.querySelector('[name="guest_name"]').value,
+      guest_phone: form.querySelector('[name="guest_phone"]').value,
+      guest_email: form.querySelector('[name="guest_email"]').value,
+      booking_ref: form.querySelector('[name="booking_ref"]').value,
+      hotel_guest: form.querySelector('[name="hotel_guest"]').value,
+      dbb: form.querySelector('[name="dbb"]').value,
+      booking_note: form.querySelector('[name="booking_note"]').value
+    };
+
+    try {
+      showFeedback(feedback, 'Creating booking...', 'info');
+
+      const response = await fetch(`${window.apiClient.baseUrl}/bookings/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': window.apiClient.authHeader
+        },
+        body: JSON.stringify(formData)
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        showFeedback(feedback, 'Booking created successfully!', 'success');
+        setTimeout(() => {
+          form.style.display = 'none';
+          window.reloadRestaurantTab();
+        }, 1500);
+      } else {
+        showFeedback(feedback, 'Error: ' + (result.message || 'Unknown error'), 'error');
+      }
+    } catch (error) {
+      showFeedback(feedback, 'Error: ' + error.message, 'error');
+    }
+  }
+
+  async function submitUpdateBooking(date, resosBookingId) {
+    const formId = 'update-form-' + date + '-' + resosBookingId;
+    const form = document.getElementById(formId);
+    if (!form) return;
+
+    const feedbackId = 'feedback-update-' + date + '-' + resosBookingId;
+    const feedback = document.getElementById(feedbackId);
+
+    // Collect checked updates
+    const updates = {};
+    const checkboxes = form.querySelectorAll('input[type="checkbox"]:checked');
+    checkboxes.forEach(cb => {
+      const fieldName = cb.name;
+      const input = form.querySelector(`[name="${fieldName}_value"]`);
+      if (input) {
+        updates[fieldName] = input.value;
+      }
+    });
+
+    if (Object.keys(updates).length === 0) {
+      showFeedback(feedback, 'Please select at least one field to update', 'error');
+      return;
+    }
+
+    try {
+      showFeedback(feedback, 'Updating booking...', 'info');
+
+      const response = await fetch(`${window.apiClient.baseUrl}/bookings/update`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': window.apiClient.authHeader
+        },
+        body: JSON.stringify({
+          booking_id: resosBookingId,
+          updates: updates
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        showFeedback(feedback, 'Booking updated successfully!', 'success');
+        setTimeout(() => {
+          form.style.display = 'none';
+          window.reloadRestaurantTab();
+        }, 1500);
+      } else {
+        showFeedback(feedback, 'Error: ' + (result.message || 'Unknown error'), 'error');
+      }
+    } catch (error) {
+      showFeedback(feedback, 'Error: ' + error.message, 'error');
+    }
+  }
+
+  async function confirmExcludeMatch(resosBookingId, hotelBookingId, guestName) {
+    if (!confirm(`Exclude this match for ${guestName}?\n\nThis will add "NOT-${hotelBookingId}" to the Resos booking notes.`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${window.apiClient.baseUrl}/bookings/exclude`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': window.apiClient.authHeader
+        },
+        body: JSON.stringify({
+          resos_booking_id: resosBookingId,
+          hotel_booking_id: hotelBookingId
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        alert('Match excluded successfully!');
+        window.reloadRestaurantTab();
+      } else {
+        alert('Error: ' + (result.message || 'Unknown error'));
+      }
+    } catch (error) {
+      alert('Error: ' + error.message);
+    }
+  }
+
+  async function loadComparisonView(date, bookingId, resosBookingId) {
+    const containerId = 'comparison-' + date + '-' + resosBookingId;
+    const comparisonContainer = document.getElementById(containerId);
+    if (!comparisonContainer) return;
+
+    // If already visible, hide it
+    if (comparisonContainer.style.display === 'block') {
+      comparisonContainer.style.display = 'none';
+      return;
+    }
+
+    // Show loading state
+    comparisonContainer.innerHTML = '<div class="bma-comparison-loading">Loading comparison data...</div>';
+    comparisonContainer.style.display = 'block';
+    comparisonContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    try {
+      const response = await fetch(`${window.apiClient.baseUrl}/comparison`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': window.apiClient.authHeader
+        },
+        body: JSON.stringify({
+          booking_id: bookingId,
+          resos_booking_id: resosBookingId,
+          date: date
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success && result.comparison) {
+        const comparisonHTML = buildComparisonHTML(result.comparison, date, resosBookingId);
+        comparisonContainer.innerHTML = comparisonHTML;
+      } else {
+        comparisonContainer.innerHTML = `
+          <div class="bma-comparison-error">
+            Error loading comparison: ${result.message || 'Unknown error'}
+          </div>
+          <button class="bma-close-comparison" data-action="close-comparison" data-container-id="${containerId}">Close</button>
+        `;
+      }
+    } catch (error) {
+      comparisonContainer.innerHTML = `
+        <div class="bma-comparison-error">
+          Error: ${error.message}
+        </div>
+        <button class="bma-close-comparison" data-action="close-comparison" data-container-id="${containerId}">Close</button>
+      `;
+    }
+  }
+
+  function buildComparisonHTML(data, date, resosBookingId) {
+    // This function builds the comparison table HTML
+    // Simplified version - you can enhance this later
+    const hotel = data.hotel || {};
+    const resos = data.resos || {};
+    const matches = data.matches || {};
+    const suggestions = data.suggested_updates || {};
+
+    let html = '<div class="comparison-row-content">';
+    html += '<div class="comparison-table-wrapper">';
+    html += '<div class="comparison-header">Match Comparison</div>';
+    html += '<table class="comparison-table">';
+    html += '<thead><tr><th>Field</th><th>Newbook</th><th>ResOS</th><th>Suggested Updates</th></tr></thead>';
+    html += '<tbody>';
+
+    // Helper to build a row
+    const buildRow = (label, hotelVal, resosVal, suggested, isMatch) => {
+      const matchClass = isMatch ? ' class="match-row"' : '';
+      const suggestionClass = suggested !== undefined && suggested !== null ? 'suggestion-cell has-suggestion' : 'suggestion-cell';
+      return `<tr${matchClass}>
+        <td><strong>${label}</strong></td>
+        <td>${hotelVal || '-'}</td>
+        <td>${resosVal || '-'}</td>
+        <td class="${suggestionClass}">${suggested !== undefined && suggested !== null ? (suggested === '' ? '(Remove)' : suggested) : '-'}</td>
+      </tr>`;
+    };
+
+    html += buildRow('Guest Name', hotel.name, resos.name, suggestions.name, matches.name);
+    html += buildRow('Phone', hotel.phone, resos.phone, suggestions.phone, matches.phone);
+    html += buildRow('Email', hotel.email, resos.email, suggestions.email, matches.email);
+    html += buildRow('People', hotel.people, resos.people, suggestions.people, matches.people);
+    html += buildRow('Tariff/Package', hotel.rate_type, resos.dbb, suggestions.dbb, matches.dbb);
+    html += buildRow('Booking #', hotel.booking_id, resos.booking_ref, suggestions.booking_ref, matches.booking_ref);
+    html += buildRow('Hotel Guest', hotel.is_hotel_guest ? 'Yes' : '-', resos.hotel_guest, suggestions.hotel_guest, false);
+    html += buildRow('Status', hotel.status, resos.status, suggestions.status, false);
+
+    html += '</tbody></table></div>';
+    html += `<button class="bma-close-comparison" data-action="close-comparison" data-container-id="comparison-${date}-${resosBookingId}">Close Comparison</button>`;
+    html += '</div>';
+
+    return html;
+  }
+
+  function closeComparison(containerId) {
+    const comparisonContainer = document.getElementById(containerId);
+    if (comparisonContainer) {
+      comparisonContainer.style.display = 'none';
+    }
+  }
+
+  function showFeedback(feedbackElement, message, type) {
+    if (!feedbackElement) return;
+    feedbackElement.textContent = message;
+    feedbackElement.className = `bma-form-feedback ${type}`;
+    feedbackElement.style.display = 'block';
+  }
 }
 
 function updateTimeSincePlaced(container) {
