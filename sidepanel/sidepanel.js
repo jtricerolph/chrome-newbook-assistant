@@ -372,7 +372,19 @@ function showSummaryCountdown() {
     updateCountdownText(countdownText, secondsLeft);
 
     if (secondsLeft <= 0) {
-      loadSummaryTab(true); // Pass true to indicate auto-refresh
+      // Check if any booking cards are expanded (user is reading)
+      const expandedCards = document.querySelectorAll('.booking-card.expanded');
+      if (expandedCards.length > 0) {
+        // Don't refresh while user is reading - reset countdown
+        console.log('Auto-refresh paused - user has expanded booking cards');
+        countdownText.innerHTML = '<strong style="color: #f59e0b;">⏸ Auto-refresh paused (booking expanded)</strong>';
+        setTimeout(() => {
+          secondsLeft = STATE.settings.summaryRefreshRate;
+          updateCountdownText(countdownText, secondsLeft);
+        }, 2000);
+      } else {
+        loadSummaryTab(true); // Pass true to indicate auto-refresh
+      }
     }
   }, 1000);
 }
