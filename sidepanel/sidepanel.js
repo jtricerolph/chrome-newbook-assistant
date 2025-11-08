@@ -269,7 +269,17 @@ function attachRestaurantEventListeners(container) {
     }
   }
 
+  // Processing flags to prevent multiple simultaneous operations
+  let createProcessing = false;
+  let updateProcessing = false;
+
   async function submitCreateBooking(date) {
+    // Prevent multiple simultaneous operations
+    if (createProcessing) {
+      console.log('Create operation already in progress, ignoring');
+      return;
+    }
+
     const formId = 'create-form-' + date;
     const form = document.getElementById(formId);
     if (!form) return;
@@ -290,6 +300,9 @@ function attachRestaurantEventListeners(container) {
       dbb: form.querySelector('[name="dbb"]').value,
       booking_note: form.querySelector('[name="booking_note"]').value
     };
+
+    createProcessing = true;
+    console.log('Starting create booking operation');
 
     try {
       showFeedback(feedback, 'Creating booking...', 'info');
@@ -316,10 +329,19 @@ function attachRestaurantEventListeners(container) {
       }
     } catch (error) {
       showFeedback(feedback, 'Error: ' + error.message, 'error');
+    } finally {
+      createProcessing = false;
+      console.log('Create booking operation completed');
     }
   }
 
   async function submitUpdateBooking(date, resosBookingId) {
+    // Prevent multiple simultaneous operations
+    if (updateProcessing) {
+      console.log('Update operation already in progress, ignoring');
+      return;
+    }
+
     const formId = 'update-form-' + date + '-' + resosBookingId;
     const form = document.getElementById(formId);
     if (!form) return;
@@ -342,6 +364,9 @@ function attachRestaurantEventListeners(container) {
       showFeedback(feedback, 'Please select at least one field to update', 'error');
       return;
     }
+
+    updateProcessing = true;
+    console.log('Starting update booking operation');
 
     try {
       showFeedback(feedback, 'Updating booking...', 'info');
@@ -371,6 +396,9 @@ function attachRestaurantEventListeners(container) {
       }
     } catch (error) {
       showFeedback(feedback, 'Error: ' + error.message, 'error');
+    } finally {
+      updateProcessing = false;
+      console.log('Update booking operation completed');
     }
   }
 
