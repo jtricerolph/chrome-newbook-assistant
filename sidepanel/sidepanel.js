@@ -177,12 +177,23 @@ function attachSummaryEventListeners(container) {
 
 // Attach event listeners to restaurant tab buttons
 function attachRestaurantEventListeners(container) {
+  // Check if listeners are already attached to prevent duplicates
+  if (container.dataset.listenersAttached === 'true') {
+    console.log('Restaurant event listeners already attached, skipping');
+    return;
+  }
+
   console.log('Attaching restaurant event listeners');
+  container.dataset.listenersAttached = 'true';
 
   // Use event delegation for all button clicks
   container.addEventListener('click', async function(event) {
     const button = event.target.closest('button[data-action]');
     if (!button) return;
+
+    // Prevent event bubbling and default action
+    event.stopPropagation();
+    event.preventDefault();
 
     const action = button.dataset.action;
     console.log('Restaurant button clicked:', action);
@@ -363,10 +374,22 @@ function attachRestaurantEventListeners(container) {
     }
   }
 
+  // Processing flag to prevent multiple simultaneous exclude operations
+  let excludeProcessing = false;
+
   async function confirmExcludeMatch(resosBookingId, hotelBookingId, guestName) {
+    // Prevent multiple simultaneous operations
+    if (excludeProcessing) {
+      console.log('Exclude operation already in progress, ignoring');
+      return;
+    }
+
     if (!confirm(`Exclude this match for ${guestName}?\n\nThis will add "NOT-${hotelBookingId}" to the Resos booking notes.`)) {
       return;
     }
+
+    excludeProcessing = true;
+    console.log('Starting exclude operation for booking:', hotelBookingId);
 
     try {
       const response = await fetch(`${window.apiClient.baseUrl}/bookings/exclude`, {
@@ -391,6 +414,9 @@ function attachRestaurantEventListeners(container) {
       }
     } catch (error) {
       alert('Error: ' + error.message);
+    } finally {
+      excludeProcessing = false;
+      console.log('Exclude operation completed');
     }
   }
 
