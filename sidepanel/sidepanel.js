@@ -177,19 +177,23 @@ function updateBadge(tabName, criticalCount, warningCount) {
     return;
   }
 
-  // Show critical badge if there are critical issues (red)
-  if (criticalCount > 0) {
-    badgeElement.textContent = criticalCount;
-    badgeElement.classList.remove('hidden', 'warning');
-    badgeElement.classList.add('critical');
-    console.log(`Badge for ${tabName} showing ${criticalCount} critical issues`);
-  }
-  // Otherwise show warning badge if there are warnings (amber)
-  else if (warningCount > 0) {
-    badgeElement.textContent = warningCount;
-    badgeElement.classList.remove('hidden', 'critical');
-    badgeElement.classList.add('warning');
-    console.log(`Badge for ${tabName} showing ${warningCount} warnings`);
+  const totalCount = criticalCount + warningCount;
+
+  // Show total count but style based on priority
+  if (totalCount > 0) {
+    badgeElement.textContent = totalCount;
+    badgeElement.classList.remove('hidden');
+
+    // Style based on priority: if ANY critical issues, show red; otherwise amber
+    if (criticalCount > 0) {
+      badgeElement.classList.remove('warning');
+      badgeElement.classList.add('critical');
+      console.log(`Badge for ${tabName} showing ${totalCount} total issues (${criticalCount} critical, ${warningCount} warning) - RED`);
+    } else {
+      badgeElement.classList.remove('critical');
+      badgeElement.classList.add('warning');
+      console.log(`Badge for ${tabName} showing ${totalCount} total issues (${warningCount} warning) - AMBER`);
+    }
   }
   // No issues - hide badge
   else {
