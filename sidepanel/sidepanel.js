@@ -29,7 +29,8 @@ class APIClient {
   }
 
   async fetchSummary() {
-    const response = await fetch(`${this.baseUrl}/summary?context=chrome-summary`, {
+    const limit = this.settings.recentBookingsCount || 10;
+    const response = await fetch(`${this.baseUrl}/summary?context=chrome-summary&limit=${limit}`, {
       method: 'GET',
       headers: {
         'Authorization': this.authHeader,
@@ -234,23 +235,38 @@ function switchTab(tabName) {
 }
 
 // Summary Tab
-async function loadSummaryTab() {
+async function loadSummaryTab(isAutoRefresh = false) {
   if (!STATE.settings) {
     showError('summary', 'Please configure settings first');
     return;
   }
 
   try {
-    showLoading('summary');
+    // Only show loading spinner on first load, not on auto-refresh
+    if (!isAutoRefresh) {
+      showLoading('summary');
+    }
+
     const api = new APIClient(STATE.settings);
     const data = await api.fetchSummary();
 
     if (data.success && data.html) {
-      showData('summary', data.html);
-      updateBadge('summary', data.critical_count || 0, data.warning_count || 0);
-      STATE.cache.summary = data;
+      // Check if data has changed (compare HTML)
+      const hasChanged = !STATE.cache.summary || STATE.cache.summary.html !== data.html;
 
-      // Show countdown
+      if (hasChanged) {
+        showData('summary', data.html);
+        updateBadge('summary', data.critical_count || 0, data.warning_count || 0);
+        STATE.cache.summary = data;
+        console.log('Summary updated with new data');
+      } else {
+        console.log('Summary unchanged - no update needed');
+        if (isAutoRefresh) {
+          showNoChangesMessage();
+        }
+      }
+
+      // Show/restart countdown
       showSummaryCountdown();
     } else {
       showError('summary', 'Invalid response from API');
@@ -263,7 +279,7 @@ async function loadSummaryTab() {
 
 function showSummaryCountdown() {
   const countdownElement = document.querySelector('[data-content="summary"] .summary-countdown');
-  const countdownText = countdownElement.querySelector('.countdown-text strong');
+  const countdownText = countdownElement.querySelector('.countdown-text');
 
   countdownElement.classList.remove('hidden');
 
@@ -273,16 +289,34 @@ function showSummaryCountdown() {
   }
 
   let secondsLeft = STATE.settings.summaryRefreshRate;
-  countdownText.textContent = secondsLeft;
+  updateCountdownText(countdownText, secondsLeft);
 
   STATE.timers.summaryCountdown = setInterval(() => {
     secondsLeft--;
-    countdownText.textContent = secondsLeft;
+    updateCountdownText(countdownText, secondsLeft);
 
     if (secondsLeft <= 0) {
-      loadSummaryTab(); // This will restart the countdown
+      loadSummaryTab(true); // Pass true to indicate auto-refresh
     }
   }, 1000);
+}
+
+function updateCountdownText(element, seconds) {
+  element.innerHTML = `Checking for updates in <strong>${seconds}</strong>s`;
+}
+
+function showNoChangesMessage() {
+  const countdownElement = document.querySelector('[data-content="summary"] .summary-countdown');
+  const countdownText = countdownElement.querySelector('.countdown-text');
+
+  // Show "No changes" message temporarily
+  countdownText.innerHTML = '<strong style="color: #10b981;">✓ No changes found</strong>';
+
+  // Reset to countdown after 2 seconds
+  setTimeout(() => {
+    const secondsLeft = STATE.settings.summaryRefreshRate;
+    updateCountdownText(countdownText, secondsLeft);
+  }, 2000);
 }
 
 // Restaurant Tab
