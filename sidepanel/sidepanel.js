@@ -100,6 +100,46 @@ function showData(tabName, html) {
   tabContent.querySelector('.tab-loading').classList.add('hidden');
   tabContent.querySelector('.tab-error').classList.add('hidden');
   tabContent.querySelector('.tab-empty')?.classList.add('hidden');
+
+  // Attach event listeners for Summary tab accordion
+  if (tabName === 'summary') {
+    attachSummaryEventListeners(dataElement);
+  }
+}
+
+// Attach event listeners to summary tab booking cards
+function attachSummaryEventListeners(container) {
+  // Add click handlers to booking headers for accordion expand/collapse
+  const headers = container.querySelectorAll('.booking-header');
+  headers.forEach(header => {
+    header.addEventListener('click', function() {
+      const card = this.closest('.booking-card');
+      const bookingId = card.dataset.bookingId;
+      const details = document.getElementById('details-' + bookingId);
+      const icon = card.querySelector('.expand-icon');
+
+      if (details.style.display === 'none' || !details.style.display) {
+        details.style.display = 'block';
+        icon.textContent = '▲';
+        card.classList.add('expanded');
+      } else {
+        details.style.display = 'none';
+        icon.textContent = '▼';
+        card.classList.remove('expanded');
+      }
+    });
+  });
+
+  // Add click handlers to "Open in NewBook" buttons
+  const openButtons = container.querySelectorAll('.open-booking-btn');
+  openButtons.forEach(button => {
+    button.addEventListener('click', function(e) {
+      e.stopPropagation(); // Prevent header click event
+      const bookingId = this.dataset.bookingId;
+      const url = `https://appeu.newbook.cloud/bookings_view/${bookingId}`;
+      chrome.tabs.create({ url: url });
+    });
+  });
 }
 
 function showError(tabName, message) {
