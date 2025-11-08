@@ -4,9 +4,9 @@ const STATE = {
   currentBookingId: null,
   settings: null,
   badges: {
-    summary: 0,
-    restaurant: 0,
-    checks: 0
+    summary: { critical: 0, warning: 0 },
+    restaurant: { critical: 0, warning: 0 },
+    checks: { critical: 0, warning: 0 }
   },
   timers: {
     summaryRefresh: null,
@@ -166,9 +166,9 @@ function showEmpty(tabName) {
   }
 }
 
-function updateBadge(tabName, count, isWarning = false) {
-  console.log(`Updating badge for ${tabName}: count=${count}, isWarning=${isWarning}`);
-  STATE.badges[tabName] = count;
+function updateBadge(tabName, criticalCount, warningCount) {
+  console.log(`Updating badge for ${tabName}: critical=${criticalCount}, warning=${warningCount}`);
+  STATE.badges[tabName] = { critical: criticalCount, warning: warningCount };
   const badgeElement = document.querySelector(`[data-badge="${tabName}"]`);
 
   if (!badgeElement) {
@@ -176,18 +176,25 @@ function updateBadge(tabName, count, isWarning = false) {
     return;
   }
 
-  if (count > 0) {
-    badgeElement.textContent = count;
-    badgeElement.classList.remove('hidden');
-    if (isWarning) {
-      badgeElement.classList.add('warning');
-    } else {
-      badgeElement.classList.remove('warning');
-    }
-    console.log(`Badge for ${tabName} now visible with count ${count}`);
-  } else {
+  // Show critical badge if there are critical issues (red)
+  if (criticalCount > 0) {
+    badgeElement.textContent = criticalCount;
+    badgeElement.classList.remove('hidden', 'warning');
+    badgeElement.classList.add('critical');
+    console.log(`Badge for ${tabName} showing ${criticalCount} critical issues`);
+  }
+  // Otherwise show warning badge if there are warnings (amber)
+  else if (warningCount > 0) {
+    badgeElement.textContent = warningCount;
+    badgeElement.classList.remove('hidden', 'critical');
+    badgeElement.classList.add('warning');
+    console.log(`Badge for ${tabName} showing ${warningCount} warnings`);
+  }
+  // No issues - hide badge
+  else {
     badgeElement.classList.add('hidden');
-    console.log(`Badge for ${tabName} now hidden (count is 0)`);
+    badgeElement.classList.remove('critical', 'warning');
+    console.log(`Badge for ${tabName} hidden (no issues)`);
   }
 }
 
@@ -240,7 +247,7 @@ async function loadSummaryTab() {
 
     if (data.success && data.html) {
       showData('summary', data.html);
-      updateBadge('summary', data.badge_count || 0);
+      updateBadge('summary', data.critical_count || 0, data.warning_count || 0);
       STATE.cache.summary = data;
 
       // Show countdown
@@ -298,11 +305,11 @@ async function loadRestaurantTab() {
 
     if (data.success && data.html) {
       showData('restaurant', data.html);
-      updateBadge('restaurant', data.badge_count || 0);
+      updateBadge('restaurant', data.critical_count || 0, data.warning_count || 0);
       STATE.cache.restaurant = data;
     } else if (data.success && !data.html) {
       showEmpty('restaurant');
-      updateBadge('restaurant', 0);
+      updateBadge('restaurant', 0, 0);
     } else {
       showError('restaurant', 'Invalid response from API');
     }
@@ -332,11 +339,11 @@ async function loadChecksTab() {
 
     if (data.success && data.html) {
       showData('checks', data.html);
-      updateBadge('checks', data.badge_count || 0);
+      updateBadge('checks', data.critical_count || 0, data.warning_count || 0);
       STATE.cache.checks = data;
     } else if (data.success && !data.html) {
       showEmpty('checks');
-      updateBadge('checks', 0);
+      updateBadge('checks', 0, 0);
     } else {
       showError('checks', 'Invalid response from API');
     }
@@ -375,20 +382,31 @@ function handleBookingDetected(bookingId) {
     loadChecksTabSilently()
   ]).then(([restaurantData, checksData]) => {
     // Determine which tab to switch to based on priority
-    const restaurantBadge = restaurantData?.badge_count || 0;
-    const checksBadge = checksData?.badge_count || 0;
+    const restaurantCritical = restaurantData?.critical_count || 0;
+    const restaurantWarning = restaurantData?.warning_count || 0;
+    const checksCritical = checksData?.critical_count || 0;
+    const checksWarning = checksData?.warning_count || 0;
 
-    console.log('Badge counts - Restaurant:', restaurantBadge, 'Checks:', checksBadge);
+    console.log('Badge counts - Restaurant: critical=' + restaurantCritical + ', warning=' + restaurantWarning +
+                ', Checks: critical=' + checksCritical + ', warning=' + checksWarning);
 
     // Priority logic:
-    // 1. Restaurant tab if it has issues
-    // 2. Checks tab if it has issues
-    // 3. Restaurant tab as fallback (always show restaurant when booking detected)
-    if (restaurantBadge > 0) {
-      console.log('Switching to restaurant tab (has issues)');
+    // 1. Restaurant tab if it has critical issues (package alerts)
+    // 2. Checks tab if it has critical issues
+    // 3. Restaurant tab if it has warnings
+    // 4. Checks tab if it has warnings
+    // 5. Restaurant tab as fallback (always show restaurant when booking detected)
+    if (restaurantCritical > 0) {
+      console.log('Switching to restaurant tab (has critical issues)');
       switchTab('restaurant');
-    } else if (checksBadge > 0) {
-      console.log('Switching to checks tab (has issues)');
+    } else if (checksCritical > 0) {
+      console.log('Switching to checks tab (has critical issues)');
+      switchTab('checks');
+    } else if (restaurantWarning > 0) {
+      console.log('Switching to restaurant tab (has warnings)');
+      switchTab('restaurant');
+    } else if (checksWarning > 0) {
+      console.log('Switching to checks tab (has warnings)');
       switchTab('checks');
     } else {
       // Fallback to restaurant tab even without issues
@@ -404,9 +422,9 @@ async function loadRestaurantTabSilently() {
   try {
     const api = new APIClient(STATE.settings);
     const data = await api.fetchRestaurantMatch(STATE.currentBookingId);
-    console.log('Restaurant data loaded, badge_count:', data.badge_count);
+    console.log('Restaurant data loaded, critical:', data.critical_count, 'warning:', data.warning_count);
     console.log('Full restaurant API response:', JSON.stringify(data, null, 2));
-    updateBadge('restaurant', data.badge_count || 0);
+    updateBadge('restaurant', data.critical_count || 0, data.warning_count || 0);
     STATE.cache.restaurant = data;
     return data;
   } catch (error) {
@@ -419,9 +437,9 @@ async function loadChecksTabSilently() {
   try {
     const api = new APIClient(STATE.settings);
     const data = await api.fetchChecks(STATE.currentBookingId);
-    console.log('Checks data loaded, badge_count:', data.badge_count);
+    console.log('Checks data loaded, critical:', data.critical_count, 'warning:', data.warning_count);
     console.log('Full checks API response:', JSON.stringify(data, null, 2));
-    updateBadge('checks', data.badge_count || 0);
+    updateBadge('checks', data.critical_count || 0, data.warning_count || 0);
     STATE.cache.checks = data;
     return data;
   } catch (error) {

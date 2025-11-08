@@ -78,6 +78,10 @@ body {
   justify-content: center;
 }
 
+.tab-badge.critical {
+  background-color: #dc2626;
+}
+
 .tab-badge.warning {
   background-color: #f59e0b;
 }
