@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NewBook Assistant - Settings</title>
+  <link rel="stylesheet" href="settings.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>NewBook Assistant Settings</h1>
+    </header>
+
+    <main>
+      <section class="settings-section">
+        <h2>API Configuration</h2>
+        <div class="form-group">
+          <label for="apiRootUrl">API Root URL</label>
+          <input
+            type="url"
+            id="apiRootUrl"
+            placeholder="https://admin.hotelnumberfour.com/wp-json/bma/v1"
+            required
+          >
+          <small>The base URL for the Booking Match API endpoint</small>
+        </div>
+
+        <div class="form-group">
+          <label for="username">Username</label>
+          <input
+            type="text"
+            id="username"
+            placeholder="reception"
+            required
+          >
+          <small>WordPress username for API authentication</small>
+        </div>
+
+        <div class="form-group">
+          <label for="applicationPassword">Application Password</label>
+          <input
+            type="password"
+            id="applicationPassword"
+            placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"
+            required
+          >
+          <small>WordPress Application Password (spaces will be removed automatically)</small>
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <h2>Sidebar Behavior</h2>
+        <div class="form-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="enableSidebarOnNewBook">
+            <span>Enable sidebar on NewBook domain</span>
+          </label>
+          <small>Automatically enable the sidepanel when viewing NewBook pages</small>
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <h2>Summary Tab Settings</h2>
+        <div class="form-group">
+          <label for="recentBookingsCount">Number of recent bookings to display</label>
+          <input
+            type="number"
+            id="recentBookingsCount"
+            min="1"
+            max="50"
+            value="10"
+          >
+          <small>How many recent bookings to show in the summary (1-50)</small>
+        </div>
+
+        <div class="form-group">
+          <label for="summaryRefreshRate">Summary refresh rate (seconds)</label>
+          <input
+            type="number"
+            id="summaryRefreshRate"
+            min="10"
+            max="300"
+            value="60"
+          >
+          <small>How often to automatically refresh the summary tab (10-300 seconds)</small>
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <h2>Planner Integration</h2>
+        <div class="form-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="enablePlannerClickUpdate">
+            <span>Update booking on planner single-click</span>
+          </label>
+          <small>Automatically update the sidepanel when clicking bookings in the planner view</small>
+        </div>
+      </section>
+
+      <div class="button-group">
+        <button id="testConnection" class="button button-secondary">Test Connection</button>
+        <button id="saveSettings" class="button button-primary">Save Settings</button>
+      </div>
+
+      <div id="status" class="status hidden"></div>
+    </main>
+  </div>
+
+  <script src="settings.js"></script>
+</body>
+</html>

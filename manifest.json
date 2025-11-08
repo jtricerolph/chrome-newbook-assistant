@@ -1,0 +1,45 @@
+{
+  "manifest_version": 3,
+  "name": "NewBook Assistant",
+  "version": "2.0.0",
+  "description": "Sidepanel assistant for NewBook booking management and restaurant reservation matching",
+
+  "permissions": [
+    "sidePanel",
+    "storage",
+    "tabs",
+    "webNavigation"
+  ],
+
+  "host_permissions": [
+    "https://appeu.newbook.cloud/*",
+    "https://admin.hotelnumberfour.com/*",
+    "https://n4admindev.pterois.co.uk/*"
+  ],
+
+  "background": {
+    "service_worker": "background.js"
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["https://appeu.newbook.cloud/*"],
+      "js": ["content-script.js"],
+      "run_at": "document_idle"
+    }
+  ],
+
+  "side_panel": {
+    "default_path": "sidepanel/sidepanel.html"
+  },
+
+  "options_page": "settings/settings.html",
+
+  "action": {},
+
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
