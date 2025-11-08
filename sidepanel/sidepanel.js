@@ -255,8 +255,15 @@ async function loadSummaryTab(isAutoRefresh = false) {
     const data = await api.fetchSummary();
 
     if (data.success && data.html) {
-      // Check if data has changed (compare HTML)
-      const hasChanged = !STATE.cache.summary || STATE.cache.summary.html !== data.html;
+      // Check if data has changed (compare counts instead of HTML to avoid false positives)
+      const dataSignature = `${data.bookings_count}-${data.critical_count}-${data.warning_count}`;
+      const cachedSignature = STATE.cache.summary
+        ? `${STATE.cache.summary.bookings_count}-${STATE.cache.summary.critical_count}-${STATE.cache.summary.warning_count}`
+        : null;
+
+      const hasChanged = !STATE.cache.summary || cachedSignature !== dataSignature;
+
+      console.log(`Summary check: cached="${cachedSignature}", new="${dataSignature}", changed=${hasChanged}`);
 
       if (hasChanged) {
         showData('summary', data.html);
@@ -265,6 +272,8 @@ async function loadSummaryTab(isAutoRefresh = false) {
         console.log('Summary updated with new data');
       } else {
         console.log('Summary unchanged - no update needed');
+        // Update badge anyway in case counts changed
+        updateBadge('summary', data.critical_count || 0, data.warning_count || 0);
         if (isAutoRefresh) {
           showNoChangesMessage();
         }
@@ -553,10 +562,6 @@ document.querySelectorAll('.retry-button').forEach(button => {
       loadChecksTab();
     }
   });
-});
-
-document.getElementById('settingsButton').addEventListener('click', () => {
-  chrome.runtime.openOptionsPage();
 });
 
 // Initialize
