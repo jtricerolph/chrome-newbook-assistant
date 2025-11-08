@@ -6,7 +6,8 @@ const DEFAULT_SETTINGS = {
   enableSidebarOnNewBook: true,
   recentBookingsCount: 10,
   summaryRefreshRate: 60,
-  enablePlannerClickUpdate: true
+  enablePlannerClickUpdate: true,
+  highlightNewestMinutes: 60
 };
 
 // DOM elements
@@ -18,6 +19,7 @@ const elements = {
   recentBookingsCount: document.getElementById('recentBookingsCount'),
   summaryRefreshRate: document.getElementById('summaryRefreshRate'),
   enablePlannerClickUpdate: document.getElementById('enablePlannerClickUpdate'),
+  highlightNewestMinutes: document.getElementById('highlightNewestMinutes'),
   testConnection: document.getElementById('testConnection'),
   saveSettings: document.getElementById('saveSettings'),
   status: document.getElementById('status')
@@ -36,6 +38,7 @@ async function loadSettings() {
     elements.recentBookingsCount.value = settings.recentBookingsCount || 10;
     elements.summaryRefreshRate.value = settings.summaryRefreshRate || 60;
     elements.enablePlannerClickUpdate.checked = settings.enablePlannerClickUpdate !== false;
+    elements.highlightNewestMinutes.value = settings.highlightNewestMinutes || 60;
   } catch (error) {
     showStatus('Error loading settings: ' + error.message, 'error');
   }
@@ -92,6 +95,13 @@ async function saveSettings() {
       return;
     }
 
+    const highlightMinutes = parseInt(elements.highlightNewestMinutes.value);
+    if (highlightMinutes < 0 || highlightMinutes > 1440) {
+      showStatus('Highlight threshold must be between 0 and 1440 minutes (24 hours)', 'error');
+      elements.highlightNewestMinutes.focus();
+      return;
+    }
+
     const settings = {
       apiRootUrl: elements.apiRootUrl.value.trim().replace(/\/$/, ''), // Remove trailing slash
       username: elements.username.value.trim(),
@@ -99,7 +109,8 @@ async function saveSettings() {
       enableSidebarOnNewBook: elements.enableSidebarOnNewBook.checked,
       recentBookingsCount: bookingsCount,
       summaryRefreshRate: refreshRate,
-      enablePlannerClickUpdate: elements.enablePlannerClickUpdate.checked
+      enablePlannerClickUpdate: elements.enablePlannerClickUpdate.checked,
+      highlightNewestMinutes: highlightMinutes
     };
 
     await chrome.storage.sync.set({ settings });

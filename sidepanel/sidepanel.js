@@ -148,6 +148,61 @@ function attachSummaryEventListeners(container) {
       chrome.tabs.update({ url: url });
     });
   });
+
+  // Update time since placed and apply highlighting
+  updateTimeSincePlaced(container);
+}
+
+function updateTimeSincePlaced(container) {
+  const bookingCards = container.querySelectorAll('.booking-card');
+  const highlightThreshold = STATE.settings.highlightNewestMinutes || 60;
+
+  bookingCards.forEach(card => {
+    const placedTime = card.dataset.bookingPlaced;
+    if (!placedTime) return;
+
+    const timeSinceElement = card.querySelector('.time-since-placed');
+    if (!timeSinceElement) return;
+
+    // Calculate time difference
+    const placed = new Date(placedTime);
+    const now = new Date();
+    const diffMs = now - placed;
+    const diffMinutes = Math.floor(diffMs / 60000);
+
+    // Format time since placed
+    const timeString = formatTimeSince(diffMinutes);
+    timeSinceElement.textContent = timeString;
+
+    // Apply highlighting if within threshold
+    if (diffMinutes <= highlightThreshold) {
+      card.classList.add('new-booking');
+    } else {
+      card.classList.remove('new-booking');
+    }
+  });
+}
+
+function formatTimeSince(minutes) {
+  if (minutes < 1) {
+    return 'Just now';
+  } else if (minutes < 60) {
+    return `${minutes}m ago`;
+  } else if (minutes < 1440) {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    if (mins === 0) {
+      return `${hours}h ago`;
+    }
+    return `${hours}h ${mins}m ago`;
+  } else {
+    const days = Math.floor(minutes / 1440);
+    const hours = Math.floor((minutes % 1440) / 60);
+    if (hours === 0) {
+      return `${days}d ago`;
+    }
+    return `${days}d ${hours}h ago`;
+  }
 }
 
 function showError(tabName, message) {
