@@ -20,6 +20,9 @@ const STATE = {
   }
 };
 
+// Global API client (exposed for use by injected template content)
+window.apiClient = null;
+
 // API Client
 class APIClient {
   constructor(settings) {
@@ -601,6 +604,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   } else if (message.action === 'settingsUpdated') {
     console.log('Settings updated, reloading current tab');
     loadSettings().then(() => {
+      // Reinitialize global API client with new settings
+      window.apiClient = new APIClient(STATE.settings);
+      console.log('Global apiClient reinitialized after settings update');
+
       // Reload current tab
       if (STATE.currentTab === 'summary') {
         loadSummaryTab();
@@ -662,6 +669,10 @@ async function init() {
   const settingsLoaded = await loadSettings();
 
   if (settingsLoaded) {
+    // Initialize global API client for use by injected template content
+    window.apiClient = new APIClient(STATE.settings);
+    console.log('Global apiClient initialized');
+
     // Load summary tab on startup
     loadSummaryTab();
 
@@ -672,6 +683,12 @@ async function init() {
     }
   }
 }
+
+// Global function to reload restaurant tab (called by injected template content after booking actions)
+window.reloadRestaurantTab = function() {
+  console.log('reloadRestaurantTab called');
+  loadRestaurantTab();
+};
 
 // Start the app
 document.addEventListener('DOMContentLoaded', init);
