@@ -30,7 +30,14 @@ class APIClient {
 
   async fetchSummary() {
     const limit = this.settings.recentBookingsCount || 10;
-    const response = await fetch(`${this.baseUrl}/summary?context=chrome-summary&limit=${limit}`, {
+    console.log('fetchSummary - settings:', this.settings);
+    console.log('fetchSummary - recentBookingsCount:', this.settings.recentBookingsCount);
+    console.log('fetchSummary - limit:', limit);
+
+    const url = `${this.baseUrl}/summary?context=chrome-summary&limit=${limit}`;
+    console.log('fetchSummary - URL:', url);
+
+    const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Authorization': this.authHeader,
@@ -528,8 +535,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 async function loadSettings() {
   try {
     const result = await chrome.storage.sync.get('settings');
+    console.log('loadSettings - result:', result);
+    console.log('loadSettings - settings:', result.settings);
     if (result.settings && result.settings.apiRootUrl) {
       STATE.settings = result.settings;
+      console.log('Settings loaded successfully:', STATE.settings);
+      console.log('recentBookingsCount:', STATE.settings.recentBookingsCount);
       return true;
     } else {
       showError('summary', 'Please configure API settings first');
