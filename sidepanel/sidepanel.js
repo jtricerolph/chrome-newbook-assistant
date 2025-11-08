@@ -325,20 +325,21 @@ async function loadSummaryTab(isAutoRefresh = false) {
 
       const hasChanged = !STATE.cache.summary || cachedSignature !== dataSignature;
 
-      console.log(`Summary check: cached="${cachedSignature}", new="${dataSignature}", changed=${hasChanged}`);
+      console.log(`Summary check: cached="${cachedSignature}", new="${dataSignature}", changed=${hasChanged}, isAutoRefresh=${isAutoRefresh}`);
 
-      if (hasChanged) {
+      // Always show data if:
+      // 1. Data has changed, OR
+      // 2. This is NOT an auto-refresh (manual tab switch or first load)
+      if (hasChanged || !isAutoRefresh) {
         showData('summary', data.html);
         updateBadge('summary', data.critical_count || 0, data.warning_count || 0);
         STATE.cache.summary = data;
-        console.log('Summary updated with new data');
+        console.log(hasChanged ? 'Summary updated with new data' : 'Summary displayed (no change but manual load)');
       } else {
-        console.log('Summary unchanged - no update needed');
-        // Update badge anyway in case counts changed
+        // Only skip display during auto-refresh when nothing changed
+        console.log('Summary unchanged during auto-refresh - showing no changes message');
         updateBadge('summary', data.critical_count || 0, data.warning_count || 0);
-        if (isAutoRefresh) {
-          showNoChangesMessage();
-        }
+        showNoChangesMessage();
       }
 
       // Show/restart countdown
