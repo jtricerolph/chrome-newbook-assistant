@@ -137,7 +137,7 @@ function attachSummaryEventListeners(container) {
       e.stopPropagation(); // Prevent header click event
       const bookingId = this.dataset.bookingId;
       const url = `https://appeu.newbook.cloud/bookings_view/${bookingId}`;
-      chrome.tabs.create({ url: url });
+      chrome.tabs.update({ url: url });
     });
   });
 }
