@@ -146,8 +146,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     chrome.runtime.sendMessage(message).catch(() => {
       // Sidepanel might not be open
     });
+  } else if (message.action === 'bookingDetected') {
+    // Forward booking detection to sidepanel (from popup/content script)
+    console.log('Forwarding bookingDetected from content script:', message.bookingId, 'source:', message.source);
+    chrome.runtime.sendMessage(message).catch(() => {
+      // Sidepanel might not be open
+    });
   } else if (message.action === 'plannerClick') {
     // Forward planner click to sidepanel
+    console.log('Forwarding plannerClick from content script:', message.bookingId);
     chrome.runtime.sendMessage(message).catch(() => {
       // Sidepanel might not be open
     });
