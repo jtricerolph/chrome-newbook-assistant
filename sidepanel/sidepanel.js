@@ -149,6 +149,20 @@ function attachSummaryEventListeners(container) {
     });
   });
 
+  // Add click handlers to issue rows/alerts to open Restaurant tab
+  const clickableIssues = container.querySelectorAll('.clickable-issue');
+  clickableIssues.forEach(issue => {
+    issue.addEventListener('click', function(e) {
+      e.stopPropagation(); // Prevent header click event
+      const bookingId = this.dataset.bookingId;
+      console.log('Issue clicked - switching to Restaurant tab for booking:', bookingId);
+
+      // Set current booking ID and switch to Restaurant tab
+      STATE.currentBookingId = bookingId;
+      switchTab('restaurant');
+    });
+  });
+
   // Update time since placed and apply highlighting
   updateTimeSincePlaced(container);
 }
