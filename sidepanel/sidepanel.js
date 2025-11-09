@@ -388,7 +388,7 @@ function attachRestaurantEventListeners(container) {
       }
     } catch (error) {
       console.error('Error handling restaurant action:', error);
-      alert('Error: ' + error.message);
+      showToast(`Error: ${error.message}`, 'error');
     }
   });
 
@@ -562,7 +562,14 @@ function attachRestaurantEventListeners(container) {
       return;
     }
 
-    if (!confirm(`Exclude this match for ${guestName}?\n\nThis will add "NOT-${hotelBookingId}" to the Resos booking notes.`)) {
+    const confirmed = await showModal(
+      'Exclude This Match?',
+      `This will add a "NOT-#${hotelBookingId}" note to the ResOS booking for ${guestName}, marking it as excluded from this hotel booking.`,
+      'Exclude Match',
+      'Cancel'
+    );
+
+    if (!confirmed) {
       return;
     }
 
@@ -585,13 +592,13 @@ function attachRestaurantEventListeners(container) {
       const result = await response.json();
 
       if (result.success) {
-        alert('Match excluded successfully!');
+        showToast(`Match excluded successfully! NOT-#${hotelBookingId} note added.`, 'success');
         window.reloadRestaurantTab();
       } else {
-        alert('Error: ' + (result.message || 'Unknown error'));
+        showToast(`Error: ${result.message || 'Failed to exclude match'}`, 'error');
       }
     } catch (error) {
-      alert('Error: ' + error.message);
+      showToast(`Error: ${error.message}`, 'error');
     } finally {
       excludeProcessing = false;
       console.log('Exclude operation completed');
@@ -831,6 +838,71 @@ function attachRestaurantEventListeners(container) {
     return div.innerHTML;
   }
 
+  // Custom Modal System
+  function showModal(title, message, confirmText = 'Confirm', cancelText = 'Cancel') {
+    return new Promise((resolve) => {
+      const modal = document.getElementById('bma-custom-modal');
+      const titleEl = document.getElementById('bma-modal-title');
+      const messageEl = document.getElementById('bma-modal-message');
+      const confirmBtn = document.getElementById('bma-modal-confirm');
+      const cancelBtn = document.getElementById('bma-modal-cancel');
+
+      titleEl.textContent = title;
+      messageEl.textContent = message;
+      confirmBtn.textContent = confirmText;
+      cancelBtn.textContent = cancelText;
+
+      modal.classList.add('show');
+
+      const handleConfirm = () => {
+        cleanup();
+        resolve(true);
+      };
+
+      const handleCancel = () => {
+        cleanup();
+        resolve(false);
+      };
+
+      const cleanup = () => {
+        modal.classList.remove('show');
+        confirmBtn.removeEventListener('click', handleConfirm);
+        cancelBtn.removeEventListener('click', handleCancel);
+      };
+
+      confirmBtn.addEventListener('click', handleConfirm);
+      cancelBtn.addEventListener('click', handleCancel);
+    });
+  }
+
+  // Toast Notification System
+  function showToast(message, type = 'success', duration = 4000) {
+    const container = document.getElementById('bma-toast-container');
+
+    const toast = document.createElement('div');
+    toast.className = `bma-toast ${type}`;
+
+    const iconMap = {
+      success: 'check_circle',
+      error: 'error',
+      info: 'info'
+    };
+
+    toast.innerHTML = `
+      <span class="material-symbols-outlined bma-toast-icon">${iconMap[type] || 'info'}</span>
+      <div class="bma-toast-content">
+        <p class="bma-toast-message">${message}</p>
+      </div>
+    `;
+
+    container.appendChild(toast);
+
+    setTimeout(() => {
+      toast.style.animation = 'toastSlideIn 0.3s ease-out reverse';
+      setTimeout(() => toast.remove(), 300);
+    }, duration);
+  }
+
   // Submit selected suggestions from comparison checkboxes
   async function submitSuggestions(date, resosBookingId, hotelBookingId, isConfirmed) {
     const containerId = 'comparison-' + date + '-' + resosBookingId;
@@ -841,7 +913,7 @@ function attachRestaurantEventListeners(container) {
     const checkboxes = container.querySelectorAll('.suggestion-checkbox:checked');
 
     if (checkboxes.length === 0) {
-      alert('Please select at least one suggestion to update.');
+      showToast('Please select at least one suggestion to update', 'error');
       return;
     }
 
@@ -892,13 +964,13 @@ function attachRestaurantEventListeners(container) {
       const result = await response.json();
 
       if (result.success) {
-        alert('Booking updated successfully!');
+        showToast('✓ Booking updated successfully!', 'success');
         window.reloadRestaurantTab();
       } else {
-        alert('Error: ' + (result.message || 'Unknown error'));
+        showToast(`Error: ${result.message || 'Failed to update booking'}`, 'error');
       }
     } catch (error) {
-      alert('Error: ' + error.message);
+      showToast(`Error: ${error.message}`, 'error');
     } finally {
       if (submitBtn) {
         submitBtn.disabled = false;
