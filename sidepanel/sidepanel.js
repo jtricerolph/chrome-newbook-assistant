@@ -311,8 +311,24 @@ function attachRestaurantEventListeners(container) {
   console.log('Attaching restaurant event listeners');
   container.dataset.listenersAttached = 'true';
 
+  // Reset inactivity timer on ANY interaction (clicks, scrolling, typing, etc.)
+  const resetTimer = () => {
+    if (STATE.currentTab === 'restaurant' || STATE.currentTab === 'checks') {
+      resetInactivityTimer();
+      startInactivityTimer();
+    }
+  };
+
+  // Listen for various interaction events
+  container.addEventListener('scroll', resetTimer, { passive: true });
+  container.addEventListener('input', resetTimer);
+  container.addEventListener('change', resetTimer);
+
   // Use event delegation for all button clicks
   container.addEventListener('click', async function(event) {
+    // Reset timer for any click in the container
+    resetTimer();
+
     const button = event.target.closest('button[data-action]');
     if (!button) return;
 
