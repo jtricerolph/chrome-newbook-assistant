@@ -1145,14 +1145,14 @@ function attachRestaurantEventListeners(container) {
         periods.forEach((period, index) => {
           const isLast = index === periods.length - 1;
           const isExpanded = isLast; // Latest period expanded by default
-          const periodLabel = `${period.name || 'Service'} (${formatTimeHHMM(period.open)}-${formatTimeHHMM(period.close)})`;
+          const periodLabel = period.name || 'Service Period'; // Just the name, no times
           const collapseIcon = isExpanded ? '▼' : '▶';
           const expandedClass = isExpanded ? ' expanded' : '';
           const displayStyle = isExpanded ? 'flex' : 'none';
 
           sectionsHtml += `
             <div class="service-period-section" data-period-index="${index}">
-              <button type="button" class="period-header${expandedClass}" data-period-index="${index}" data-period-id="${escapeHtml(period._id)}" onclick="togglePeriodSection('${date}', ${index})">
+              <button type="button" class="period-header${expandedClass}" data-period-index="${index}" data-period-id="${escapeHtml(period._id)}" data-date="${date}">
                 <span class="collapse-icon">${collapseIcon}</span>
                 <span class="period-label">${escapeHtml(periodLabel)}</span>
               </button>
@@ -1163,6 +1163,16 @@ function attachRestaurantEventListeners(container) {
           `;
         });
         sectionsContainer.innerHTML = sectionsHtml;
+
+        // Add click handlers to period header buttons
+        const periodHeaders = sectionsContainer.querySelectorAll('.period-header');
+        periodHeaders.forEach(header => {
+          header.addEventListener('click', function() {
+            const headerDate = this.dataset.date;
+            const headerIndex = parseInt(this.dataset.periodIndex);
+            togglePeriodSection(headerDate, headerIndex);
+          });
+        });
 
         // Generate Gantt chart
         if (typeof buildGanttChart === 'function') {
