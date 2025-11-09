@@ -760,11 +760,19 @@ function attachRestaurantEventListeners(container) {
       ? (isHTML ? resosValue : escapeHTML(String(resosValue)))
       : '<em style="color: #adb5bd;">-</em>';
 
+    // Get plain text values for title attributes (tooltips)
+    const hotelTitle = hotelValue !== undefined && hotelValue !== null && hotelValue !== ''
+      ? String(hotelValue)
+      : '';
+    const resosTitle = resosValue !== undefined && resosValue !== null && resosValue !== ''
+      ? String(resosValue)
+      : '';
+
     // Main comparison row (3 columns: Field, Newbook, ResOS)
     let html = `<tr${matchClass}>`;
     html += `<td><strong>${escapeHTML(label)}</strong></td>`;
-    html += `<td>${hotelDisplay}</td>`;
-    html += `<td>${resosDisplay}</td>`;
+    html += hotelTitle ? `<td title="${escapeHTML(hotelTitle)}">${hotelDisplay}</td>` : `<td>${hotelDisplay}</td>`;
+    html += resosTitle ? `<td title="${escapeHTML(resosTitle)}">${resosDisplay}</td>` : `<td>${resosDisplay}</td>`;
     html += '</tr>';
 
     // If there's a suggestion, add a suggestion row below
