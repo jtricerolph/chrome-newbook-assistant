@@ -17,11 +17,136 @@ const STATE = {
     summary: null,
     restaurant: null,
     checks: null
+  },
+  newbookAuth: {
+    isAuthenticated: false,
+    checking: false
   }
 };
 
 // Global API client (exposed for use by injected template content)
 window.apiClient = null;
+
+// Authentication State Management
+const AuthManager = {
+  // Check if NewBook session is active by checking cookies
+  async checkNewBookAuth() {
+    try {
+      // NewBook uses session cookies - check for common session cookie names
+      // Adjust cookie name based on your NewBook instance (may be 'PHPSESSID', 'newbook_session', etc.)
+      const cookies = await chrome.cookies.getAll({
+        url: 'https://appeu.newbook.cloud'
+      });
+
+      console.log('NewBook cookies found:', cookies.length);
+
+      // Check if there's a valid session cookie
+      // NewBook typically uses PHPSESSID or similar
+      const sessionCookie = cookies.find(cookie =>
+        cookie.name === 'PHPSESSID' ||
+        cookie.name.toLowerCase().includes('session') ||
+        cookie.name.toLowerCase().includes('newbook')
+      );
+
+      const isAuthenticated = !!sessionCookie && !this.isCookieExpired(sessionCookie);
+
+      console.log('NewBook authentication status:', isAuthenticated ? 'Authenticated' : 'Not authenticated');
+
+      return isAuthenticated;
+    } catch (error) {
+      console.error('Error checking NewBook auth:', error);
+      return false;
+    }
+  },
+
+  isCookieExpired(cookie) {
+    if (!cookie.expirationDate) {
+      // Session cookies without expiration are valid until browser closes
+      return false;
+    }
+    return cookie.expirationDate * 1000 < Date.now();
+  },
+
+  // Show lock screen overlay
+  showLockScreen() {
+    const existingLock = document.getElementById('newbook-lock-screen');
+    if (existingLock) return; // Already showing
+
+    const lockScreen = document.createElement('div');
+    lockScreen.id = 'newbook-lock-screen';
+    lockScreen.innerHTML = `
+      <div class="lock-screen-content">
+        <span class="material-symbols-outlined lock-icon">lock</span>
+        <h2>NewBook Not Logged In</h2>
+        <p>Please log in to NewBook to use this assistant.</p>
+        <button class="lock-screen-btn" id="open-newbook-btn">
+          <span class="material-symbols-outlined">open_in_new</span>
+          Open NewBook
+        </button>
+        <button class="lock-screen-btn secondary" id="check-auth-btn">
+          <span class="material-symbols-outlined">refresh</span>
+          Check Again
+        </button>
+      </div>
+    `;
+
+    document.body.appendChild(lockScreen);
+
+    // Add event listeners
+    document.getElementById('open-newbook-btn').addEventListener('click', async () => {
+      // Open NewBook in a new tab
+      await chrome.tabs.create({ url: 'https://appeu.newbook.cloud' });
+    });
+
+    document.getElementById('check-auth-btn').addEventListener('click', async () => {
+      await this.updateAuthState();
+    });
+  },
+
+  // Remove lock screen overlay
+  hideLockScreen() {
+    const lockScreen = document.getElementById('newbook-lock-screen');
+    if (lockScreen) {
+      lockScreen.remove();
+    }
+  },
+
+  // Update authentication state and show/hide lock screen
+  async updateAuthState() {
+    if (STATE.newbookAuth.checking) return;
+
+    STATE.newbookAuth.checking = true;
+    const isAuthenticated = await this.checkNewBookAuth();
+    STATE.newbookAuth.isAuthenticated = isAuthenticated;
+    STATE.newbookAuth.checking = false;
+
+    if (isAuthenticated) {
+      this.hideLockScreen();
+    } else {
+      this.showLockScreen();
+    }
+
+    return isAuthenticated;
+  },
+
+  // Start listening for cookie changes
+  startCookieMonitoring() {
+    chrome.cookies.onChanged.addListener((changeInfo) => {
+      // Check if the changed cookie is from NewBook domain
+      if (changeInfo.cookie.domain.includes('newbook.cloud')) {
+        console.log('NewBook cookie changed:', changeInfo);
+
+        // Debounce auth check to avoid too many checks
+        clearTimeout(this._cookieCheckTimeout);
+        this._cookieCheckTimeout = setTimeout(() => {
+          this.updateAuthState();
+        }, 1000);
+      }
+    });
+
+    console.log('Cookie monitoring started');
+  }
+};
 
 // API Client
 class APIClient {
@@ -1062,13 +1187,22 @@ async function init() {
     window.apiClient = new APIClient(STATE.settings);
     console.log('Global apiClient initialized');
 
-    // Load summary tab on startup
-    loadSummaryTab();
+    // Start cookie monitoring for NewBook auth
+    AuthManager.startCookieMonitoring();
 
-    // Check if there's a current booking from storage
-    const result = await chrome.storage.local.get('currentBookingId');
-    if (result.currentBookingId) {
-      STATE.currentBookingId = result.currentBookingId;
+    // Check NewBook authentication status
+    const isAuthenticated = await AuthManager.updateAuthState();
+
+    // Only load tabs if authenticated
+    if (isAuthenticated) {
+      // Load summary tab on startup
+      loadSummaryTab();
+
+      // Check if there's a current booking from storage
+      const result = await chrome.storage.local.get('currentBookingId');
+      if (result.currentBookingId) {
+        STATE.currentBookingId = result.currentBookingId;
+      }
     }
   }
 }
