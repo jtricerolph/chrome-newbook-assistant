@@ -375,64 +375,64 @@ window.buildGanttChart = buildGanttChart;
 // =============================================================================
 
 /**
- * Switch between service period tabs
+ * Toggle collapsible service period section
  * @param {string} date - Date string for the form
- * @param {number} tabIndex - Index of the tab to activate
+ * @param {number} periodIndex - Index of the period to toggle
  */
-async function switchTimeTab(date, tabIndex) {
-  // Get all tabs and tab contents for this date
-  const tabsContainer = document.getElementById('service-period-tabs-' + date);
-  const sectionsContainer = document.getElementById('time-slots-sections-' + date);
-
-  if (!tabsContainer || !sectionsContainer) {
-    console.warn('Tab containers not found for date:', date);
+async function togglePeriodSection(date, periodIndex) {
+  const sectionsContainer = document.getElementById('service-period-sections-' + date);
+  if (!sectionsContainer) {
+    console.warn('Sections container not found for date:', date);
     return;
   }
 
-  const tabs = tabsContainer.querySelectorAll('.time-tab');
-  const sections = sectionsContainer.querySelectorAll('.time-tab-content');
+  const allHeaders = sectionsContainer.querySelectorAll('.period-header');
+  const allTimes = sectionsContainer.querySelectorAll('.period-times');
+  const clickedHeader = sectionsContainer.querySelector(`.period-header[data-period-index="${periodIndex}"]`);
+  const clickedTimes = sectionsContainer.querySelector(`.period-times[data-period-index="${periodIndex}"]`);
 
-  // Deactivate all tabs and hide all sections
-  tabs.forEach(tab => {
-    tab.classList.remove('active');
-  });
-  sections.forEach(section => {
-    section.classList.remove('active');
-    section.style.display = 'none';
-  });
-
-  // Activate selected tab and show its section
-  const selectedTab = tabsContainer.querySelector('.time-tab[data-tab-index="' + tabIndex + '"]');
-  const selectedSection = sectionsContainer.querySelector('.time-tab-content[data-tab-index="' + tabIndex + '"]');
-
-  if (selectedTab) {
-    selectedTab.classList.add('active');
+  if (!clickedHeader || !clickedTimes) {
+    console.warn('Period section not found for index:', periodIndex);
+    return;
   }
-  if (selectedSection) {
-    selectedSection.classList.add('active');
-    selectedSection.style.display = 'flex';
+
+  const isCurrentlyExpanded = clickedHeader.classList.contains('expanded');
+
+  // Toggle the clicked section
+  if (isCurrentlyExpanded) {
+    // Collapse it
+    clickedHeader.classList.remove('expanded');
+    clickedTimes.style.display = 'none';
+    const icon = clickedHeader.querySelector('.collapse-icon');
+    if (icon) icon.textContent = '▶';
+  } else {
+    // Expand it
+    clickedHeader.classList.add('expanded');
+    clickedTimes.style.display = 'flex';
+    const icon = clickedHeader.querySelector('.collapse-icon');
+    if (icon) icon.textContent = '▼';
 
     // Check if times need to be loaded (lazy loading)
-    const needsLoading = selectedSection.innerHTML.includes('Loading available times...');
-    if (needsLoading && selectedTab) {
-      const periodId = selectedTab.dataset.periodId;
+    const needsLoading = clickedTimes.innerHTML.includes('Loading available times...');
+    if (needsLoading) {
+      const periodId = clickedHeader.dataset.periodId;
       const form = document.getElementById('create-form-' + date);
       const people = form ? parseInt(form.querySelector('.form-people').value) || 2 : 2;
 
-      console.log('Lazy loading times for period:', periodId);
+      console.log('Lazy loading times for period index:', periodIndex);
 
       // Call the loadAvailableTimesForPeriod function if it exists
       if (typeof loadAvailableTimesForPeriod !== 'undefined') {
-        await loadAvailableTimesForPeriod(date, people, periodId, tabIndex);
+        await loadAvailableTimesForPeriod(date, people, periodId, periodIndex);
       }
     }
   }
 
-  console.log('Switched to period tab:', tabIndex, 'for date:', date);
+  console.log('Toggled period section:', periodIndex, 'expanded:', !isCurrentlyExpanded);
 }
 
 // Expose to window for onclick handlers
-window.switchTimeTab = switchTimeTab;
+window.togglePeriodSection = togglePeriodSection;
 
 // =============================================================================
 // Form Functions
@@ -1128,43 +1128,39 @@ function attachRestaurantEventListeners(container) {
       const openingHoursData = await fetchOpeningHours(date);
       console.log('Opening hours response:', openingHoursData);
 
-      const tabsContainer = document.getElementById('service-period-tabs-' + date);
-      const sectionsContainer = document.getElementById('time-slots-sections-' + date);
-      console.log('Tabs container found:', !!tabsContainer);
+      const sectionsContainer = document.getElementById('service-period-sections-' + date);
       console.log('Sections container found:', !!sectionsContainer);
 
-      if (!tabsContainer || !sectionsContainer) {
-        console.error('Tab containers not found for date:', date);
+      if (!sectionsContainer) {
+        console.error('Sections container not found for date:', date);
         return;
       }
 
       if (openingHoursData.success && openingHoursData.data && openingHoursData.data.length > 0) {
         const periods = openingHoursData.data;
-        console.log('Generating tabs for', periods.length, 'periods');
+        console.log('Generating collapsible sections for', periods.length, 'periods');
 
-        // Generate tab buttons
-        let tabsHtml = '';
-        periods.forEach((period, index) => {
-          const isLast = index === periods.length - 1;
-          const activeClass = isLast ? ' active' : '';
-          const tabLabel = `${period.name || 'Service'} (${formatTimeHHMM(period.open)}-${formatTimeHHMM(period.close)})`;
-
-          tabsHtml += `<button type="button" class="time-tab${activeClass}" data-tab-index="${index}" data-period-id="${escapeHtml(period._id)}" onclick="switchTimeTab('${date}', ${index})">
-            ${escapeHtml(tabLabel)}
-          </button>`;
-        });
-        tabsContainer.innerHTML = tabsHtml;
-
-        // Generate sections for each period
+        // Generate collapsible sections (accordion style - vertical)
         let sectionsHtml = '';
         periods.forEach((period, index) => {
           const isLast = index === periods.length - 1;
-          const activeClass = isLast ? ' active' : '';
-          const displayStyle = isLast ? 'flex' : 'none';
+          const isExpanded = isLast; // Latest period expanded by default
+          const periodLabel = `${period.name || 'Service'} (${formatTimeHHMM(period.open)}-${formatTimeHHMM(period.close)})`;
+          const collapseIcon = isExpanded ? '▼' : '▶';
+          const expandedClass = isExpanded ? ' expanded' : '';
+          const displayStyle = isExpanded ? 'flex' : 'none';
 
-          sectionsHtml += `<div class="time-tab-content${activeClass}" data-tab-index="${index}" data-period-id="${escapeHtml(period._id)}" style="display: ${displayStyle};">
-            <p style="padding: 10px; text-align: center; color: #666;">Loading available times...</p>
-          </div>`;
+          sectionsHtml += `
+            <div class="service-period-section" data-period-index="${index}">
+              <button type="button" class="period-header${expandedClass}" data-period-index="${index}" data-period-id="${escapeHtml(period._id)}" onclick="togglePeriodSection('${date}', ${index})">
+                <span class="collapse-icon">${collapseIcon}</span>
+                <span class="period-label">${escapeHtml(periodLabel)}</span>
+              </button>
+              <div class="period-times" data-period-index="${index}" style="display: ${displayStyle};">
+                <p style="padding: 10px; text-align: center; color: #666;">Loading available times...</p>
+              </div>
+            </div>
+          `;
         });
         sectionsContainer.innerHTML = sectionsHtml;
 
@@ -1187,13 +1183,13 @@ function attachRestaurantEventListeners(container) {
         console.log('Opening hours loaded, default period:', defaultPeriod.name);
       } else {
         console.warn('Opening hours response has no data:', openingHoursData);
-        tabsContainer.innerHTML = '<p style="color: #ef4444;">No service periods available</p>';
+        sectionsContainer.innerHTML = '<p style="color: #ef4444;">No service periods available</p>';
       }
     } catch (error) {
       console.error('Error loading opening hours:', error);
-      const tabsContainer = document.getElementById('service-period-tabs-' + date);
-      if (tabsContainer) {
-        tabsContainer.innerHTML = '<p style="color: #ef4444;">Error loading service periods</p>';
+      const sectionsContainer = document.getElementById('service-period-sections-' + date);
+      if (sectionsContainer) {
+        sectionsContainer.innerHTML = '<p style="color: #ef4444;">Error loading service periods</p>';
       }
     }
 
@@ -1233,19 +1229,19 @@ function attachRestaurantEventListeners(container) {
   async function loadAvailableTimesForPeriod(date, people, periodId, periodIndex) {
     try {
       const timesData = await fetchAvailableTimes(date, people, periodId);
-      const sectionsContainer = document.getElementById('time-slots-sections-' + date);
-      const section = sectionsContainer ? sectionsContainer.querySelector(`.time-tab-content[data-tab-index="${periodIndex}"]`) : null;
+      const sectionsContainer = document.getElementById('service-period-sections-' + date);
+      const periodTimes = sectionsContainer ? sectionsContainer.querySelector(`.period-times[data-period-index="${periodIndex}"]`) : null;
 
-      if (!section) {
-        console.warn('Section not found for period index:', periodIndex);
+      if (!periodTimes) {
+        console.warn('Period times container not found for index:', periodIndex);
         return;
       }
 
       if (timesData.success && timesData.html) {
-        section.innerHTML = timesData.html;
+        periodTimes.innerHTML = timesData.html;
 
         // Add click handlers to time slot buttons
-        const timeButtons = section.querySelectorAll('.time-slot-btn');
+        const timeButtons = periodTimes.querySelectorAll('.time-slot-btn');
         timeButtons.forEach(btn => {
           btn.addEventListener('click', function() {
             // Remove selected class from ALL buttons in ALL sections
@@ -1261,14 +1257,14 @@ function attachRestaurantEventListeners(container) {
 
         console.log('Loaded available times for period index:', periodIndex);
       } else {
-        section.innerHTML = '<p style="padding: 10px; text-align: center; color: #666;">No available times</p>';
+        periodTimes.innerHTML = '<p style="padding: 10px; text-align: center; color: #666;">No available times</p>';
       }
     } catch (error) {
       console.error('Error loading available times:', error);
-      const sectionsContainer = document.getElementById('time-slots-sections-' + date);
-      const section = sectionsContainer ? sectionsContainer.querySelector(`.time-tab-content[data-tab-index="${periodIndex}"]`) : null;
-      if (section) {
-        section.innerHTML = '<p style="color: #ef4444;">Error loading times</p>';
+      const sectionsContainer = document.getElementById('service-period-sections-' + date);
+      const periodTimes = sectionsContainer ? sectionsContainer.querySelector(`.period-times[data-period-index="${periodIndex}"]`) : null;
+      if (periodTimes) {
+        periodTimes.innerHTML = '<p style="color: #ef4444;">Error loading times</p>';
       }
     }
   }
