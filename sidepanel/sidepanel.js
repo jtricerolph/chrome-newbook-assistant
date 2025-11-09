@@ -451,19 +451,27 @@ function attachRestaurantEventListeners(container) {
   function toggleCreateForm(date) {
     const formId = 'create-form-' + date;
     const btnId = 'create-btn-' + date;
+    const statusId = 'status-' + date;
+    const ganttId = 'gantt-' + date;
     const form = document.getElementById(formId);
     const btn = document.getElementById(btnId);
+    const status = document.getElementById(statusId);
+    const gantt = document.getElementById(ganttId);
 
     if (!form) return;
 
     if (form.style.display === 'none' || !form.style.display) {
       form.style.display = 'block';
       if (btn) btn.style.display = 'none'; // Hide button when form is open
+      if (status) status.style.display = 'none'; // Hide status message
+      if (gantt) gantt.style.display = 'none'; // Hide gantt placeholder
       STATE.createFormOpen = true; // Track form state
       form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     } else {
       form.style.display = 'none';
       if (btn) btn.style.display = ''; // Show button when form is closed
+      if (status) status.style.display = ''; // Show status message
+      if (gantt) gantt.style.display = ''; // Show gantt placeholder
       STATE.createFormOpen = false; // Track form state
     }
   }
