@@ -1241,13 +1241,13 @@ async function loadSummaryTab(isAutoRefresh = false) {
         showData('summary', data.html);
         updateBadge('summary', data.critical_count || 0, data.warning_count || 0);
         STATE.cache.summary = data;
-        STATE.lastSummaryUpdate = Date.now(); // Track update time
+        STATE.lastSummaryUpdate = Date.now(); // Track update time only when data changes
         console.log(hasChanged ? 'Summary updated with new data' : 'Summary displayed (no change but manual load)');
       } else {
         // Only skip display during auto-refresh when nothing changed
         console.log('Summary unchanged during auto-refresh - showing no changes message');
         updateBadge('summary', data.critical_count || 0, data.warning_count || 0);
-        STATE.lastSummaryUpdate = Date.now(); // Track check time even if no changes
+        // Don't update lastSummaryUpdate - keep the original timestamp
         showNoChangesMessage();
       }
 
@@ -1342,15 +1342,20 @@ function showNoChangesMessage() {
   const countdownElement = document.querySelector('[data-content="summary"] .summary-countdown');
   const countdownText = countdownElement.querySelector('.countdown-text');
 
-  // Show "No new bookings" message temporarily
-  countdownText.innerHTML = '<strong style="color: #10b981;">No new bookings</strong>';
+  // Update the last updated text first
   updateLastUpdatedText();
 
-  // Reset to countdown after 1 second
+  // Show "No new bookings" message with last updated info
+  const lastUpdatedElement = document.querySelector('[data-content="summary"] .last-updated-text');
+  const lastUpdatedText = lastUpdatedElement ? lastUpdatedElement.textContent : '';
+
+  countdownText.innerHTML = `<strong style="color: #10b981;">No new bookings</strong><br><span style="font-size: 11px; color: #6b7280;">${lastUpdatedText}</span>`;
+
+  // Reset to countdown after 2 seconds
   setTimeout(() => {
     const secondsLeft = STATE.settings.summaryRefreshRate;
     updateCountdownText(countdownText, secondsLeft);
-  }, 1000);
+  }, 2000);
 }
 
 // Restaurant Tab
