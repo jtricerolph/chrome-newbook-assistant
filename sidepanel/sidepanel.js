@@ -22,7 +22,8 @@ const STATE = {
     isAuthenticated: false,
     checking: false
   },
-  lastSummaryInteraction: Date.now() // Track last user interaction on Summary tab
+  lastSummaryInteraction: Date.now(), // Track last user interaction on Summary tab
+  lastSummaryUpdate: null // Track when summary was last updated
 };
 
 // Global API client (exposed for use by injected template content)
@@ -1218,11 +1219,13 @@ async function loadSummaryTab(isAutoRefresh = false) {
         showData('summary', data.html);
         updateBadge('summary', data.critical_count || 0, data.warning_count || 0);
         STATE.cache.summary = data;
+        STATE.lastSummaryUpdate = Date.now(); // Track update time
         console.log(hasChanged ? 'Summary updated with new data' : 'Summary displayed (no change but manual load)');
       } else {
         // Only skip display during auto-refresh when nothing changed
         console.log('Summary unchanged during auto-refresh - showing no changes message');
         updateBadge('summary', data.critical_count || 0, data.warning_count || 0);
+        STATE.lastSummaryUpdate = Date.now(); // Track check time even if no changes
         showNoChangesMessage();
       }
 
@@ -1286,20 +1289,46 @@ function showSummaryCountdown() {
 
 function updateCountdownText(element, seconds) {
   element.innerHTML = `Checking for updates in <strong>${seconds}</strong>s`;
+  updateLastUpdatedText();
+}
+
+function updateLastUpdatedText() {
+  const lastUpdatedElement = document.querySelector('[data-content="summary"] .last-updated-text');
+  if (!lastUpdatedElement || !STATE.lastSummaryUpdate) return;
+
+  const now = Date.now();
+  const elapsed = now - STATE.lastSummaryUpdate;
+  const minutes = Math.floor(elapsed / 60000);
+  const seconds = Math.floor((elapsed % 60000) / 1000);
+
+  let timeText;
+  if (minutes === 0 && seconds < 10) {
+    timeText = 'just now';
+  } else if (minutes === 0) {
+    timeText = `${seconds}s ago`;
+  } else if (minutes < 60) {
+    timeText = `${minutes}m ago`;
+  } else {
+    const hours = Math.floor(minutes / 60);
+    timeText = `${hours}h ago`;
+  }
+
+  lastUpdatedElement.textContent = `Last updated: ${timeText}`;
 }
 
 function showNoChangesMessage() {
   const countdownElement = document.querySelector('[data-content="summary"] .summary-countdown');
   const countdownText = countdownElement.querySelector('.countdown-text');
 
-  // Show "No changes" message temporarily
-  countdownText.innerHTML = '<strong style="color: #10b981;">✓ No changes found</strong>';
+  // Show "No new bookings" message temporarily
+  countdownText.innerHTML = '<strong style="color: #10b981;">No new bookings</strong>';
+  updateLastUpdatedText();
 
-  // Reset to countdown after 2 seconds
+  // Reset to countdown after 1 second
   setTimeout(() => {
     const secondsLeft = STATE.settings.summaryRefreshRate;
     updateCountdownText(countdownText, secondsLeft);
-  }, 2000);
+  }, 1000);
 }
 
 // Restaurant Tab
