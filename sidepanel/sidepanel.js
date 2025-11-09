@@ -21,7 +21,8 @@ const STATE = {
   newbookAuth: {
     isAuthenticated: false,
     checking: false
-  }
+  },
+  lastSummaryInteraction: Date.now() // Track last user interaction on Summary tab
 };
 
 // Global API client (exposed for use by injected template content)
@@ -254,6 +255,9 @@ function attachSummaryEventListeners(container) {
   const headers = container.querySelectorAll('.booking-header');
   headers.forEach(header => {
     header.addEventListener('click', function() {
+      // Update interaction time when user expands/collapses booking
+      STATE.lastSummaryInteraction = Date.now();
+
       const card = this.closest('.booking-card');
       const bookingId = card.dataset.bookingId;
       const details = document.getElementById('details-' + bookingId);
@@ -312,6 +316,16 @@ function attachSummaryEventListeners(container) {
       }
     });
   });
+
+  // Track user interactions to manage idle-based auto-refresh
+  const updateInteractionTime = () => {
+    STATE.lastSummaryInteraction = Date.now();
+  };
+
+  // Track clicks, scrolls, and keyboard input on Summary tab
+  container.addEventListener('click', updateInteractionTime);
+  container.addEventListener('scroll', updateInteractionTime, { passive: true });
+  container.addEventListener('keydown', updateInteractionTime);
 
   // Update time since placed and apply highlighting
   updateTimeSincePlaced(container);
@@ -1245,13 +1259,24 @@ function showSummaryCountdown() {
       // Check if any booking cards are expanded (user is reading)
       const expandedCards = document.querySelectorAll('.booking-card.expanded');
       if (expandedCards.length > 0) {
-        // Don't refresh while user is reading - reset countdown
-        console.log('Auto-refresh paused - user has expanded booking cards');
-        countdownText.innerHTML = '<strong style="color: #f59e0b;">⏸ Auto-refresh paused (booking expanded)</strong>';
-        setTimeout(() => {
-          secondsLeft = STATE.settings.summaryRefreshRate;
-          updateCountdownText(countdownText, secondsLeft);
-        }, 2000);
+        // Check how long since last user interaction
+        const idleMinutes = (Date.now() - STATE.lastSummaryInteraction) / 1000 / 60;
+        const maxIdleMinutes = 5; // Resume refresh after 5 minutes of inactivity
+
+        if (idleMinutes >= maxIdleMinutes) {
+          // User has been idle too long - assume they've left, resume refresh
+          console.log(`Auto-refresh resuming - user idle for ${idleMinutes.toFixed(1)} minutes`);
+          loadSummaryTab(true); // Pass true to indicate auto-refresh
+        } else {
+          // Don't refresh while user is reading - reset countdown
+          console.log('Auto-refresh paused - user has expanded booking cards');
+          const idleSecondsRemaining = Math.ceil((maxIdleMinutes - idleMinutes) * 60);
+          countdownText.innerHTML = `<strong style="color: #f59e0b;">⏸ Auto-refresh paused (booking expanded)</strong><br><span style="font-size: 11px; color: #6b7280;">Resumes after ${Math.ceil(idleSecondsRemaining / 60)}min idle</span>`;
+          setTimeout(() => {
+            secondsLeft = STATE.settings.summaryRefreshRate;
+            updateCountdownText(countdownText, secondsLeft);
+          }, 2000);
+        }
       } else {
         loadSummaryTab(true); // Pass true to indicate auto-refresh
       }
