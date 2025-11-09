@@ -367,6 +367,9 @@ function buildGanttChart(openingHours, availableTimes = null) {
   return html;
 }
 
+// Expose to window for form initialization
+window.buildGanttChart = buildGanttChart;
+
 // =============================================================================
 // Service Period Tab Functions
 // =============================================================================
@@ -427,6 +430,9 @@ async function switchTimeTab(date, tabIndex) {
 
   console.log('Switched to period tab:', tabIndex, 'for date:', date);
 }
+
+// Expose to window for onclick handlers
+window.switchTimeTab = switchTimeTab;
 
 // =============================================================================
 // Form Functions
@@ -1122,37 +1128,72 @@ function attachRestaurantEventListeners(container) {
       const openingHoursData = await fetchOpeningHours(date);
       console.log('Opening hours response:', openingHoursData);
 
-      const selector = document.getElementById('opening-hour-selector-' + date);
-      console.log('Opening hour selector found:', !!selector);
+      const tabsContainer = document.getElementById('service-period-tabs-' + date);
+      const sectionsContainer = document.getElementById('time-slots-sections-' + date);
+      console.log('Tabs container found:', !!tabsContainer);
+      console.log('Sections container found:', !!sectionsContainer);
 
-      if (openingHoursData.success && openingHoursData.html) {
-        console.log('Using HTML response for opening hours');
-        selector.innerHTML = '<option value="">Select service period...</option>' + openingHoursData.html;
-      } else if (openingHoursData.success && openingHoursData.data) {
-        console.log('Using data array for opening hours:', openingHoursData.data.length, 'periods');
-        selector.innerHTML = '<option value="">Select service period...</option>';
-        openingHoursData.data.forEach(period => {
-          const option = document.createElement('option');
-          option.value = period._id;
-          option.textContent = `${period.name} (${formatTimeHHMM(period.open)}-${formatTimeHHMM(period.close)})`;
-          selector.appendChild(option);
-        });
-      } else {
-        console.warn('Opening hours response has no html or data:', openingHoursData);
+      if (!tabsContainer || !sectionsContainer) {
+        console.error('Tab containers not found for date:', date);
+        return;
       }
 
-      // Add event listener to fetch available times when opening hour is selected
-      selector.addEventListener('change', async function() {
-        if (this.value) {
-          const people = parseInt(form.querySelector('.form-people').value) || 2;
-          await loadAvailableTimesForForm(date, people, this.value);
+      if (openingHoursData.success && openingHoursData.data && openingHoursData.data.length > 0) {
+        const periods = openingHoursData.data;
+        console.log('Generating tabs for', periods.length, 'periods');
+
+        // Generate tab buttons
+        let tabsHtml = '';
+        periods.forEach((period, index) => {
+          const isLast = index === periods.length - 1;
+          const activeClass = isLast ? ' active' : '';
+          const tabLabel = `${period.name || 'Service'} (${formatTimeHHMM(period.open)}-${formatTimeHHMM(period.close)})`;
+
+          tabsHtml += `<button type="button" class="time-tab${activeClass}" data-tab-index="${index}" data-period-id="${escapeHtml(period._id)}" onclick="switchTimeTab('${date}', ${index})">
+            ${escapeHtml(tabLabel)}
+          </button>`;
+        });
+        tabsContainer.innerHTML = tabsHtml;
+
+        // Generate sections for each period
+        let sectionsHtml = '';
+        periods.forEach((period, index) => {
+          const isLast = index === periods.length - 1;
+          const activeClass = isLast ? ' active' : '';
+          const displayStyle = isLast ? 'flex' : 'none';
+
+          sectionsHtml += `<div class="time-tab-content${activeClass}" data-tab-index="${index}" data-period-id="${escapeHtml(period._id)}" style="display: ${displayStyle};">
+            <p style="padding: 10px; text-align: center; color: #666;">Loading available times...</p>
+          </div>`;
+        });
+        sectionsContainer.innerHTML = sectionsHtml;
+
+        // Generate Gantt chart
+        if (typeof buildGanttChart === 'function') {
+          const ganttViewport = document.getElementById('gantt-' + date);
+          if (ganttViewport) {
+            const ganttHtml = buildGanttChart(periods);
+            ganttViewport.innerHTML = ganttHtml;
+            console.log('Gantt chart generated for date:', date);
+          }
         }
-      });
+
+        // Load available times for the default (last) period
+        const defaultPeriodIndex = periods.length - 1;
+        const defaultPeriod = periods[defaultPeriodIndex];
+        const people = parseInt(form.querySelector('.form-people').value) || 2;
+        await loadAvailableTimesForPeriod(date, people, defaultPeriod._id, defaultPeriodIndex);
+
+        console.log('Opening hours loaded, default period:', defaultPeriod.name);
+      } else {
+        console.warn('Opening hours response has no data:', openingHoursData);
+        tabsContainer.innerHTML = '<p style="color: #ef4444;">No service periods available</p>';
+      }
     } catch (error) {
       console.error('Error loading opening hours:', error);
-      const selector = document.getElementById('opening-hour-selector-' + date);
-      if (selector) {
-        selector.innerHTML = '<option value="">Error loading service periods</option>';
+      const tabsContainer = document.getElementById('service-period-tabs-' + date);
+      if (tabsContainer) {
+        tabsContainer.innerHTML = '<p style="color: #ef4444;">Error loading service periods</p>';
       }
     }
 
@@ -1189,20 +1230,27 @@ function attachRestaurantEventListeners(container) {
     }
   }
 
-  async function loadAvailableTimesForForm(date, people, openingHourId) {
+  async function loadAvailableTimesForPeriod(date, people, periodId, periodIndex) {
     try {
-      const timesData = await fetchAvailableTimes(date, people, openingHourId);
-      const container = document.getElementById('time-slots-grid-' + date);
+      const timesData = await fetchAvailableTimes(date, people, periodId);
+      const sectionsContainer = document.getElementById('time-slots-sections-' + date);
+      const section = sectionsContainer ? sectionsContainer.querySelector(`.time-tab-content[data-tab-index="${periodIndex}"]`) : null;
+
+      if (!section) {
+        console.warn('Section not found for period index:', periodIndex);
+        return;
+      }
 
       if (timesData.success && timesData.html) {
-        container.innerHTML = timesData.html;
+        section.innerHTML = timesData.html;
 
         // Add click handlers to time slot buttons
-        const timeButtons = container.querySelectorAll('.time-slot-btn');
+        const timeButtons = section.querySelectorAll('.time-slot-btn');
         timeButtons.forEach(btn => {
           btn.addEventListener('click', function() {
-            // Remove selected class from all buttons
-            timeButtons.forEach(b => b.classList.remove('selected'));
+            // Remove selected class from ALL buttons in ALL sections
+            const allButtons = sectionsContainer.querySelectorAll('.time-slot-btn');
+            allButtons.forEach(b => b.classList.remove('selected'));
             // Add selected class to clicked button
             this.classList.add('selected');
             // Update hidden field
@@ -1210,17 +1258,23 @@ function attachRestaurantEventListeners(container) {
             document.getElementById('time-selected-' + date).value = timeValue;
           });
         });
+
+        console.log('Loaded available times for period index:', periodIndex);
       } else {
-        container.innerHTML = '<p style="padding: 10px; text-align: center; color: #666;">No available times</p>';
+        section.innerHTML = '<p style="padding: 10px; text-align: center; color: #666;">No available times</p>';
       }
     } catch (error) {
       console.error('Error loading available times:', error);
-      const container = document.getElementById('time-slots-grid-' + date);
-      if (container) {
-        container.innerHTML = '<p style="color: #ef4444;">Error loading times</p>';
+      const sectionsContainer = document.getElementById('time-slots-sections-' + date);
+      const section = sectionsContainer ? sectionsContainer.querySelector(`.time-tab-content[data-tab-index="${periodIndex}"]`) : null;
+      if (section) {
+        section.innerHTML = '<p style="color: #ef4444;">Error loading times</p>';
       }
     }
   }
+
+  // Expose to window for switchTimeTab lazy loading
+  window.loadAvailableTimesForPeriod = loadAvailableTimesForPeriod;
 
   function formatTimeHHMM(hhmm) {
     const hours = Math.floor(hhmm / 100);
