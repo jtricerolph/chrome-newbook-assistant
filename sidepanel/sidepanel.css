@@ -782,6 +782,73 @@ body {
   pointer-events: none;
 }
 
+/* Service Period Tabs */
+.service-period-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 2px solid #e5e7eb;
+  margin-bottom: 16px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.service-period-tabs::-webkit-scrollbar {
+  height: 4px;
+}
+
+.service-period-tabs::-webkit-scrollbar-track {
+  background: #f3f4f6;
+}
+
+.service-period-tabs::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 2px;
+}
+
+.time-tab {
+  padding: 10px 16px;
+  background-color: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: #6b7280;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  position: relative;
+  bottom: -2px;
+}
+
+.time-tab:hover {
+  color: #3b82f6;
+  background-color: #f9fafb;
+}
+
+.time-tab.active {
+  color: #3b82f6;
+  border-bottom-color: #3b82f6;
+  background-color: transparent;
+}
+
+/* Time Slots Sections Container */
+.time-slots-sections {
+  margin: 16px 0;
+}
+
+.time-tab-content {
+  display: none;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+  max-width: 100%;
+  padding-top: 8px;
+}
+
+.time-tab-content.active {
+  display: flex;
+}
+
 /* Time Slot Button Grid */
 .bma-time-slots-grid {
   margin: 16px 0;

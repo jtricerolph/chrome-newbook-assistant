@@ -251,6 +251,183 @@ function showGanttSightLine(chartId) {
   }
 }
 
+/**
+ * Build Gantt chart HTML for availability visualization
+ * Simplified version for booking creation (shows availability, not existing bookings)
+ * @param {Array} openingHours - Array of opening hour period objects
+ * @param {Array} availableTimes - Array of available time slots (optional)
+ * @returns {string} HTML string for Gantt chart content
+ */
+function buildGanttChart(openingHours, availableTimes = null) {
+  if (!openingHours || !Array.isArray(openingHours) || openingHours.length === 0) {
+    return '<p style="padding: 20px; text-align: center; color: #999;">No opening hours available</p>';
+  }
+
+  // Determine time range from opening hours
+  let earliestOpen = 2400;
+  let latestClose = 0;
+
+  openingHours.forEach(period => {
+    const open = period.open || 1800;
+    const close = period.close || 2200;
+    if (open < earliestOpen) earliestOpen = open;
+    if (close > latestClose) latestClose = close;
+  });
+
+  // Convert HHMM to hours
+  const startHour = Math.floor(earliestOpen / 100);
+  const endHour = Math.floor(latestClose / 100) + (latestClose % 100 > 0 ? 1 : 0);
+  const totalMinutes = (endHour - startHour) * 60;
+  const chartHeight = 100; // Fixed height for compact view
+
+  let html = '<div class="gantt-timeline-grid" style="position: relative; height: ' + chartHeight + 'px; width: 100%; min-width: ' + (totalMinutes * 2) + 'px; background: #f9fafb;">';
+
+  // Add time grid background (15-minute intervals)
+  for (let hour = startHour; hour <= endHour; hour++) {
+    const minutesFromStart = (hour - startHour) * 60;
+    const leftPercent = (minutesFromStart / totalMinutes) * 100;
+
+    // Hour marker line
+    html += '<div style="position: absolute; left: ' + leftPercent + '%; top: 0; bottom: 0; width: 1px; background: #e5e7eb;"></div>';
+
+    // Hour label
+    const hourLabel = hour.toString().padStart(2, '0') + ':00';
+    html += '<div style="position: absolute; left: ' + leftPercent + '%; top: 2px; font-size: 10px; color: #6b7280; transform: translateX(-50%);">' + hourLabel + '</div>';
+  }
+
+  // Add opening hours as colored bands
+  openingHours.forEach((period, index) => {
+    const open = period.open || 1800;
+    const close = period.close || 2200;
+    const name = period.name || 'Service Period';
+
+    const openMinutes = Math.floor(open / 100) * 60 + (open % 100);
+    const closeMinutes = Math.floor(close / 100) * 60 + (close % 100);
+
+    const startOffset = openMinutes - (startHour * 60);
+    const duration = closeMinutes - openMinutes;
+
+    const leftPercent = (startOffset / totalMinutes) * 100;
+    const widthPercent = (duration / totalMinutes) * 100;
+
+    // Color bands for different periods
+    const colors = [
+      { bg: '#dbeafe', border: '#3b82f6', text: '#1e40af' },  // Blue - lunch
+      { bg: '#fef3c7', border: '#f59e0b', text: '#92400e' },  // Amber - afternoon
+      { bg: '#ddd6fe', border: '#8b5cf6', text: '#5b21b6' }   // Purple - dinner
+    ];
+    const color = colors[index % colors.length];
+
+    html += '<div style="position: absolute; left: ' + leftPercent + '%; top: 24px; width: ' + widthPercent + '%; height: ' + (chartHeight - 28) + 'px; background: ' + color.bg + '; border: 2px solid ' + color.border + '; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: ' + color.text + ';">';
+    html += name;
+    html += '</div>';
+  });
+
+  // Add grey blocks for closed periods (gaps between opening hours)
+  const sortedHours = openingHours.slice().sort((a, b) => (a.open || 0) - (b.open || 0));
+
+  // Closed before first period
+  const firstOpen = sortedHours[0].open;
+  const firstOpenMinutes = Math.floor(firstOpen / 100) * 60 + (firstOpen % 100);
+  const gapStart = firstOpenMinutes - (startHour * 60);
+  if (gapStart > 0) {
+    const widthPercent = (gapStart / totalMinutes) * 100;
+    html += '<div style="position: absolute; left: 0%; top: 24px; width: ' + widthPercent + '%; height: ' + (chartHeight - 28) + 'px; background: #e5e7eb; opacity: 0.7;"></div>';
+  }
+
+  // Closed between periods
+  for (let i = 0; i < sortedHours.length - 1; i++) {
+    const currentClose = sortedHours[i].close;
+    const nextOpen = sortedHours[i + 1].open;
+
+    const closeMinutes = Math.floor(currentClose / 100) * 60 + (currentClose % 100);
+    const openMinutes = Math.floor(nextOpen / 100) * 60 + (nextOpen % 100);
+
+    const gapStart = closeMinutes - (startHour * 60);
+    const gapDuration = openMinutes - closeMinutes;
+
+    if (gapDuration > 0) {
+      const leftPercent = (gapStart / totalMinutes) * 100;
+      const widthPercent = (gapDuration / totalMinutes) * 100;
+      html += '<div style="position: absolute; left: ' + leftPercent + '%; top: 24px; width: ' + widthPercent + '%; height: ' + (chartHeight - 28) + 'px; background: #e5e7eb; opacity: 0.7;"></div>';
+    }
+  }
+
+  // Closed after last period
+  const lastClose = sortedHours[sortedHours.length - 1].close;
+  const lastCloseMinutes = Math.floor(lastClose / 100) * 60 + (lastClose % 100);
+  const remainingMinutes = (endHour * 60) - lastCloseMinutes;
+  if (remainingMinutes > 0) {
+    const leftPercent = ((lastCloseMinutes - (startHour * 60)) / totalMinutes) * 100;
+    const widthPercent = (remainingMinutes / totalMinutes) * 100;
+    html += '<div style="position: absolute; left: ' + leftPercent + '%; top: 24px; width: ' + widthPercent + '%; height: ' + (chartHeight - 28) + 'px; background: #e5e7eb; opacity: 0.7;"></div>';
+  }
+
+  html += '</div>';
+  return html;
+}
+
+// =============================================================================
+// Service Period Tab Functions
+// =============================================================================
+
+/**
+ * Switch between service period tabs
+ * @param {string} date - Date string for the form
+ * @param {number} tabIndex - Index of the tab to activate
+ */
+async function switchTimeTab(date, tabIndex) {
+  // Get all tabs and tab contents for this date
+  const tabsContainer = document.getElementById('service-period-tabs-' + date);
+  const sectionsContainer = document.getElementById('time-slots-sections-' + date);
+
+  if (!tabsContainer || !sectionsContainer) {
+    console.warn('Tab containers not found for date:', date);
+    return;
+  }
+
+  const tabs = tabsContainer.querySelectorAll('.time-tab');
+  const sections = sectionsContainer.querySelectorAll('.time-tab-content');
+
+  // Deactivate all tabs and hide all sections
+  tabs.forEach(tab => {
+    tab.classList.remove('active');
+  });
+  sections.forEach(section => {
+    section.classList.remove('active');
+    section.style.display = 'none';
+  });
+
+  // Activate selected tab and show its section
+  const selectedTab = tabsContainer.querySelector('.time-tab[data-tab-index="' + tabIndex + '"]');
+  const selectedSection = sectionsContainer.querySelector('.time-tab-content[data-tab-index="' + tabIndex + '"]');
+
+  if (selectedTab) {
+    selectedTab.classList.add('active');
+  }
+  if (selectedSection) {
+    selectedSection.classList.add('active');
+    selectedSection.style.display = 'flex';
+
+    // Check if times need to be loaded (lazy loading)
+    const needsLoading = selectedSection.innerHTML.includes('Loading available times...');
+    if (needsLoading && selectedTab) {
+      const periodId = selectedTab.dataset.periodId;
+      const form = document.getElementById('create-form-' + date);
+      const people = form ? parseInt(form.querySelector('.form-people').value) || 2 : 2;
+
+      console.log('Lazy loading times for period:', periodId);
+
+      // Call the loadAvailableTimesForPeriod function if it exists
+      if (typeof loadAvailableTimesForPeriod !== 'undefined') {
+        await loadAvailableTimesForPeriod(date, people, periodId, tabIndex);
+      }
+    }
+  }
+
+  console.log('Switched to period tab:', tabIndex, 'for date:', date);
+}
+
 // =============================================================================
 // Form Functions
 // =============================================================================
