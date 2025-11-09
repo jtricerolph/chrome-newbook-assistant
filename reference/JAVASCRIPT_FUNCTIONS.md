@@ -634,18 +634,16 @@ if (!validation.valid) {
 
 ---
 
-### submitCreateBooking(date) - TO BE ENHANCED
+### submitCreateBooking(date) - IMPLEMENTED
 
-**Current Location:** Lines 1807-1871
+**Actual Location:** Lines 927-1035+ (in sidepanel.js)
 
-**Enhancements Needed:**
+**Implementation:**
 ```javascript
-let createBookingProcessing = false;
-
 async function submitCreateBooking(date) {
   // Prevent duplicate submissions
-  if (createBookingProcessing) {
-    console.log('Booking creation already in progress');
+  if (createProcessing) {
+    console.log('Create operation already in progress, ignoring');
     return;
   }
 
@@ -653,49 +651,102 @@ async function submitCreateBooking(date) {
   const form = document.getElementById(formId);
   if (!form) return;
 
-  const feedbackId = 'feedback-create-' + date;
-  const feedback = document.getElementById(feedbackId);
-  const submitBtn = form.querySelector('.bma-btn-submit');
-
-  // Collect ALL form data (including NEW fields)
-  const formData = {
-    date: form.querySelector('.form-date').value,
-    time: form.querySelector('.form-time-selected')?.value || '', // Hidden field
-    guest_name: form.querySelector('.form-guest-name').value,
-    people: parseInt(form.querySelector('.form-people').value),
-    phone: form.querySelector('.form-phone').value,
-    email: form.querySelector('.form-email').value,
-    booking_ref: form.dataset.bookingId,
-
-    // NEW FIELDS:
-    opening_hour_id: form.querySelector('.form-opening-hour').value,
-    hotel_guest: form.querySelector('.form-hotel-guest')?.checked ? 'Yes' : 'No',
-    dbb: form.querySelector('.form-dbb')?.checked ? 'Yes' : 'No',
-    notification_sms: form.querySelector('.form-notification-sms')?.checked || false,
-    notification_email: form.querySelector('.form-notification-email')?.checked || false,
-
-    // Dietary requirements (comma-separated IDs)
-    dietary_requirements: Array.from(form.querySelectorAll('.diet-checkbox:checked'))
-      .map(cb => cb.dataset.choiceId)
-      .join(','),
-    dietary_other: form.querySelector('.form-diet-other')?.value || '',
-
-    // Booking note
-    booking_note: form.querySelector('.form-booking-note')?.value || '',
-
-    // Language
-    language_code: 'en'
-  };
-
-  // Validate
-  const validation = validateBookingForm(formData);
-  if (!validation.valid) {
-    showFeedback(feedback, 'Please fix errors: ' + validation.errors.join(', '), 'error');
-    showToast('Please fix form errors', 'error');
+  // Validate basic fields
+  if (!validateBookingForm(formId)) {
+    console.log('Form validation failed');
     return;
   }
 
-  createBookingProcessing = true;
+  const feedbackId = 'feedback-create-' + date;
+  const feedback = document.getElementById(feedbackId);
+
+  // Collect dietary requirements from checkboxes
+  const dietaryCheckboxes = form.querySelectorAll('.diet-checkbox:checked');
+  const dietaryChoiceIds = Array.from(dietaryCheckboxes)
+    .map(cb => cb.dataset.choiceId)
+    .join(',');
+
+  // Get time from hidden field (populated by time slot button click)
+  const timeField = form.querySelector('.form-time-selected') || document.getElementById('time-selected-' + date);
+  const timeValue = timeField ? timeField.value : '';
+
+  if (!timeValue) {
+    showFeedback(feedback, 'Please select a time slot', 'error');
+    return;
+  }
+
+  // Get opening hour ID from selector
+  const openingHourSelector = document.getElementById('opening-hour-selector-' + date);
+  const openingHourId = openingHourSelector ? openingHourSelector.value : '';
+
+  if (!openingHourId) {
+    showFeedback(feedback, 'Please select a service period', 'error');
+    return;
+  }
+
+  // Collect form data using class selectors
+  const formData = {
+    date: date,
+    time: timeValue,
+    people: parseInt(form.querySelector('.form-people').value),
+    guest_name: form.querySelector('.form-guest-name').value,
+    opening_hour_id: openingHourId
+  };
+
+  // Add optional fields if present
+  const phoneField = form.querySelector('.form-phone');
+  if (phoneField && phoneField.value) {
+    formData.guest_phone = phoneField.value;
+  }
+
+  const emailField = form.querySelector('.form-email');
+  if (emailField && emailField.value) {
+    formData.guest_email = emailField.value;
+  }
+
+  const hotelGuestField = form.querySelector('.form-hotel-guest');
+  if (hotelGuestField) {
+    formData.hotel_guest = hotelGuestField.checked ? 'Yes' : 'No';
+  }
+
+  const dbbField = form.querySelector('.form-dbb');
+  if (dbbField) {
+    formData.dbb = dbbField.checked ? 'Yes' : 'No';
+  }
+
+  const dietOtherField = form.querySelector('.form-diet-other');
+  if (dietOtherField && dietOtherField.value) {
+    formData.dietary_other = dietOtherField.value;
+  }
+
+  const noteField = form.querySelector('.form-booking-note');
+  if (noteField && noteField.value) {
+    formData.booking_note = noteField.value;
+  }
+
+  // Add dietary requirements if any selected
+  if (dietaryChoiceIds) {
+    formData.dietary_requirements = dietaryChoiceIds;
+  }
+
+  // Add notification preferences
+  const notificationSMS = form.querySelector('.form-notification-sms');
+  if (notificationSMS) {
+    formData.notification_sms = notificationSMS.checked;
+  }
+
+  const notificationEmail = form.querySelector('.form-notification-email');
+  if (notificationEmail) {
+    formData.notification_email = notificationEmail.checked;
+  }
+
+  // Add booking reference from data attribute
+  const bookingRef = form.dataset.bookingId;
+  if (bookingRef) {
+    formData.booking_ref = bookingRef;
+  }
+
+  createProcessing = true;
 
   // Update button state
   submitBtn.disabled = true;
@@ -916,11 +967,101 @@ async function fetchSpecialEvents(date) {
 
 ---
 
-## Form Initialization Functions (TO BE IMPLEMENTED)
+## Form Initialization Functions
 
-### initializeCreateForm(date)
+**STATUS:** ✅ **IMPLEMENTED** (Automatic via template inline script)
 
-**Purpose:** Initialize create booking form with all dynamic data
+### Automatic Form Initialization
+
+The form initialization is handled **automatically** by inline JavaScript in the WordPress template (`chrome-sidepanel-response.php` lines 527-643). Each create form has its own initialization script that uses a MutationObserver to detect when the form becomes visible.
+
+**How it works:**
+1. MutationObserver watches for style changes on the form element
+2. When `display` changes from `none` to `block`, initialization triggers
+3. Only initializes once per form (uses `initialized` flag)
+4. Calls `initializeCreateForm(date)` which:
+   - Fetches and populates opening hours dropdown
+   - Fetches and populates dietary requirement checkboxes
+   - Adds event listener to opening hour selector
+   - Loads available times when service period is selected
+   - Adds click handlers to time slot buttons
+
+**Template Code Structure:**
+```javascript
+(function() {
+  const formId = 'create-form-2025-01-15'; // Example
+  const date = '2025-01-15';
+  const form = document.getElementById(formId);
+  let initialized = false;
+
+  // Watch for form becoming visible
+  const observer = new MutationObserver(function(mutations) {
+    mutations.forEach(function(mutation) {
+      if (mutation.attributeName === 'style') {
+        const isVisible = form.style.display !== 'none';
+        if (isVisible && !initialized) {
+          initialized = true;
+          initializeCreateForm(date);
+        }
+      }
+    });
+  });
+
+  observer.observe(form, { attributes: true, attributeFilter: ['style'] });
+
+  async function initializeCreateForm(date) {
+    // Fetch opening hours
+    const openingHoursData = await fetchOpeningHours(date);
+    const selector = document.getElementById('opening-hour-selector-' + date);
+
+    // Populate dropdown with <option> elements
+    if (openingHoursData.success && openingHoursData.html) {
+      selector.innerHTML = '<option value="">Select service period...</option>' + openingHoursData.html;
+    }
+
+    // Add listener for opening hour selection
+    selector.addEventListener('change', async function() {
+      if (this.value) {
+        const people = parseInt(form.querySelector('.form-people').value) || 2;
+        await loadAvailableTimes(date, people, this.value);
+      }
+    });
+
+    // Fetch dietary choices
+    const dietaryData = await fetchDietaryChoices();
+    const container = document.getElementById('dietary-checkboxes-' + date);
+    // Populate with checkboxes...
+  }
+
+  async function loadAvailableTimes(date, people, openingHourId) {
+    const timesData = await fetchAvailableTimes(date, people, openingHourId);
+    const container = document.getElementById('time-slots-grid-' + date);
+
+    // Populate time slot buttons
+    container.innerHTML = timesData.html;
+
+    // Add click handlers
+    const timeButtons = container.querySelectorAll('.time-slot-btn');
+    timeButtons.forEach(btn => {
+      btn.addEventListener('click', function() {
+        // Mark as selected and store time
+        timeButtons.forEach(b => b.classList.remove('selected'));
+        this.classList.add('selected');
+        const timeValue = this.dataset.time || this.textContent.trim();
+        document.getElementById('time-selected-' + date).value = timeValue;
+      });
+    });
+  }
+})();
+```
+
+**No manual initialization required** - each form initializes itself automatically when opened.
+
+---
+
+### initializeCreateForm(date) - Template Function
+
+**Purpose:** Initialize create booking form with all dynamic data (called automatically by MutationObserver)
 
 **Parameters:**
 - `date` (string, required): Date for the form
