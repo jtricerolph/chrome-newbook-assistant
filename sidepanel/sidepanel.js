@@ -25,11 +25,446 @@ const STATE = {
   lastSummaryInteraction: Date.now(), // Track last user interaction on Summary tab
   lastSummaryUpdate: null, // Track when summary was last updated
   sessionLocked: false, // Track NewBook session lock dialog status
-  createFormOpen: false // Track if any create booking form is open
+  createFormOpen: false, // Track if any create booking form is open
+  navigationContext: null, // Track navigation context for cross-tab navigation
+  scrollPositions: {} // Track scroll positions per tab/date
 };
 
 // Global API client (exposed for use by injected template content)
 window.apiClient = null;
+
+// =============================================================================
+// Navigation Helper Functions
+// =============================================================================
+
+/**
+ * Navigate to Restaurant tab with a specific date pre-selected
+ * @param {string} date - Date in YYYY-MM-DD format
+ * @param {number|null} bookingId - Optional booking ID to set as current
+ */
+function navigateToRestaurantDate(date, bookingId = null) {
+  console.log('Navigating to Restaurant tab for date:', date, 'bookingId:', bookingId);
+
+  // Save current scroll position
+  const currentContent = document.querySelector(`[data-content="${STATE.currentTab}"]`);
+  if (currentContent) {
+    STATE.scrollPositions[STATE.currentTab] = currentContent.scrollTop;
+  }
+
+  // Set navigation context
+  STATE.navigationContext = {
+    returnTab: STATE.currentTab,
+    returnBookingId: STATE.currentBookingId,
+    targetDate: date,
+    expandCreateForm: true,
+    scrollAfterLoad: true
+  };
+
+  // Update current booking ID if provided
+  if (bookingId) {
+    STATE.currentBookingId = bookingId;
+    chrome.storage.local.set({ currentBookingId: bookingId });
+  }
+
+  // Switch to restaurant tab
+  switchTab('restaurant');
+}
+
+/**
+ * Return to the previous context after completing a task
+ */
+function returnToPreviousContext() {
+  if (!STATE.navigationContext || !STATE.navigationContext.returnTab) {
+    console.log('No previous context to return to');
+    return;
+  }
+
+  console.log('Returning to previous context:', STATE.navigationContext.returnTab);
+
+  const returnTab = STATE.navigationContext.returnTab;
+  const returnBookingId = STATE.navigationContext.returnBookingId;
+
+  // Restore booking ID
+  if (returnBookingId) {
+    STATE.currentBookingId = returnBookingId;
+    chrome.storage.local.set({ currentBookingId: returnBookingId });
+  }
+
+  // Clear navigation context
+  STATE.navigationContext = null;
+
+  // Switch back to previous tab
+  switchTab(returnTab);
+
+  // Restore scroll position
+  setTimeout(() => {
+    const content = document.querySelector(`[data-content="${returnTab}"]`);
+    if (content && STATE.scrollPositions[returnTab]) {
+      content.scrollTop = STATE.scrollPositions[returnTab];
+    }
+  }, 100);
+}
+
+/**
+ * Process navigation context after Restaurant tab loads
+ * Called from loadRestaurantTab() to handle navigation intent
+ */
+function processNavigationContext() {
+  if (!STATE.navigationContext) {
+    return;
+  }
+
+  const { targetDate, expandCreateForm, scrollAfterLoad } = STATE.navigationContext;
+
+  console.log('Processing navigation context:', STATE.navigationContext);
+
+  // Find the date section
+  const dateSection = document.getElementById(`date-section-${targetDate}`);
+
+  if (!dateSection) {
+    console.warn('Target date section not found:', targetDate);
+    return;
+  }
+
+  // Expand create form if requested
+  if (expandCreateForm) {
+    const createBtn = document.getElementById(`create-btn-${targetDate}`);
+    const createForm = document.getElementById(`create-form-${targetDate}`);
+
+    if (createForm && createBtn) {
+      createForm.style.display = 'block';
+      createBtn.style.display = 'none';
+      STATE.createFormOpen = true;
+    }
+  }
+
+  // Scroll to the date section
+  if (scrollAfterLoad) {
+    setTimeout(() => {
+      dateSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+  }
+}
+
+// =============================================================================
+// Gantt Chart Functions
+// =============================================================================
+
+/**
+ * Scroll Gantt chart to a specific time
+ * @param {string} chartId - ID of the Gantt chart container
+ * @param {number} time - Time in HHMM format (e.g., 1830 for 18:30)
+ * @param {boolean} smooth - Use smooth scrolling
+ */
+function scrollGanttToTime(chartId, time, smooth = true) {
+  const chart = document.getElementById(chartId);
+  if (!chart) {
+    console.warn('Gantt chart not found:', chartId);
+    return;
+  }
+
+  const viewport = chart.querySelector('.gantt-viewport-container');
+  if (!viewport) {
+    console.warn('Gantt viewport not found in chart:', chartId);
+    return;
+  }
+
+  // Calculate scroll position based on time
+  // Each hour is typically 60px wide in the chart
+  const hour = Math.floor(time / 100);
+  const minute = time % 100;
+  const totalMinutes = (hour * 60) + minute;
+
+  // Assuming chart starts at 0:00 and each minute is 1px
+  const scrollLeft = totalMinutes;
+
+  if (smooth) {
+    viewport.scrollTo({ left: scrollLeft, behavior: 'smooth' });
+  } else {
+    viewport.scrollLeft = scrollLeft;
+  }
+}
+
+/**
+ * Scroll Gantt viewport using control buttons
+ * @param {string} chartId - ID of the Gantt chart container
+ * @param {string} direction - 'left' or 'right'
+ */
+function scrollGanttViewport(chartId, direction) {
+  const chart = document.getElementById(chartId);
+  if (!chart) {
+    console.warn('Gantt chart not found:', chartId);
+    return;
+  }
+
+  const viewport = chart.querySelector('.gantt-viewport-container');
+  if (!viewport) {
+    console.warn('Gantt viewport not found in chart:', chartId);
+    return;
+  }
+
+  // Scroll by 1 hour (60 minutes)
+  const scrollAmount = direction === 'left' ? -60 : 60;
+  viewport.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+}
+
+/**
+ * Show sight line on Gantt chart at current time
+ * @param {string} chartId - ID of the Gantt chart container
+ */
+function showGanttSightLine(chartId) {
+  const chart = document.getElementById(chartId);
+  if (!chart) {
+    console.warn('Gantt chart not found:', chartId);
+    return;
+  }
+
+  const now = new Date();
+  const currentTime = (now.getHours() * 100) + now.getMinutes();
+
+  // Remove existing sight line
+  const existingSightLine = chart.querySelector('.gantt-sight-line');
+  if (existingSightLine) {
+    existingSightLine.remove();
+  }
+
+  // Create new sight line
+  const sightLine = document.createElement('div');
+  sightLine.className = 'gantt-sight-line';
+  sightLine.style.position = 'absolute';
+  sightLine.style.top = '0';
+  sightLine.style.bottom = '0';
+  sightLine.style.width = '2px';
+  sightLine.style.backgroundColor = '#ef4444';
+  sightLine.style.zIndex = '100';
+
+  // Calculate position (assuming 1px per minute from midnight)
+  const hour = Math.floor(currentTime / 100);
+  const minute = currentTime % 100;
+  const leftPosition = (hour * 60) + minute;
+  sightLine.style.left = `${leftPosition}px`;
+
+  // Add to chart
+  const timelineGrid = chart.querySelector('.gantt-timeline-grid');
+  if (timelineGrid) {
+    timelineGrid.appendChild(sightLine);
+  }
+}
+
+// =============================================================================
+// Form Functions
+// =============================================================================
+
+/**
+ * Toggle collapsible form section
+ * @param {string} sectionId - ID of the section content to toggle
+ * @param {HTMLElement} toggleButton - The button element that was clicked
+ */
+function toggleFormSection(sectionId, toggleButton) {
+  const section = document.getElementById(sectionId);
+  if (!section) {
+    console.warn('Form section not found:', sectionId);
+    return;
+  }
+
+  const isExpanded = section.style.display !== 'none';
+
+  // Toggle visibility
+  section.style.display = isExpanded ? 'none' : 'block';
+
+  // Rotate icon
+  const icon = toggleButton.querySelector('.material-symbols-outlined');
+  if (icon) {
+    icon.style.transform = isExpanded ? 'rotate(0deg)' : 'rotate(180deg)';
+  }
+}
+
+/**
+ * Validate booking form before submission
+ * @param {string} formId - ID of the form to validate
+ * @returns {boolean} - True if valid, false otherwise
+ */
+function validateBookingForm(formId) {
+  const form = document.getElementById(formId);
+  if (!form) {
+    console.warn('Form not found:', formId);
+    return false;
+  }
+
+  // Required fields
+  const requiredFields = [
+    { name: 'opening_hour_id', label: 'Service Period' },
+    { name: 'time', label: 'Time' },
+    { name: 'people', label: 'Party Size' },
+    { name: 'guest_name', label: 'Guest Name' }
+  ];
+
+  const errors = [];
+
+  requiredFields.forEach(field => {
+    const input = form.querySelector(`[name="${field.name}"]`);
+    if (!input || !input.value || input.value.trim() === '') {
+      errors.push(`${field.label} is required`);
+    }
+  });
+
+  // Validate email format if provided
+  const emailInput = form.querySelector('[name="guest_email"]');
+  if (emailInput && emailInput.value) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(emailInput.value)) {
+      errors.push('Invalid email format');
+    }
+  }
+
+  // Validate phone format if provided
+  const phoneInput = form.querySelector('[name="guest_phone"]');
+  if (phoneInput && phoneInput.value) {
+    const phoneRegex = /^[\d\s\+\-\(\)]+$/;
+    if (!phoneRegex.test(phoneInput.value)) {
+      errors.push('Invalid phone format');
+    }
+  }
+
+  // Show errors if any
+  if (errors.length > 0) {
+    const feedbackId = form.id.replace('create-form-', 'feedback-create-');
+    const feedback = document.getElementById(feedbackId);
+    if (feedback) {
+      feedback.textContent = errors.join(', ');
+      feedback.className = 'bma-form-feedback error';
+      feedback.style.display = 'block';
+    }
+    return false;
+  }
+
+  return true;
+}
+
+// =============================================================================
+// API Fetch Functions
+// =============================================================================
+
+/**
+ * Fetch opening hours for a specific date
+ * @param {string} date - Date in YYYY-MM-DD format (optional)
+ * @returns {Promise<Object>} - Opening hours data
+ */
+async function fetchOpeningHours(date = null) {
+  try {
+    const params = new URLSearchParams({ context: 'chrome-extension' });
+    if (date) {
+      params.set('date', date);
+    }
+
+    const response = await fetch(`${window.apiClient.baseUrl}/opening-hours?${params}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': window.apiClient.authHeader,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching opening hours:', error);
+    throw error;
+  }
+}
+
+/**
+ * Fetch available times for a specific date and party size
+ * @param {string} date - Date in YYYY-MM-DD format
+ * @param {number} people - Party size
+ * @param {string} openingHourId - Optional opening hour period ID to filter
+ * @returns {Promise<Object>} - Available times data
+ */
+async function fetchAvailableTimes(date, people, openingHourId = null) {
+  try {
+    const body = {
+      date: date,
+      people: people,
+      context: 'chrome-extension'
+    };
+
+    if (openingHourId) {
+      body.opening_hour_id = openingHourId;
+    }
+
+    const response = await fetch(`${window.apiClient.baseUrl}/available-times`, {
+      method: 'POST',
+      headers: {
+        'Authorization': window.apiClient.authHeader,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching available times:', error);
+    throw error;
+  }
+}
+
+/**
+ * Fetch dietary choices
+ * @returns {Promise<Object>} - Dietary choices data
+ */
+async function fetchDietaryChoices() {
+  try {
+    const response = await fetch(`${window.apiClient.baseUrl}/dietary-choices?context=chrome-extension`, {
+      method: 'GET',
+      headers: {
+        'Authorization': window.apiClient.authHeader,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching dietary choices:', error);
+    throw error;
+  }
+}
+
+/**
+ * Fetch special events for a specific date
+ * @param {string} date - Date in YYYY-MM-DD format
+ * @returns {Promise<Object>} - Special events data
+ */
+async function fetchSpecialEvents(date) {
+  try {
+    const response = await fetch(`${window.apiClient.baseUrl}/special-events?date=${date}&context=chrome-extension`, {
+      method: 'GET',
+      headers: {
+        'Authorization': window.apiClient.authHeader,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching special events:', error);
+    throw error;
+  }
+}
 
 // Authentication State Management
 const AuthManager = {
@@ -351,6 +786,21 @@ function attachSummaryEventListeners(container) {
   container.addEventListener('scroll', updateInteractionTime, { passive: true });
   container.addEventListener('keydown', updateInteractionTime);
 
+  // Add click handler for "Create Booking" links from Summary tab
+  const createBookingLinks = container.querySelectorAll('.create-booking-link');
+  createBookingLinks.forEach(link => {
+    link.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const date = this.dataset.date;
+      const bookingId = this.dataset.bookingId;
+
+      console.log('Create booking link clicked - date:', date, 'bookingId:', bookingId);
+      navigateToRestaurantDate(date, parseInt(bookingId));
+    });
+  });
+
   // Update time since placed and apply highlighting
   updateTimeSincePlaced(container);
 }
@@ -383,6 +833,15 @@ function attachRestaurantEventListeners(container) {
   container.addEventListener('click', async function(event) {
     // Reset timer for any click in the container
     resetTimer();
+
+    // Handle collapsible section toggles
+    const sectionToggle = event.target.closest('.bma-section-toggle');
+    if (sectionToggle) {
+      event.preventDefault();
+      const targetId = sectionToggle.dataset.target;
+      toggleFormSection(targetId, sectionToggle);
+      return;
+    }
 
     const button = event.target.closest('button[data-action]');
     if (!button) return;
@@ -500,25 +959,66 @@ function attachRestaurantEventListeners(container) {
     const form = document.getElementById(formId);
     if (!form) return;
 
+    // Validate form before submission
+    if (!validateBookingForm(formId)) {
+      console.log('Form validation failed');
+      return;
+    }
+
     const feedbackId = 'feedback-create-' + date;
     const feedback = document.getElementById(feedbackId);
+
+    // Collect dietary requirements from checkboxes
+    const dietaryCheckboxes = form.querySelectorAll('.diet-checkbox:checked');
+    const dietaryChoiceIds = Array.from(dietaryCheckboxes)
+      .map(cb => cb.dataset.choiceId)
+      .join(',');
 
     // Collect form data
     const formData = {
       date: date,
       time: form.querySelector('[name="time"]').value,
-      people: form.querySelector('[name="people"]').value,
+      people: parseInt(form.querySelector('[name="people"]').value),
       guest_name: form.querySelector('[name="guest_name"]').value,
-      guest_phone: form.querySelector('[name="guest_phone"]').value,
-      guest_email: form.querySelector('[name="guest_email"]').value,
-      booking_ref: form.querySelector('[name="booking_ref"]').value,
-      hotel_guest: form.querySelector('[name="hotel_guest"]').value,
-      dbb: form.querySelector('[name="dbb"]').value,
-      booking_note: form.querySelector('[name="booking_note"]').value
+      opening_hour_id: form.querySelector('[name="opening_hour_id"]').value
     };
 
+    // Add optional fields if present
+    const optionalFields = [
+      'guest_phone',
+      'guest_email',
+      'booking_ref',
+      'hotel_guest',
+      'dbb',
+      'dietary_other',
+      'booking_note',
+      'language_code'
+    ];
+
+    optionalFields.forEach(field => {
+      const input = form.querySelector(`[name="${field}"]`);
+      if (input && input.value) {
+        formData[field] = input.value;
+      }
+    });
+
+    // Add dietary requirements if any selected
+    if (dietaryChoiceIds) {
+      formData.dietary_requirements = dietaryChoiceIds;
+    }
+
+    // Add notification preferences
+    const notificationSMS = form.querySelector('[name="notification_sms"]');
+    const notificationEmail = form.querySelector('[name="notification_email"]');
+    if (notificationSMS) {
+      formData.notification_sms = notificationSMS.checked;
+    }
+    if (notificationEmail) {
+      formData.notification_email = notificationEmail.checked;
+    }
+
     createProcessing = true;
-    console.log('Starting create booking operation');
+    console.log('Starting create booking operation with data:', formData);
 
     try {
       showFeedback(feedback, 'Creating booking...', 'info');
@@ -538,7 +1038,14 @@ function attachRestaurantEventListeners(container) {
         showFeedback(feedback, 'Booking created successfully!', 'success');
         setTimeout(() => {
           form.style.display = 'none';
-          window.reloadRestaurantTab();
+          STATE.createFormOpen = false;
+
+          // Return to previous context if applicable
+          if (STATE.navigationContext && STATE.navigationContext.returnTab) {
+            returnToPreviousContext();
+          } else {
+            window.reloadRestaurantTab();
+          }
         }, 1500);
       } else {
         showFeedback(feedback, 'Error: ' + (result.message || 'Unknown error'), 'error');
@@ -1186,6 +1693,12 @@ function updateBadge(tabName, criticalCount, warningCount) {
 
 // Tab Management
 function switchTab(tabName) {
+  // Save current scroll position before switching
+  const currentContent = document.querySelector(`[data-content="${STATE.currentTab}"]`);
+  if (currentContent) {
+    STATE.scrollPositions[STATE.currentTab] = currentContent.scrollTop;
+  }
+
   // Update state
   STATE.currentTab = tabName;
 
@@ -1217,6 +1730,14 @@ function switchTab(tabName) {
     loadChecksTab();
     startInactivityTimer();
   }
+
+  // Restore scroll position after a short delay
+  setTimeout(() => {
+    const newContent = document.querySelector(`[data-content="${tabName}"]`);
+    if (newContent && STATE.scrollPositions[tabName]) {
+      newContent.scrollTop = STATE.scrollPositions[tabName];
+    }
+  }, 100);
 }
 
 // Summary Tab
@@ -1392,6 +1913,11 @@ async function loadRestaurantTab() {
       showData('restaurant', data.html);
       updateBadge('restaurant', data.critical_count || 0, data.warning_count || 0);
       STATE.cache.restaurant = data;
+
+      // Process navigation context after content is loaded
+      setTimeout(() => {
+        processNavigationContext();
+      }, 100);
     } else if (data.success && !data.html) {
       showEmpty('restaurant');
       updateBadge('restaurant', 0, 0);

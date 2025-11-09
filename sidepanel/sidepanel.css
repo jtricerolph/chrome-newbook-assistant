@@ -603,3 +603,446 @@ body {
   color: #1f2937;
   line-height: 1.5;
 }
+
+/* =========================================================================
+   NEW STYLES FOR BOOKING CREATION ENHANCEMENTS
+   ========================================================================= */
+
+/* Date Section Wrapper */
+.bma-date-section {
+  margin-bottom: 24px;
+  scroll-margin-top: 80px; /* Account for sticky headers */
+}
+
+.bma-date-section:last-child {
+  margin-bottom: 0;
+}
+
+/* Compact Booking Header */
+.bma-booking-header {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+}
+
+.bma-booking-summary {
+  font-size: 14px;
+  color: #374151;
+  display: block;
+}
+
+.bma-booking-summary strong {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+/* Collapsible Sections */
+.bma-expandable-section {
+  margin-bottom: 16px;
+}
+
+.bma-section-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.bma-section-toggle:hover {
+  background: #e5e7eb;
+}
+
+.bma-section-toggle .material-symbols-outlined {
+  font-size: 20px;
+  transition: transform 0.3s ease;
+}
+
+.bma-section-toggle[aria-expanded="true"] .material-symbols-outlined {
+  transform: rotate(180deg);
+}
+
+.bma-section-content {
+  border: 1px solid #e5e7eb;
+  border-top: none;
+  border-radius: 0 0 6px 6px;
+  padding: 16px;
+  background: white;
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+  to {
+    opacity: 1;
+    max-height: 1000px;
+    padding-top: 16px;
+    padding-bottom: 16px;
+  }
+}
+
+/* Gantt Chart Container */
+.bma-gantt-chart-container {
+  margin: 16px 0;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: white;
+  overflow: hidden;
+}
+
+.bma-gantt-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.bma-gantt-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.bma-gantt-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.bma-gantt-control-btn {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bma-gantt-control-btn:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+.bma-gantt-control-btn .material-symbols-outlined {
+  font-size: 18px;
+  color: #6b7280;
+}
+
+.gantt-viewport-container {
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+  scroll-behavior: smooth;
+}
+
+.gantt-viewport-container::-webkit-scrollbar {
+  height: 6px;
+}
+
+.gantt-viewport-container::-webkit-scrollbar-track {
+  background: #f3f4f6;
+}
+
+.gantt-viewport-container::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+}
+
+.gantt-viewport-container::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Gantt Sight Line */
+.gantt-sight-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background-color: #ef4444;
+  z-index: 100;
+  pointer-events: none;
+}
+
+/* Time Slot Button Grid */
+.bma-time-slots-grid {
+  margin: 16px 0;
+}
+
+.time-slot-period {
+  margin-bottom: 16px;
+}
+
+.time-slot-period:last-child {
+  margin-bottom: 0;
+}
+
+.time-slot-period-header {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.time-slot-buttons {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+  gap: 8px;
+}
+
+.time-slot-btn {
+  padding: 10px 12px;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+  position: relative;
+}
+
+.time-slot-btn:hover {
+  background: #f3f4f6;
+  border-color: #3b82f6;
+  color: #3b82f6;
+}
+
+.time-slot-btn.selected {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  color: white;
+  font-weight: 600;
+}
+
+.time-slot-btn.unavailable {
+  background: #f3f4f6;
+  color: #9ca3af;
+  border-color: #e5e7eb;
+  cursor: help;
+}
+
+.time-slot-btn.unavailable:hover {
+  background: #fef3c7;
+  border-color: #fbbf24;
+  color: #92400e;
+}
+
+.time-slot-btn.unavailable::before {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  background: #1f2937;
+  color: white;
+  font-size: 11px;
+  white-space: nowrap;
+  border-radius: 4px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+  z-index: 1000;
+}
+
+.time-slot-btn.unavailable:hover::before {
+  opacity: 1;
+}
+
+/* Form Feedback */
+.bma-form-feedback {
+  padding: 12px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  margin-top: 12px;
+  display: none;
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.bma-form-feedback.success {
+  background: #d1fae5;
+  border: 1px solid #6ee7b7;
+  color: #065f46;
+}
+
+.bma-form-feedback.error {
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  color: #991b1b;
+}
+
+.bma-form-feedback.info {
+  background: #dbeafe;
+  border: 1px solid #93c5fd;
+  color: #1e40af;
+}
+
+/* Navigation Link Styles */
+.create-booking-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #3b82f6;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.create-booking-link:hover {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+.create-booking-link .material-symbols-outlined {
+  font-size: 18px;
+}
+
+/* Button Enhancements */
+button[data-action] {
+  position: relative;
+  overflow: hidden;
+}
+
+button[data-action]:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+button[data-action].loading {
+  color: transparent;
+}
+
+button[data-action].loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border: 2px solid;
+  border-color: currentColor transparent currentColor transparent;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  color: white;
+}
+
+/* Special Event Alerts */
+.bma-special-event-alert {
+  background: #fef3c7;
+  border: 1px solid #fbbf24;
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: #92400e;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bma-special-event-alert .material-symbols-outlined {
+  font-size: 18px;
+  color: #f59e0b;
+}
+
+/* Dietary Requirements Checkboxes */
+.diet-checkbox {
+  margin-right: 8px;
+  cursor: pointer;
+}
+
+.diet-checkbox + label {
+  font-size: 14px;
+  color: #374151;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 400px) {
+  .time-slot-buttons {
+    grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+    gap: 6px;
+  }
+
+  .time-slot-btn {
+    padding: 8px 6px;
+    font-size: 12px;
+  }
+
+  .bma-gantt-header {
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+  }
+
+  .bma-gantt-controls {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+
+/* Accessibility Enhancements */
+.time-slot-btn:focus,
+.bma-section-toggle:focus,
+.bma-gantt-control-btn:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.time-slot-btn:focus:not(:focus-visible),
+.bma-section-toggle:focus:not(:focus-visible),
+.bma-gantt-control-btn:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Screen Reader Only */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
