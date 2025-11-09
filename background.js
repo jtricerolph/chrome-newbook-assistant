@@ -59,7 +59,7 @@ async function handleTabUpdate(tabId, url) {
     await loadSettings();
   }
 
-  const isNewBookDomain = url.includes('appeu.newbook.cloud');
+  const isNewBookDomain = url.includes('appeu.newbook.cloud') || url.includes('login.newbook.cloud');
 
   try {
     if (isNewBookDomain && settings?.enableSidebarOnNewBook !== false) {
@@ -155,6 +155,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   } else if (message.action === 'plannerClick') {
     // Forward planner click to sidepanel
     console.log('Forwarding plannerClick from content script:', message.bookingId);
+    chrome.runtime.sendMessage(message).catch(() => {
+      // Sidepanel might not be open
+    });
+  } else if (message.action === 'sessionLockChanged') {
+    // Forward session lock status to sidepanel
+    console.log('Session lock status changed:', message.isLocked ? 'LOCKED' : 'UNLOCKED');
     chrome.runtime.sendMessage(message).catch(() => {
       // Sidepanel might not be open
     });

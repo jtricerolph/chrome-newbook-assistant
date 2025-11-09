@@ -14,6 +14,7 @@
 
   "host_permissions": [
     "https://appeu.newbook.cloud/*",
+    "https://login.newbook.cloud/*",
     "https://admin.hotelnumberfour.com/*",
     "https://n4admindev.pterois.co.uk/*"
   ],
@@ -24,7 +25,10 @@
 
   "content_scripts": [
     {
-      "matches": ["https://appeu.newbook.cloud/*"],
+      "matches": [
+        "https://appeu.newbook.cloud/*",
+        "https://login.newbook.cloud/*"
+      ],
       "js": ["content-script.js"],
       "run_at": "document_idle"
     }

@@ -23,7 +23,8 @@ const STATE = {
     checking: false
   },
   lastSummaryInteraction: Date.now(), // Track last user interaction on Summary tab
-  lastSummaryUpdate: null // Track when summary was last updated
+  lastSummaryUpdate: null, // Track when summary was last updated
+  sessionLocked: false // Track NewBook session lock dialog status
 };
 
 // Global API client (exposed for use by injected template content)
@@ -34,17 +35,23 @@ const AuthManager = {
   // Check if NewBook session is active by checking cookies
   async checkNewBookAuth() {
     try {
-      // NewBook uses session cookies - check for common session cookie names
-      // Adjust cookie name based on your NewBook instance (may be 'PHPSESSID', 'newbook_session', etc.)
-      const cookies = await chrome.cookies.getAll({
-        url: 'https://appeu.newbook.cloud'
-      });
+      // Check cookies from both appeu.newbook.cloud and login.newbook.cloud
+      const domains = [
+        'https://appeu.newbook.cloud',
+        'https://login.newbook.cloud'
+      ];
 
-      console.log('NewBook cookies found:', cookies.length);
+      let allCookies = [];
+      for (const url of domains) {
+        const cookies = await chrome.cookies.getAll({ url });
+        allCookies = allCookies.concat(cookies);
+      }
+
+      console.log('NewBook cookies found:', allCookies.length);
 
       // Check if there's a valid session cookie
       // NewBook typically uses PHPSESSID or similar
-      const sessionCookie = cookies.find(cookie =>
+      const sessionCookie = allCookies.find(cookie =>
         cookie.name === 'PHPSESSID' ||
         cookie.name.toLowerCase().includes('session') ||
         cookie.name.toLowerCase().includes('newbook')
@@ -122,13 +129,28 @@ const AuthManager = {
     STATE.newbookAuth.isAuthenticated = isAuthenticated;
     STATE.newbookAuth.checking = false;
 
-    if (isAuthenticated) {
+    // Show lock screen if either not authenticated OR session is locked
+    if (isAuthenticated && !STATE.sessionLocked) {
       this.hideLockScreen();
     } else {
       this.showLockScreen();
     }
 
     return isAuthenticated;
+  },
+
+  // Handle session lock status from content script
+  handleSessionLock(isLocked) {
+    console.log('Session lock status updated:', isLocked ? 'LOCKED' : 'UNLOCKED');
+    STATE.sessionLocked = isLocked;
+
+    // Update lock screen visibility
+    if (isLocked) {
+      this.showLockScreen();
+    } else if (STATE.newbookAuth.isAuthenticated) {
+      // Only hide if also authenticated
+      this.hideLockScreen();
+    }
   },
 
   // Start listening for cookie changes
@@ -1508,6 +1530,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     } else {
       console.log('Ignoring plannerClick message (setting disabled)');
     }
+  } else if (message.action === 'sessionLockChanged') {
+    console.log('Processing sessionLockChanged message:', message.isLocked);
+    AuthManager.handleSessionLock(message.isLocked);
   } else if (message.action === 'settingsUpdated') {
     console.log('Settings updated, reloading current tab');
     loadSettings().then(() => {

@@ -509,6 +509,83 @@ function createOpenButton() {
   }, 15000);
 }
 
+// Session Lock Dialog Detection
+// Detects NewBook's idle session dialog (#locked_session_dialog)
+function setupSessionLockDetection() {
+  console.log('Setting up session lock detection...');
+
+  // Check for existing dialog on page load
+  const checkSessionLock = () => {
+    const lockDialog = document.getElementById('locked_session_dialog');
+    const isLocked = lockDialog && lockDialog.style.display !== 'none';
+
+    console.log('Session lock check:', isLocked ? 'LOCKED' : 'UNLOCKED');
+
+    // Notify background script
+    chrome.runtime.sendMessage({
+      action: 'sessionLockChanged',
+      isLocked: isLocked
+    }).catch(error => {
+      console.log('Could not send session lock message:', error);
+    });
+
+    return isLocked;
+  };
+
+  // Initial check
+  checkSessionLock();
+
+  // Monitor for dialog appearance/disappearance
+  const observer = new MutationObserver((mutations) => {
+    let shouldCheck = false;
+
+    for (const mutation of mutations) {
+      // Check for added nodes
+      for (const node of mutation.addedNodes) {
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          if (node.id === 'locked_session_dialog' ||
+              (node.querySelector && node.querySelector('#locked_session_dialog'))) {
+            shouldCheck = true;
+            break;
+          }
+        }
+      }
+
+      // Check for removed nodes
+      for (const node of mutation.removedNodes) {
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          if (node.id === 'locked_session_dialog') {
+            shouldCheck = true;
+            break;
+          }
+        }
+      }
+
+      // Check for attribute changes on the dialog itself
+      if (mutation.type === 'attributes' &&
+          mutation.target.id === 'locked_session_dialog') {
+        shouldCheck = true;
+      }
+
+      if (shouldCheck) break;
+    }
+
+    if (shouldCheck) {
+      checkSessionLock();
+    }
+  });
+
+  // Observe the entire document for dialog changes
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['style', 'class']
+  });
+
+  console.log('Session lock observer active');
+}
+
 // Initialize
 async function init() {
   await loadSettings();
@@ -524,6 +601,9 @@ async function init() {
 
   // Set up NewBook popup detection (fieldsets with make_popup_tab class)
   setupPopupDetection();
+
+  // Set up session lock detection
+  setupSessionLockDetection();
 
   // Show floating button to prompt user to open sidepanel
   setTimeout(createOpenButton, 1000); // Small delay to let page load
