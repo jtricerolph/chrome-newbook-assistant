@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Generate NewBook Assistant Icons</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+  <style>
+    body {
+      margin: 0;
+      padding: 40px;
+      background: #f0f0f0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    h1 {
+      color: #333;
+      margin-bottom: 20px;
+    }
+
+    .instructions {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 30px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .instructions h2 {
+      margin-top: 0;
+      color: #667eea;
+    }
+
+    .instructions ol {
+      line-height: 1.8;
+    }
+
+    .instructions code {
+      background: #f5f5f5;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: 'Courier New', monospace;
+    }
+
+    .icon-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 30px;
+      margin-bottom: 40px;
+    }
+
+    .icon-container {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+
+    .icon-wrapper {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    /* For screenshot cropping - exact dimensions */
+    .icon-wrapper.size-16 {
+      width: 16px;
+      height: 16px;
+    }
+
+    .icon-wrapper.size-48 {
+      width: 48px;
+      height: 48px;
+    }
+
+    .icon-wrapper.size-128 {
+      width: 128px;
+      height: 128px;
+    }
+
+    .icon-wrapper::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 20%;
+      z-index: 0;
+    }
+
+    .material-symbols-outlined {
+      position: relative;
+      z-index: 1;
+      color: white;
+      font-variation-settings:
+        'FILL' 1,
+        'wght' 400,
+        'GRAD' 0,
+        'opsz' 48;
+    }
+
+    .icon-16 { font-size: 12px; }
+    .icon-48 { font-size: 36px; }
+    .icon-128 { font-size: 96px; }
+
+    .icon-info {
+      margin-top: 15px;
+      font-size: 14px;
+      color: #666;
+    }
+
+    .icon-info strong {
+      display: block;
+      color: #333;
+      font-size: 16px;
+      margin-bottom: 5px;
+    }
+
+    .download-section {
+      background: #fff3cd;
+      padding: 20px;
+      border-radius: 8px;
+      margin-top: 30px;
+      border-left: 4px solid #ffc107;
+    }
+
+    .download-section h3 {
+      margin-top: 0;
+      color: #856404;
+    }
+
+    /* Alternative flat icons without gradient */
+    .icon-wrapper.flat::before {
+      background: #667eea;
+    }
+
+    .section-title {
+      margin-top: 40px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #667eea;
+      color: #667eea;
+    }
+  </style>
+</head>
+<body>
+  <h1>NewBook Assistant Icon Generator</h1>
+
+  <div class="instructions">
+    <h2>How to Generate Icons</h2>
+    <ol>
+      <li>Open this HTML file in your browser</li>
+      <li>For each icon size below, right-click on the icon square → "Inspect Element"</li>
+      <li>In DevTools, right-click the <code>.icon-wrapper</code> element → "Capture node screenshot"</li>
+      <li>Save as <code>icon16.png</code>, <code>icon48.png</code>, and <code>icon128.png</code></li>
+      <li>Alternatively, use a screenshot tool to capture exactly 16×16, 48×48, and 128×128 pixels</li>
+      <li>Replace the existing icon files in the <code>icons/</code> directory</li>
+    </ol>
+    <p><strong>Alternative:</strong> Use an online tool like <a href="https://www.iloveimg.com/resize-image" target="_blank">iloveimg.com</a> to convert screenshots to exact sizes.</p>
+  </div>
+
+  <h2 class="section-title">Gradient Background Icons (Recommended)</h2>
+  <div class="icon-grid">
+    <div class="icon-container">
+      <div class="icon-wrapper size-16">
+        <span class="material-symbols-outlined icon-16">concierge</span>
+      </div>
+      <div class="icon-info">
+        <strong>icon16.png</strong>
+        16 × 16 pixels<br>
+        Toolbar icon
+      </div>
+    </div>
+
+    <div class="icon-container">
+      <div class="icon-wrapper size-48">
+        <span class="material-symbols-outlined icon-48">concierge</span>
+      </div>
+      <div class="icon-info">
+        <strong>icon48.png</strong>
+        48 × 48 pixels<br>
+        Extension management
+      </div>
+    </div>
+
+    <div class="icon-container">
+      <div class="icon-wrapper size-128">
+        <span class="material-symbols-outlined icon-128">concierge</span>
+      </div>
+      <div class="icon-info">
+        <strong>icon128.png</strong>
+        128 × 128 pixels<br>
+        Chrome Web Store
+      </div>
+    </div>
+  </div>
+
+  <h2 class="section-title">Flat Background Icons (Alternative)</h2>
+  <div class="icon-grid">
+    <div class="icon-container">
+      <div class="icon-wrapper size-16 flat">
+        <span class="material-symbols-outlined icon-16">concierge</span>
+      </div>
+      <div class="icon-info">
+        <strong>icon16.png</strong>
+        16 × 16 pixels
+      </div>
+    </div>
+
+    <div class="icon-container">
+      <div class="icon-wrapper size-48 flat">
+        <span class="material-symbols-outlined icon-48">concierge</span>
+      </div>
+      <div class="icon-info">
+        <strong>icon48.png</strong>
+        48 × 48 pixels
+      </div>
+    </div>
+
+    <div class="icon-container">
+      <div class="icon-wrapper size-128 flat">
+        <span class="material-symbols-outlined icon-128">concierge</span>
+      </div>
+      <div class="icon-info">
+        <strong>icon128.png</strong>
+        128 × 128 pixels
+      </div>
+    </div>
+  </div>
+
+  <div class="download-section">
+    <h3>⚠️ Using Browser Screenshot Tools</h3>
+    <p><strong>Chrome/Edge:</strong></p>
+    <ol>
+      <li>Right-click on any icon square above</li>
+      <li>Click "Inspect" or "Inspect Element"</li>
+      <li>In DevTools, find the <code>div.icon-wrapper</code> element</li>
+      <li>Right-click it → "Capture node screenshot"</li>
+      <li>The screenshot will be exactly the right size!</li>
+    </ol>
+    <p><strong>Firefox:</strong></p>
+    <ol>
+      <li>Take a regular screenshot of each icon</li>
+      <li>Use an image editor to crop to exact dimensions</li>
+      <li>Or use the Inspect Element → "Screenshot Node" feature</li>
+    </ol>
+  </div>
+
+  <script>
+    // Add click handler to show exact dimensions
+    document.querySelectorAll('.icon-wrapper').forEach(wrapper => {
+      wrapper.addEventListener('click', function() {
+        const rect = this.getBoundingClientRect();
+        console.log(`Dimensions: ${Math.round(rect.width)} × ${Math.round(rect.height)} pixels`);
+        alert(`This icon is ${Math.round(rect.width)} × ${Math.round(rect.height)} pixels`);
+      });
+    });
+
+    // Log instructions on load
+    console.log('%c📋 Icon Generation Instructions', 'font-size: 16px; font-weight: bold; color: #667eea;');
+    console.log('1. Right-click each icon square');
+    console.log('2. Select "Inspect" or "Inspect Element"');
+    console.log('3. In DevTools, right-click the .icon-wrapper element');
+    console.log('4. Select "Capture node screenshot"');
+    console.log('5. Save as icon16.png, icon48.png, icon128.png');
+  </script>
+</body>
+</html>
