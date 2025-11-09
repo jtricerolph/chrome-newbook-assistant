@@ -449,14 +449,19 @@ function attachRestaurantEventListeners(container) {
   // Helper functions for restaurant tab interactions
   function toggleCreateForm(date) {
     const formId = 'create-form-' + date;
+    const btnId = 'create-btn-' + date;
     const form = document.getElementById(formId);
+    const btn = document.getElementById(btnId);
+
     if (!form) return;
 
     if (form.style.display === 'none' || !form.style.display) {
       form.style.display = 'block';
+      if (btn) btn.style.display = 'none'; // Hide button when form is open
       form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     } else {
       form.style.display = 'none';
+      if (btn) btn.style.display = ''; // Show button when form is closed
     }
   }
 
