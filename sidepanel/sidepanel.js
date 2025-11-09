@@ -24,7 +24,8 @@ const STATE = {
   },
   lastSummaryInteraction: Date.now(), // Track last user interaction on Summary tab
   lastSummaryUpdate: null, // Track when summary was last updated
-  sessionLocked: false // Track NewBook session lock dialog status
+  sessionLocked: false, // Track NewBook session lock dialog status
+  createFormOpen: false // Track if any create booking form is open
 };
 
 // Global API client (exposed for use by injected template content)
@@ -458,10 +459,12 @@ function attachRestaurantEventListeners(container) {
     if (form.style.display === 'none' || !form.style.display) {
       form.style.display = 'block';
       if (btn) btn.style.display = 'none'; // Hide button when form is open
+      STATE.createFormOpen = true; // Track form state
       form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     } else {
       form.style.display = 'none';
       if (btn) btn.style.display = ''; // Show button when form is closed
+      STATE.createFormOpen = false; // Track form state
     }
   }
 
@@ -1431,15 +1434,30 @@ async function loadChecksTab() {
   }
 }
 
-// Inactivity Timer (return to Summary after 60s on Restaurant/Checks tabs)
+// Inactivity Timer (return to Summary after configured timeout on Restaurant/Checks tabs)
 function startInactivityTimer() {
   resetInactivityTimer();
 
+  // Get timeout from settings (default to 60 seconds if not set)
+  const timeoutSeconds = STATE.settings?.inactivityTimeout || 60;
+  const timeoutMs = timeoutSeconds * 1000;
+
   STATE.timers.inactivityTimeout = setTimeout(() => {
+    // Check if we should pause due to form being open
+    const pauseWhenFormOpen = STATE.settings?.pauseInactivityWhenFormOpen !== false; // Default to true
+
+    if (pauseWhenFormOpen && STATE.createFormOpen) {
+      console.log('Inactivity timer paused - create form is open');
+      // Restart the timer - it will check again after the timeout
+      startInactivityTimer();
+      return;
+    }
+
     if (STATE.currentTab !== 'summary') {
+      console.log(`Inactivity timeout (${timeoutSeconds}s) - returning to summary`);
       switchTab('summary');
     }
-  }, 60000); // 60 seconds
+  }, timeoutMs);
 }
 
 function resetInactivityTimer() {

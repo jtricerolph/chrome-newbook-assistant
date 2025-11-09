@@ -110,6 +110,29 @@
         </div>
       </section>
 
+      <section class="settings-section">
+        <h2>Restaurant Tab Behavior</h2>
+        <div class="form-group">
+          <label for="inactivityTimeout">Return to summary after inactivity (seconds)</label>
+          <input
+            type="number"
+            id="inactivityTimeout"
+            min="10"
+            max="600"
+            value="60"
+          >
+          <small>Return to summary tab after this many seconds of inactivity on Restaurant/Checks tabs (10-600 seconds)</small>
+        </div>
+
+        <div class="form-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="pauseInactivityWhenFormOpen">
+            <span>Pause inactivity timer when create form is open</span>
+          </label>
+          <small>Prevent automatic return to summary when the create booking form is expanded</small>
+        </div>
+      </section>
+
       <div class="button-group">
         <button id="testConnection" class="button button-secondary">Test Connection</button>
         <button id="saveSettings" class="button button-primary">Save Settings</button>

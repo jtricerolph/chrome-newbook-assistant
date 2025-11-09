@@ -7,7 +7,9 @@ const DEFAULT_SETTINGS = {
   recentBookingsCount: 10,
   summaryRefreshRate: 60,
   enablePlannerClickUpdate: true,
-  highlightNewestMinutes: 60
+  highlightNewestMinutes: 60,
+  inactivityTimeout: 60,
+  pauseInactivityWhenFormOpen: true
 };
 
 // DOM elements
@@ -20,6 +22,8 @@ const elements = {
   summaryRefreshRate: document.getElementById('summaryRefreshRate'),
   enablePlannerClickUpdate: document.getElementById('enablePlannerClickUpdate'),
   highlightNewestMinutes: document.getElementById('highlightNewestMinutes'),
+  inactivityTimeout: document.getElementById('inactivityTimeout'),
+  pauseInactivityWhenFormOpen: document.getElementById('pauseInactivityWhenFormOpen'),
   testConnection: document.getElementById('testConnection'),
   saveSettings: document.getElementById('saveSettings'),
   status: document.getElementById('status')
@@ -39,6 +43,8 @@ async function loadSettings() {
     elements.summaryRefreshRate.value = settings.summaryRefreshRate || 60;
     elements.enablePlannerClickUpdate.checked = settings.enablePlannerClickUpdate !== false;
     elements.highlightNewestMinutes.value = settings.highlightNewestMinutes || 60;
+    elements.inactivityTimeout.value = settings.inactivityTimeout || 60;
+    elements.pauseInactivityWhenFormOpen.checked = settings.pauseInactivityWhenFormOpen !== false;
   } catch (error) {
     showStatus('Error loading settings: ' + error.message, 'error');
   }
@@ -102,6 +108,13 @@ async function saveSettings() {
       return;
     }
 
+    const inactivityTimeout = parseInt(elements.inactivityTimeout.value);
+    if (inactivityTimeout < 10 || inactivityTimeout > 600) {
+      showStatus('Inactivity timeout must be between 10 and 600 seconds (10 minutes)', 'error');
+      elements.inactivityTimeout.focus();
+      return;
+    }
+
     const settings = {
       apiRootUrl: elements.apiRootUrl.value.trim().replace(/\/$/, ''), // Remove trailing slash
       username: elements.username.value.trim(),
@@ -110,7 +123,9 @@ async function saveSettings() {
       recentBookingsCount: bookingsCount,
       summaryRefreshRate: refreshRate,
       enablePlannerClickUpdate: elements.enablePlannerClickUpdate.checked,
-      highlightNewestMinutes: highlightMinutes
+      highlightNewestMinutes: highlightMinutes,
+      inactivityTimeout: inactivityTimeout,
+      pauseInactivityWhenFormOpen: elements.pauseInactivityWhenFormOpen.checked
     };
 
     await chrome.storage.sync.set({ settings });
