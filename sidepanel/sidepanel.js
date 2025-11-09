@@ -296,6 +296,23 @@ function attachSummaryEventListeners(container) {
     });
   });
 
+  // Add click handlers to ResOS deep link rows to open ResOS
+  const resosDeepLinks = container.querySelectorAll('.resos-deep-link');
+  resosDeepLinks.forEach(link => {
+    link.addEventListener('click', function(e) {
+      e.stopPropagation(); // Prevent header click event
+      const resosId = this.dataset.resosId;
+      const restaurantId = this.dataset.restaurantId;
+      const date = this.dataset.date;
+
+      if (resosId && restaurantId && date) {
+        const resosUrl = `https://app.resos.com/${restaurantId}/bookings/timetable/${date}/${resosId}`;
+        console.log('Opening ResOS booking:', resosUrl);
+        chrome.tabs.update({ url: resosUrl });
+      }
+    });
+  });
+
   // Update time since placed and apply highlighting
   updateTimeSincePlaced(container);
 }
