@@ -291,25 +291,25 @@ function validateBookingForm(formId) {
     return false;
   }
 
-  // Required fields
-  const requiredFields = [
-    { name: 'opening_hour_id', label: 'Service Period' },
-    { name: 'time', label: 'Time' },
-    { name: 'people', label: 'Party Size' },
-    { name: 'guest_name', label: 'Guest Name' }
-  ];
-
   const errors = [];
 
-  requiredFields.forEach(field => {
-    const input = form.querySelector(`[name="${field.name}"]`);
-    if (!input || !input.value || input.value.trim() === '') {
-      errors.push(`${field.label} is required`);
-    }
-  });
+  // Validate guest name
+  const guestNameInput = form.querySelector('.form-guest-name');
+  if (!guestNameInput || !guestNameInput.value || guestNameInput.value.trim() === '') {
+    errors.push('Guest name is required');
+  }
+
+  // Validate people count
+  const peopleInput = form.querySelector('.form-people');
+  if (!peopleInput || !peopleInput.value || parseInt(peopleInput.value) < 1) {
+    errors.push('Party size is required');
+  }
+
+  // Note: opening_hour_id and time are validated in submitCreateBooking
+  // since they're populated dynamically
 
   // Validate email format if provided
-  const emailInput = form.querySelector('[name="guest_email"]');
+  const emailInput = form.querySelector('.form-email');
   if (emailInput && emailInput.value) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(emailInput.value)) {
@@ -318,7 +318,7 @@ function validateBookingForm(formId) {
   }
 
   // Validate phone format if provided
-  const phoneInput = form.querySelector('[name="guest_phone"]');
+  const phoneInput = form.querySelector('.form-phone');
   if (phoneInput && phoneInput.value) {
     const phoneRegex = /^[\d\s\+\-\(\)]+$/;
     if (!phoneRegex.test(phoneInput.value)) {
@@ -974,33 +974,63 @@ function attachRestaurantEventListeners(container) {
       .map(cb => cb.dataset.choiceId)
       .join(',');
 
-    // Collect form data
+    // Get time from hidden field (populated by time slot button click)
+    const timeField = form.querySelector('.form-time-selected') || document.getElementById('time-selected-' + date);
+    const timeValue = timeField ? timeField.value : '';
+
+    if (!timeValue) {
+      showFeedback(feedback, 'Please select a time slot', 'error');
+      return;
+    }
+
+    // Get opening hour ID from selector
+    const openingHourSelector = document.getElementById('opening-hour-selector-' + date);
+    const openingHourId = openingHourSelector ? openingHourSelector.value : '';
+
+    if (!openingHourId) {
+      showFeedback(feedback, 'Please select a service period', 'error');
+      return;
+    }
+
+    // Collect form data using class selectors
     const formData = {
       date: date,
-      time: form.querySelector('[name="time"]').value,
-      people: parseInt(form.querySelector('[name="people"]').value),
-      guest_name: form.querySelector('[name="guest_name"]').value,
-      opening_hour_id: form.querySelector('[name="opening_hour_id"]').value
+      time: timeValue,
+      people: parseInt(form.querySelector('.form-people').value),
+      guest_name: form.querySelector('.form-guest-name').value,
+      opening_hour_id: openingHourId
     };
 
     // Add optional fields if present
-    const optionalFields = [
-      'guest_phone',
-      'guest_email',
-      'booking_ref',
-      'hotel_guest',
-      'dbb',
-      'dietary_other',
-      'booking_note',
-      'language_code'
-    ];
+    const phoneField = form.querySelector('.form-phone');
+    if (phoneField && phoneField.value) {
+      formData.guest_phone = phoneField.value;
+    }
 
-    optionalFields.forEach(field => {
-      const input = form.querySelector(`[name="${field}"]`);
-      if (input && input.value) {
-        formData[field] = input.value;
-      }
-    });
+    const emailField = form.querySelector('.form-email');
+    if (emailField && emailField.value) {
+      formData.guest_email = emailField.value;
+    }
+
+    const hotelGuestField = form.querySelector('.form-hotel-guest');
+    if (hotelGuestField) {
+      formData.hotel_guest = hotelGuestField.checked ? 'Yes' : 'No';
+    }
+
+    const dbbField = form.querySelector('.form-dbb');
+    if (dbbField) {
+      formData.dbb = dbbField.checked ? 'Yes' : 'No';
+    }
+
+    const dietOtherField = form.querySelector('.form-diet-other');
+    if (dietOtherField && dietOtherField.value) {
+      formData.dietary_other = dietOtherField.value;
+    }
+
+    const noteField = form.querySelector('.form-booking-note');
+    if (noteField && noteField.value) {
+      formData.booking_note = noteField.value;
+    }
 
     // Add dietary requirements if any selected
     if (dietaryChoiceIds) {
@@ -1008,13 +1038,20 @@ function attachRestaurantEventListeners(container) {
     }
 
     // Add notification preferences
-    const notificationSMS = form.querySelector('[name="notification_sms"]');
-    const notificationEmail = form.querySelector('[name="notification_email"]');
+    const notificationSMS = form.querySelector('.form-notification-sms');
     if (notificationSMS) {
       formData.notification_sms = notificationSMS.checked;
     }
+
+    const notificationEmail = form.querySelector('.form-notification-email');
     if (notificationEmail) {
       formData.notification_email = notificationEmail.checked;
+    }
+
+    // Add booking reference from data attribute
+    const bookingRef = form.dataset.bookingId;
+    if (bookingRef) {
+      formData.booking_ref = bookingRef;
     }
 
     createProcessing = true;
