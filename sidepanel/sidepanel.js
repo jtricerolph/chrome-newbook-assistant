@@ -943,11 +943,16 @@ function attachRestaurantEventListeners(container) {
     // Fetch and populate opening hours
     try {
       const openingHoursData = await fetchOpeningHours(date);
+      console.log('Opening hours response:', openingHoursData);
+
       const selector = document.getElementById('opening-hour-selector-' + date);
+      console.log('Opening hour selector found:', !!selector);
 
       if (openingHoursData.success && openingHoursData.html) {
+        console.log('Using HTML response for opening hours');
         selector.innerHTML = '<option value="">Select service period...</option>' + openingHoursData.html;
       } else if (openingHoursData.success && openingHoursData.data) {
+        console.log('Using data array for opening hours:', openingHoursData.data.length, 'periods');
         selector.innerHTML = '<option value="">Select service period...</option>';
         openingHoursData.data.forEach(period => {
           const option = document.createElement('option');
@@ -955,6 +960,8 @@ function attachRestaurantEventListeners(container) {
           option.textContent = `${period.name} (${formatTimeHHMM(period.open)}-${formatTimeHHMM(period.close)})`;
           selector.appendChild(option);
         });
+      } else {
+        console.warn('Opening hours response has no html or data:', openingHoursData);
       }
 
       // Add event listener to fetch available times when opening hour is selected
@@ -975,11 +982,16 @@ function attachRestaurantEventListeners(container) {
     // Fetch and populate dietary choices
     try {
       const dietaryData = await fetchDietaryChoices();
+      console.log('Dietary choices response:', dietaryData);
+
       const container = document.getElementById('dietary-checkboxes-' + date);
+      console.log('Dietary checkboxes container found:', !!container);
 
       if (dietaryData.success && dietaryData.html) {
+        console.log('Using HTML response for dietary choices');
         container.innerHTML = dietaryData.html;
       } else if (dietaryData.success && dietaryData.choices) {
+        console.log('Using choices array for dietary:', dietaryData.choices.length, 'choices');
         container.innerHTML = '';
         dietaryData.choices.forEach(choice => {
           const label = document.createElement('label');
@@ -988,6 +1000,8 @@ function attachRestaurantEventListeners(container) {
           label.innerHTML = `<input type="checkbox" class="diet-checkbox" data-choice-id="${escapeHtml(choice._id)}" data-choice-name="${escapeHtml(choice.name)}"> ${escapeHtml(choice.name)}`;
           container.appendChild(label);
         });
+      } else {
+        console.warn('Dietary response has no html or choices:', dietaryData);
       }
     } catch (error) {
       console.error('Error loading dietary choices:', error);
