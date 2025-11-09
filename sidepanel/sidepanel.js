@@ -992,6 +992,18 @@ function attachRestaurantEventListeners(container) {
     feedbackElement.className = `bma-form-feedback ${type}`;
     feedbackElement.style.display = 'block';
   }
+
+  // Event listener for "Open Booking in NewBook" buttons in Restaurant tab
+  container.addEventListener('click', function(event) {
+    const button = event.target.closest('.open-booking-btn');
+    if (button && button.dataset.bookingId) {
+      const bookingId = button.dataset.bookingId;
+      const newbookUrl = `https://appeu.newbook.cloud/bookings_view/${bookingId}`;
+
+      // Open in current tab
+      chrome.tabs.update({ url: newbookUrl });
+    }
+  });
 }
 
 function updateTimeSincePlaced(container) {
