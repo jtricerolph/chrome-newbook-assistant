@@ -1433,6 +1433,9 @@ async function init() {
 
     // Only load tabs if authenticated
     if (isAuthenticated) {
+      // Set up global inactivity timer reset on ANY user interaction
+      setupGlobalInactivityReset();
+
       // Load summary tab on startup
       loadSummaryTab();
 
@@ -1443,6 +1446,33 @@ async function init() {
       }
     }
   }
+}
+
+// Global inactivity timer reset - detects ANY user activity
+function setupGlobalInactivityReset() {
+  const resetTimerGlobal = () => {
+    // Only reset if we're on Restaurant or Checks tab
+    if (STATE.currentTab === 'restaurant' || STATE.currentTab === 'checks') {
+      resetInactivityTimer();
+      startInactivityTimer();
+    }
+  };
+
+  // Debounced version for mousemove to prevent excessive calls
+  let mouseMoveTimeout;
+  const debouncedMouseMove = () => {
+    clearTimeout(mouseMoveTimeout);
+    mouseMoveTimeout = setTimeout(resetTimerGlobal, 500); // Only reset after 500ms of mouse movement
+  };
+
+  // Listen for ANY user interaction on the document
+  document.addEventListener('click', resetTimerGlobal, true);
+  document.addEventListener('scroll', resetTimerGlobal, { passive: true, capture: true });
+  document.addEventListener('keydown', resetTimerGlobal, true);
+  document.addEventListener('mousemove', debouncedMouseMove, { passive: true, capture: true });
+  document.addEventListener('touchstart', resetTimerGlobal, { passive: true, capture: true });
+
+  console.log('Global inactivity timer reset listeners attached');
 }
 
 // Global function to reload restaurant tab (called by injected template content after booking actions)
