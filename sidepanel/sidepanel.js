@@ -232,59 +232,292 @@ function scrollGanttViewport(chartId, direction) {
 }
 
 /**
- * Show sight line on Gantt chart at current time
+ * Show sight line on Gantt chart at a specific time
  * @param {string} chartId - ID of the Gantt chart container
+ * @param {string} time - Time in HHMM format (e.g., "1900") or HH:MM format (e.g., "19:00")
  */
-function showGanttSightLine(chartId) {
+function showGanttSightLine(chartId, time = null) {
   const chart = document.getElementById(chartId);
   if (!chart) {
     console.warn('Gantt chart not found:', chartId);
     return;
   }
 
-  const now = new Date();
-  const currentTime = (now.getHours() * 100) + now.getMinutes();
-
-  // Remove existing sight line
-  const existingSightLine = chart.querySelector('.gantt-sight-line');
-  if (existingSightLine) {
-    existingSightLine.remove();
+  // If no time provided, use current time
+  let targetTime;
+  if (time) {
+    // Convert to HHMM format if needed
+    if (typeof time === 'string' && time.includes(':')) {
+      const parts = time.split(':');
+      targetTime = parseInt(parts[0]) * 100 + parseInt(parts[1]);
+    } else {
+      targetTime = parseInt(time);
+    }
+  } else {
+    const now = new Date();
+    targetTime = (now.getHours() * 100) + now.getMinutes();
   }
 
-  // Create new sight line
-  const sightLine = document.createElement('div');
-  sightLine.className = 'gantt-sight-line';
-  sightLine.style.position = 'absolute';
-  sightLine.style.top = '0';
-  sightLine.style.bottom = '0';
-  sightLine.style.width = '2px';
-  sightLine.style.backgroundColor = '#ef4444';
-  sightLine.style.zIndex = '100';
+  // Get the sight line element (it's already in the chart HTML)
+  const sightLine = document.getElementById('gantt-sight-line-' + chartId);
+  if (!sightLine) {
+    console.warn('Sight line element not found for chart:', chartId);
+    return;
+  }
 
-  // Calculate position (assuming 1px per minute from midnight)
-  const hour = Math.floor(currentTime / 100);
-  const minute = currentTime % 100;
-  const leftPosition = (hour * 60) + minute;
-  sightLine.style.left = `${leftPosition}px`;
+  // Calculate position as percentage of chart width
+  // We need to find the chart's time range
+  const chartContainer = chart.querySelector('.gantt-chart-container') || chart;
+  const chartWidth = chartContainer.scrollWidth;
+  const chartBounds = chartContainer.getBoundingClientRect();
 
-  // Add to chart
-  const timelineGrid = chart.querySelector('.gantt-timeline-grid');
-  if (timelineGrid) {
-    timelineGrid.appendChild(sightLine);
+  // Extract start/end hours from the chart's time labels
+  const timeLabels = chartContainer.querySelectorAll('.gantt-time-label');
+  if (timeLabels.length === 0) {
+    console.warn('No time labels found in chart');
+    return;
+  }
+
+  // Get first and last time label to determine range
+  const firstLabel = timeLabels[0].textContent;
+  const lastLabel = timeLabels[timeLabels.length - 1].textContent;
+
+  const startHour = parseInt(firstLabel.split(':')[0]);
+  const lastTime = lastLabel.split(':');
+  const endHour = parseInt(lastTime[0]) + (parseInt(lastTime[1]) === 30 ? 0.5 : 0) + 0.5; // Add buffer
+
+  const totalMinutes = (endHour - startHour) * 60;
+  const targetHour = Math.floor(targetTime / 100);
+  const targetMinute = targetTime % 100;
+  const minutesFromStart = (targetHour - startHour) * 60 + targetMinute;
+
+  if (minutesFromStart < 0 || minutesFromStart > totalMinutes) {
+    // Time is outside chart range, hide sight line
+    sightLine.style.display = 'none';
+    return;
+  }
+
+  // Calculate left position as percentage
+  const leftPercent = (minutesFromStart / totalMinutes) * 100;
+  sightLine.style.left = leftPercent + '%';
+  sightLine.style.display = 'block';
+}
+
+/**
+ * Hide the sight line on a Gantt chart
+ * @param {string} chartId - ID of the Gantt chart container
+ */
+function hideGanttSightLine(chartId) {
+  const sightLine = document.getElementById('gantt-sight-line-' + chartId);
+  if (sightLine) {
+    sightLine.style.display = 'none';
   }
 }
 
 /**
- * Build Gantt chart HTML for availability visualization
- * Simplified version for booking creation (shows availability, not existing bookings)
+ * Auto-scroll Gantt chart to center on a specific time
+ * @param {string} chartId - ID of the Gantt chart container
+ * @param {string} time - Time in HHMM format (e.g., "1900") or HH:MM format (e.g., "19:00")
+ * @param {boolean} smooth - Use smooth scrolling animation
+ */
+function scrollGanttToTime(chartId, time, smooth = true) {
+  const chart = document.getElementById(chartId);
+  if (!chart) {
+    console.warn('Gantt chart not found:', chartId);
+    return;
+  }
+
+  // Convert to HHMM format if needed
+  let targetTime;
+  if (typeof time === 'string' && time.includes(':')) {
+    const parts = time.split(':');
+    targetTime = parseInt(parts[0]) * 100 + parseInt(parts[1]);
+  } else {
+    targetTime = parseInt(time);
+  }
+
+  // Check if chart is in a scrollable viewport
+  const viewport = chart.closest('.gantt-viewport');
+  if (!viewport) {
+    // No viewport, chart is not scrollable
+    return;
+  }
+
+  const chartContainer = chart.querySelector('.gantt-chart-container') || chart;
+
+  // Extract start/end hours from the chart's time labels
+  const timeLabels = chartContainer.querySelectorAll('.gantt-time-label');
+  if (timeLabels.length === 0) {
+    return;
+  }
+
+  const firstLabel = timeLabels[0].textContent;
+  const lastLabel = timeLabels[timeLabels.length - 1].textContent;
+
+  const startHour = parseInt(firstLabel.split(':')[0]);
+  const lastTime = lastLabel.split(':');
+  const endHour = parseInt(lastTime[0]) + (parseInt(lastTime[1]) === 30 ? 0.5 : 0) + 0.5;
+
+  const totalMinutes = (endHour - startHour) * 60;
+  const targetHour = Math.floor(targetTime / 100);
+  const targetMinute = targetTime % 100;
+  const minutesFromStart = (targetHour - startHour) * 60 + targetMinute;
+
+  if (minutesFromStart < 0 || minutesFromStart > totalMinutes) {
+    // Time is outside chart range
+    return;
+  }
+
+  // Calculate scroll position to center the time in viewport
+  const scrollPercentage = minutesFromStart / totalMinutes;
+  const chartWidth = chartContainer.scrollWidth;
+  const viewportWidth = viewport.clientWidth;
+  const scrollPosition = (chartWidth * scrollPercentage) - (viewportWidth / 2);
+
+  viewport.scrollTo({
+    left: Math.max(0, scrollPosition),
+    behavior: smooth ? 'smooth' : 'auto'
+  });
+}
+
+/**
+ * Position bookings using grid-based layout algorithm (row compaction)
+ * Ported from PHP class-bma-gantt-chart.php
+ * @param {Array} bookings - Array of booking objects
+ * @param {number} startHour - Starting hour of chart
+ * @param {number} totalMinutes - Total minutes in chart
+ * @param {number} bookingDuration - Default booking duration in minutes
+ * @param {number} gridRowHeight - Height of each grid row in pixels
+ * @returns {Array} Array of positioned booking objects with grid_row and row_span
+ */
+function positionBookingsOnGrid(bookings, startHour, totalMinutes, bookingDuration, gridRowHeight) {
+  const allBookings = [];
+  const maxPartySize = 20;
+  const buffer = 5; // 5-minute buffer between bookings
+
+  // Flatten and process bookings
+  bookings.forEach(booking => {
+    if (!booking.time) return;
+
+    const timeParts = booking.time.split(':');
+    const hours = parseInt(timeParts[0]);
+    const minutes = timeParts[1] ? parseInt(timeParts[1]) : 0;
+    const minutesFromStart = (hours - startHour) * 60 + minutes;
+
+    if (minutesFromStart >= 0 && minutesFromStart < totalMinutes) {
+      allBookings.push({
+        time: booking.time,
+        people: booking.people || 2,
+        name: booking.name || 'Guest',
+        room: booking.room || 'Unknown',
+        hours: hours,
+        minutes: minutes,
+        minutesFromStart: minutesFromStart
+      });
+    }
+  });
+
+  // Sort by start time
+  allBookings.sort((a, b) => a.minutesFromStart - b.minutesFromStart);
+
+  // Grid-based positioning algorithm
+  const gridRows = [];
+
+  allBookings.forEach(booking => {
+    const bookingStart = booking.minutesFromStart;
+    let bookingEnd = bookingStart + bookingDuration;
+    if (bookingEnd > totalMinutes) {
+      bookingEnd = totalMinutes;
+    }
+
+    // Calculate row span based on party size
+    const partySize = Math.min(booking.people, maxPartySize);
+    const rowSpan = Math.max(2, Math.floor(partySize / 2) + 1);
+
+    // Find placement
+    let startGridRow = 0;
+    let placed = false;
+
+    while (!placed) {
+      // Ensure enough grid rows exist
+      while (gridRows.length < startGridRow + rowSpan) {
+        gridRows.push({ occupied: [] });
+      }
+
+      // Check if all required rows are free
+      let canPlace = true;
+      for (let r = startGridRow; r < startGridRow + rowSpan; r++) {
+        for (const seg of gridRows[r].occupied) {
+          // Check for overlap with buffer
+          if (!(bookingEnd + buffer <= seg.start || bookingStart >= seg.end + buffer)) {
+            canPlace = false;
+            break;
+          }
+        }
+        if (!canPlace) break;
+      }
+
+      if (canPlace) {
+        // Place the booking
+        for (let r = startGridRow; r < startGridRow + rowSpan; r++) {
+          gridRows[r].occupied.push({
+            start: bookingStart,
+            end: bookingEnd
+          });
+        }
+
+        booking.grid_row = startGridRow;
+        booking.row_span = rowSpan;
+        placed = true;
+      } else {
+        startGridRow++;
+      }
+    }
+  });
+
+  // Store total grid rows in each booking
+  const totalGridRows = gridRows.length;
+  allBookings.forEach(booking => {
+    booking.total_grid_rows = totalGridRows;
+  });
+
+  return allBookings;
+}
+
+/**
+ * Build Gantt chart HTML for restaurant bookings
  * @param {Array} openingHours - Array of opening hour period objects
- * @param {Array} availableTimes - Array of available time slots (optional)
+ * @param {Array} specialEvents - Array of special events (closures/restrictions)
+ * @param {Array} availableTimes - Array of available time slots (HH:MM format)
+ * @param {Array} bookings - Array of existing restaurant bookings
+ * @param {string} displayMode - Display mode: 'full' or 'compact' (default: 'compact')
+ * @param {string} chartId - Unique ID for this chart (for sight line)
  * @returns {string} HTML string for Gantt chart content
  */
-function buildGanttChart(openingHours, availableTimes = null) {
+function buildGanttChart(openingHours, specialEvents = [], availableTimes = [], bookings = [], displayMode = 'compact', chartId = 'gantt') {
   if (!openingHours || !Array.isArray(openingHours) || openingHours.length === 0) {
     return '<p style="padding: 20px; text-align: center; color: #999;">No opening hours available</p>';
   }
+
+  // Display mode configuration
+  const modeConfig = {
+    full: {
+      barHeight: 40,
+      gridRowHeight: 14,
+      showNames: true,
+      showRoomNumbers: true,
+      fontSize: 13
+    },
+    compact: {
+      barHeight: 14,
+      gridRowHeight: 7,
+      showNames: false,
+      showRoomNumbers: false,
+      fontSize: 10
+    }
+  };
+
+  const config = modeConfig[displayMode] || modeConfig.compact;
 
   // Determine time range from opening hours
   let earliestOpen = 2400;
@@ -301,90 +534,206 @@ function buildGanttChart(openingHours, availableTimes = null) {
   const startHour = Math.floor(earliestOpen / 100);
   const endHour = Math.floor(latestClose / 100) + (latestClose % 100 > 0 ? 1 : 0);
   const totalMinutes = (endHour - startHour) * 60;
-  const chartHeight = 100; // Fixed height for compact view
+  const bookingDuration = 120; // Default 2 hours
 
-  let html = '<div class="gantt-timeline-grid" style="position: relative; height: ' + chartHeight + 'px; width: 100%; min-width: ' + (totalMinutes * 2) + 'px; background: #f9fafb;">';
+  // Position bookings using grid algorithm
+  const positionedBookings = positionBookingsOnGrid(bookings, startHour, totalMinutes, bookingDuration, config.gridRowHeight);
 
-  // Add time grid background (15-minute intervals)
-  for (let hour = startHour; hour <= endHour; hour++) {
-    const minutesFromStart = (hour - startHour) * 60;
-    const leftPercent = (minutesFromStart / totalMinutes) * 100;
+  // Calculate total height
+  const totalGridRows = positionedBookings.length > 0 ? positionedBookings[0].total_grid_rows : 0;
+  const chartHeight = totalGridRows > 0 ? 10 + (totalGridRows * config.gridRowHeight) + 10 : 100;
 
-    // Hour marker line
-    html += '<div style="position: absolute; left: ' + leftPercent + '%; top: 0; bottom: 0; width: 1px; background: #e5e7eb;"></div>';
+  let html = '<div class="gantt-chart-container" id="' + chartId + '" style="position: relative; height: ' + chartHeight + 'px; width: 100%; min-width: ' + (totalMinutes * 2) + 'px; background: white; overflow: visible;">';
 
-    // Hour label
-    const hourLabel = hour.toString().padStart(2, '0') + ':00';
-    html += '<div style="position: absolute; left: ' + leftPercent + '%; top: 2px; font-size: 10px; color: #6b7280; transform: translateX(-50%);">' + hourLabel + '</div>';
+  // Time grid lines (15-minute intervals)
+  for (let m = 0; m < totalMinutes; m += 15) {
+    const leftPercent = (m / totalMinutes) * 100;
+    const isHour = m % 60 === 0;
+    html += '<div class="gantt-interval-line" style="position: absolute; left: ' + leftPercent + '%; top: 0; bottom: 0; width: 1px; background: ' + (isHour ? '#d1d5db' : '#e5e7eb') + '; z-index: 1;"></div>';
   }
 
-  // Add opening hours as colored bands
-  openingHours.forEach((period, index) => {
-    const open = period.open || 1800;
-    const close = period.close || 2200;
-    const name = period.name || 'Service Period';
+  // Time labels (half-hourly)
+  for (let hour = startHour; hour <= endHour; hour++) {
+    const minutesFromStart1 = (hour - startHour) * 60;
+    const leftPercent1 = (minutesFromStart1 / totalMinutes) * 100;
+    html += '<div class="gantt-time-label" style="position: absolute; left: ' + leftPercent1 + '%; top: 2px; font-size: 10px; color: #6b7280; transform: translateX(-50%); z-index: 2;">' + hour + ':00</div>';
 
-    const openMinutes = Math.floor(open / 100) * 60 + (open % 100);
-    const closeMinutes = Math.floor(close / 100) * 60 + (close % 100);
+    if (hour < endHour) {
+      const minutesFromStart2 = (hour - startHour) * 60 + 30;
+      const leftPercent2 = (minutesFromStart2 / totalMinutes) * 100;
+      html += '<div class="gantt-time-label" style="position: absolute; left: ' + leftPercent2 + '%; top: 2px; font-size: 10px; color: #6b7280; transform: translateX(-50%); z-index: 2;">' + hour + ':30</div>';
+    }
+  }
 
-    const startOffset = openMinutes - (startHour * 60);
-    const duration = closeMinutes - openMinutes;
-
-    const leftPercent = (startOffset / totalMinutes) * 100;
-    const widthPercent = (duration / totalMinutes) * 100;
-
-    // Color bands for different periods
-    const colors = [
-      { bg: '#dbeafe', border: '#3b82f6', text: '#1e40af' },  // Blue - lunch
-      { bg: '#fef3c7', border: '#f59e0b', text: '#92400e' },  // Amber - afternoon
-      { bg: '#ddd6fe', border: '#8b5cf6', text: '#5b21b6' }   // Purple - dinner
-    ];
-    const color = colors[index % colors.length];
-
-    html += '<div style="position: absolute; left: ' + leftPercent + '%; top: 24px; width: ' + widthPercent + '%; height: ' + (chartHeight - 28) + 'px; background: ' + color.bg + '; border: 2px solid ' + color.border + '; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: ' + color.text + ';">';
-    html += name;
-    html += '</div>';
-  });
-
-  // Add grey blocks for closed periods (gaps between opening hours)
+  // Grey overlays for closed periods (outside opening hours)
   const sortedHours = openingHours.slice().sort((a, b) => (a.open || 0) - (b.open || 0));
 
-  // Closed before first period
+  // Before first period
   const firstOpen = sortedHours[0].open;
   const firstOpenMinutes = Math.floor(firstOpen / 100) * 60 + (firstOpen % 100);
   const gapStart = firstOpenMinutes - (startHour * 60);
   if (gapStart > 0) {
     const widthPercent = (gapStart / totalMinutes) * 100;
-    html += '<div style="position: absolute; left: 0%; top: 24px; width: ' + widthPercent + '%; height: ' + (chartHeight - 28) + 'px; background: #e5e7eb; opacity: 0.7;"></div>';
+    html += '<div class="gantt-closed-block outside-hours" style="position: absolute; left: 0%; top: 24px; width: ' + widthPercent + '%; height: ' + (chartHeight - 24) + 'px; background: rgba(100, 100, 100, 0.1); z-index: 3; pointer-events: none;"></div>';
   }
 
-  // Closed between periods
+  // Between periods
   for (let i = 0; i < sortedHours.length - 1; i++) {
     const currentClose = sortedHours[i].close;
     const nextOpen = sortedHours[i + 1].open;
-
     const closeMinutes = Math.floor(currentClose / 100) * 60 + (currentClose % 100);
     const openMinutes = Math.floor(nextOpen / 100) * 60 + (nextOpen % 100);
-
     const gapStart = closeMinutes - (startHour * 60);
     const gapDuration = openMinutes - closeMinutes;
 
     if (gapDuration > 0) {
       const leftPercent = (gapStart / totalMinutes) * 100;
       const widthPercent = (gapDuration / totalMinutes) * 100;
-      html += '<div style="position: absolute; left: ' + leftPercent + '%; top: 24px; width: ' + widthPercent + '%; height: ' + (chartHeight - 28) + 'px; background: #e5e7eb; opacity: 0.7;"></div>';
+      html += '<div class="gantt-closed-block outside-hours" style="position: absolute; left: ' + leftPercent + '%; top: 24px; width: ' + widthPercent + '%; height: ' + (chartHeight - 24) + 'px; background: rgba(100, 100, 100, 0.1); z-index: 3; pointer-events: none;"></div>';
     }
   }
 
-  // Closed after last period
+  // After last period
   const lastClose = sortedHours[sortedHours.length - 1].close;
   const lastCloseMinutes = Math.floor(lastClose / 100) * 60 + (lastClose % 100);
   const remainingMinutes = (endHour * 60) - lastCloseMinutes;
   if (remainingMinutes > 0) {
     const leftPercent = ((lastCloseMinutes - (startHour * 60)) / totalMinutes) * 100;
     const widthPercent = (remainingMinutes / totalMinutes) * 100;
-    html += '<div style="position: absolute; left: ' + leftPercent + '%; top: 24px; width: ' + widthPercent + '%; height: ' + (chartHeight - 28) + 'px; background: #e5e7eb; opacity: 0.7;"></div>';
+    html += '<div class="gantt-closed-block outside-hours" style="position: absolute; left: ' + leftPercent + '%; top: 24px; width: ' + widthPercent + '%; height: ' + (chartHeight - 24) + 'px; background: rgba(100, 100, 100, 0.1); z-index: 3; pointer-events: none;"></div>';
   }
+
+  // Grey overlays for special events (closures/restrictions)
+  if (specialEvents && Array.isArray(specialEvents)) {
+    specialEvents.forEach(event => {
+      // Skip special opening events (isOpen = true)
+      if (event.isOpen === true) return;
+
+      // Full day closure
+      if (!event.open && !event.close) {
+        html += '<div class="gantt-closed-block special-event" style="position: absolute; left: 0%; top: 24px; width: 100%; height: ' + (chartHeight - 24) + 'px; background: rgba(100, 100, 100, 0.1); z-index: 3; pointer-events: none;"></div>';
+        return;
+      }
+
+      // Partial closure
+      if (event.open && event.close) {
+        const eventOpenMinutes = Math.floor(event.open / 100) * 60 + (event.open % 100);
+        const eventCloseMinutes = Math.floor(event.close / 100) * 60 + (event.close % 100);
+        let blockStart = eventOpenMinutes - (startHour * 60);
+        let blockEnd = eventCloseMinutes - (startHour * 60);
+
+        if (blockStart < totalMinutes && blockEnd > 0) {
+          blockStart = Math.max(0, blockStart);
+          blockEnd = Math.min(totalMinutes, blockEnd);
+          const blockDuration = blockEnd - blockStart;
+
+          if (blockDuration > 0) {
+            const leftPercent = (blockStart / totalMinutes) * 100;
+            const widthPercent = (blockDuration / totalMinutes) * 100;
+            html += '<div class="gantt-closed-block special-event" style="position: absolute; left: ' + leftPercent + '%; top: 24px; width: ' + widthPercent + '%; height: ' + (chartHeight - 24) + 'px; background: rgba(100, 100, 100, 0.1); z-index: 3; pointer-events: none;"></div>';
+          }
+        }
+      }
+    });
+  }
+
+  // Grey overlays for unavailable time slots (fully booked)
+  if (availableTimes && Array.isArray(availableTimes) && availableTimes.length > 0) {
+    const availableSet = new Set(availableTimes);
+
+    openingHours.forEach(period => {
+      const periodStart = period.open || 1800;
+      const periodClose = period.close || 2200;
+      const interval = period.interval || 15;
+      const duration = period.duration || 120;
+
+      // Calculate last seating time
+      let closeHour = Math.floor(periodClose / 100);
+      let closeMin = periodClose % 100;
+      const durationHours = Math.floor(duration / 60);
+      const durationMins = duration % 60;
+
+      closeMin -= durationMins;
+      closeHour -= durationHours;
+      if (closeMin < 0) {
+        closeMin += 60;
+        closeHour--;
+      }
+      const lastSeating = closeHour * 100 + closeMin;
+
+      // Generate all expected time slots
+      let currentHour = Math.floor(periodStart / 100);
+      let currentMin = periodStart % 100;
+
+      while (true) {
+        const currentTime = currentHour * 100 + currentMin;
+        if (currentTime > lastSeating) break;
+
+        const timeStr = currentHour + ':' + (currentMin < 10 ? '0' + currentMin : currentMin);
+
+        // If NOT available, add grey block
+        if (!availableSet.has(timeStr)) {
+          const slotMinutes = (currentHour - startHour) * 60 + currentMin;
+
+          if (slotMinutes >= 0 && slotMinutes < totalMinutes) {
+            const leftPercent = (slotMinutes / totalMinutes) * 100;
+            const widthPercent = (interval / totalMinutes) * 100;
+            html += '<div class="gantt-closed-block fully-booked" style="position: absolute; left: ' + leftPercent + '%; top: 24px; width: ' + widthPercent + '%; height: ' + (chartHeight - 24) + 'px; background: rgba(200, 200, 200, 0.15); z-index: 3; pointer-events: none;"></div>';
+          }
+        }
+
+        // Increment by interval
+        currentMin += interval;
+        if (currentMin >= 60) {
+          currentMin -= 60;
+          currentHour++;
+        }
+      }
+    });
+  }
+
+  // Booking bars
+  positionedBookings.forEach(booking => {
+    const leftPercent = (booking.minutesFromStart / totalMinutes) * 100;
+    const yPosition = 10 + (booking.grid_row * config.gridRowHeight);
+    const barHeight = (booking.row_span * config.gridRowHeight) - 4;
+
+    // Calculate width
+    let bookingEndMinutes = booking.minutesFromStart + bookingDuration;
+    let isCapped = false;
+    if (bookingEndMinutes > totalMinutes) {
+      bookingEndMinutes = totalMinutes;
+      isCapped = true;
+    }
+    const actualBookingWidth = bookingEndMinutes - booking.minutesFromStart;
+    const widthPercent = (actualBookingWidth / totalMinutes) * 100;
+
+    // Display text based on config
+    let displayText = '';
+    if (config.showNames) {
+      displayText = booking.name;
+      if (config.showRoomNumbers && booking.room !== 'Non-Resident') {
+        displayText += ' - ' + booking.room;
+      }
+    }
+
+    const barClass = 'gantt-booking-bar' + (isCapped ? ' gantt-bar-capped' : '');
+
+    html += '<div class="' + barClass + '" data-name="' + booking.name + '" data-people="' + booking.people + '" data-time="' + booking.time + '" data-room="' + booking.room + '" style="position: absolute; left: ' + leftPercent + '%; top: ' + yPosition + 'px; width: ' + widthPercent + '%; height: ' + barHeight + 'px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 4px; border: 2px solid #5568d3; padding: 2px 6px; color: white; font-weight: 500; display: flex; align-items: center; gap: 4px; overflow: hidden; cursor: pointer; z-index: 5;">';
+
+    // Party size badge (always visible)
+    html += '<span class="gantt-party-size" style="background: rgba(255,255,255,0.3); border-radius: 3px; padding: 1px 4px; font-size: 11px; font-weight: bold; flex-shrink: 0;">' + booking.people + '</span>';
+
+    // Guest name and room (only in full mode)
+    if (displayText) {
+      html += '<span class="gantt-bar-text" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: ' + config.fontSize + 'px;">' + displayText + '</span>';
+    }
+
+    html += '</div>';
+  });
+
+  // Sight line (hidden by default, shown on hover)
+  html += '<div class="gantt-sight-line" id="gantt-sight-line-' + chartId + '" style="position: absolute; width: 2px; height: ' + chartHeight + 'px; background: #ef4444; top: 0; left: 0; display: none; z-index: 100; pointer-events: none;"></div>';
 
   html += '</div>';
   return html;
@@ -1312,7 +1661,10 @@ function attachRestaurantEventListeners(container) {
 
         // Add click handlers to time slot buttons
         const timeButtons = periodTimes.querySelectorAll('.time-slot-btn');
+        const ganttChartId = 'gantt-' + date;
+
         timeButtons.forEach(btn => {
+          // Click handler
           btn.addEventListener('click', function() {
             // Remove selected class from ALL buttons in ALL sections
             const allButtons = sectionsContainer.querySelectorAll('.time-slot-btn');
@@ -1335,6 +1687,30 @@ function attachRestaurantEventListeners(container) {
               // Format time for display (e.g., "1800" -> "18:00")
               const displayTime = this.textContent.trim();
               bookingTimeDisplay.textContent = displayTime;
+            }
+          });
+
+          // Hover handlers for Gantt chart sight line and auto-scroll
+          btn.addEventListener('mouseenter', function() {
+            const timeValue = this.dataset.time || this.textContent.trim();
+            // Convert HH:MM to HHMM format
+            const timeHHMM = timeValue.replace(':', '');
+
+            // Show sight line at this time
+            if (typeof showGanttSightLine === 'function') {
+              showGanttSightLine(ganttChartId, timeHHMM);
+            }
+
+            // Auto-scroll Gantt chart to center on this time
+            if (typeof scrollGanttToTime === 'function') {
+              scrollGanttToTime(ganttChartId, timeHHMM, true);
+            }
+          });
+
+          btn.addEventListener('mouseleave', function() {
+            // Hide sight line when not hovering
+            if (typeof hideGanttSightLine === 'function') {
+              hideGanttSightLine(ganttChartId);
             }
           });
         });
