@@ -1587,7 +1587,14 @@ function attachRestaurantEventListeners(container) {
         if (typeof buildGanttChart === 'function') {
           const ganttViewport = document.getElementById('gantt-' + date);
           if (ganttViewport) {
-            const ganttHtml = buildGanttChart(periods);
+            const ganttHtml = buildGanttChart(
+              periods,            // opening hours
+              [],                 // special events (TODO: fetch these)
+              [],                 // available times (TODO: fetch these)
+              [],                 // bookings (TODO: get from backend)
+              'compact',          // display mode
+              'gantt-' + date     // chart ID (must match viewport ID)
+            );
             ganttViewport.innerHTML = ganttHtml;
             console.log('Gantt chart generated for date:', date);
           }
