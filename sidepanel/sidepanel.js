@@ -155,40 +155,53 @@ async function processNavigationContext() {
   // Scroll to the bma-night section within the date section
   if (scrollAfterLoad) {
     console.log('Autoscroll: scrollAfterLoad=true, attempting to scroll');
-    setTimeout(() => {
-      // Try to find the bma-night element within the date section for more precise scrolling
-      const nightSection = dateSection.querySelector('.bma-night');
-      const targetElement = nightSection || dateSection;
-      console.log('Autoscroll: nightSection found?', !!nightSection, 'targetElement?', !!targetElement);
+    // Use requestAnimationFrame to ensure DOM is fully rendered
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        // Try to find the bma-night element within the date section for more precise scrolling
+        const nightSection = dateSection.querySelector('.bma-night');
+        const targetElement = nightSection || dateSection;
+        console.log('Autoscroll: nightSection found?', !!nightSection, 'targetElement?', !!targetElement);
 
-      if (targetElement) {
-        // Get the scrolling container (tab-content)
-        const scrollContainer = targetElement.closest('.tab-content');
-        console.log('Autoscroll: scrollContainer found?', !!scrollContainer);
-        if (scrollContainer) {
-          // Calculate position using getBoundingClientRect for accuracy
-          const containerRect = scrollContainer.getBoundingClientRect();
-          const elementRect = targetElement.getBoundingClientRect();
-          const offset = 10; // Additional pixels below the top
-          const scrollTop = scrollContainer.scrollTop + (elementRect.top - containerRect.top) - offset;
-          console.log('Autoscroll: scrolling to', scrollTop, '(current scrollTop:', scrollContainer.scrollTop, 'element relative top:', elementRect.top - containerRect.top, 'offset:', offset, ')');
+        if (targetElement) {
+          // Get the scrolling container (tab-content)
+          const scrollContainer = targetElement.closest('.tab-content');
+          console.log('Autoscroll: scrollContainer found?', !!scrollContainer);
+          console.log('Autoscroll: scrollContainer height:', scrollContainer?.clientHeight, 'scrollHeight:', scrollContainer?.scrollHeight);
 
-          // Use instant scroll instead of smooth to avoid timing issues
-          scrollContainer.scrollTop = scrollTop;
+          if (scrollContainer) {
+            // Force layout recalculation
+            scrollContainer.offsetHeight;
 
-          // Verify scroll happened
-          setTimeout(() => {
-            console.log('Autoscroll: After scroll - current scrollTop:', scrollContainer.scrollTop);
-          }, 100);
+            // Calculate position using getBoundingClientRect for accuracy
+            const containerRect = scrollContainer.getBoundingClientRect();
+            const elementRect = targetElement.getBoundingClientRect();
+            const offset = 10; // Additional pixels below the top
+            const scrollTop = scrollContainer.scrollTop + (elementRect.top - containerRect.top) - offset;
+            console.log('Autoscroll: scrolling to', scrollTop, '(current scrollTop:', scrollContainer.scrollTop, 'element relative top:', elementRect.top - containerRect.top, 'offset:', offset, ')');
+
+            // Try both methods - direct assignment and scrollTo
+            scrollContainer.scrollTop = scrollTop;
+            scrollContainer.scrollTo(0, scrollTop);
+
+            // Verify scroll happened
+            setTimeout(() => {
+              console.log('Autoscroll: After scroll - current scrollTop:', scrollContainer.scrollTop);
+              if (scrollContainer.scrollTop === 0 && scrollTop > 0) {
+                console.warn('Autoscroll FAILED: scrollTop is still 0, trying scrollIntoView fallback');
+                targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }
+            }, 100);
+          } else {
+            // Fallback to standard scrollIntoView
+            console.log('Autoscroll: using fallback scrollIntoView');
+            targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
         } else {
-          // Fallback to standard scrollIntoView
-          console.log('Autoscroll: using fallback scrollIntoView');
-          targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          console.log('Autoscroll: targetElement not found, skipping scroll');
         }
-      } else {
-        console.log('Autoscroll: targetElement not found, skipping scroll');
-      }
-    }, 100);
+      }, 150);
+    });
   } else {
     console.log('Autoscroll: scrollAfterLoad=false, skipping scroll');
   }
@@ -1645,30 +1658,49 @@ function attachRestaurantEventListeners(container) {
       const dateSection = document.getElementById(`date-section-${date}`);
       console.log('Autoscroll (create form): dateSection found?', !!dateSection);
       if (dateSection) {
-        const nightSection = dateSection.querySelector('.bma-night');
-        console.log('Autoscroll (create form): nightSection found?', !!nightSection);
-        if (nightSection) {
-          // Get the scrolling container and apply offset
-          const scrollContainer = nightSection.closest('.tab-content');
-          console.log('Autoscroll (create form): scrollContainer found?', !!scrollContainer);
-          if (scrollContainer) {
-            // Calculate position using getBoundingClientRect for accuracy
-            const containerRect = scrollContainer.getBoundingClientRect();
-            const elementRect = nightSection.getBoundingClientRect();
-            const offset = 10; // Additional pixels below the top
-            const scrollTop = scrollContainer.scrollTop + (elementRect.top - containerRect.top) - offset;
-            console.log('Autoscroll (create form): scrolling to', scrollTop, '(current scrollTop:', scrollContainer.scrollTop, 'element relative top:', elementRect.top - containerRect.top, 'offset:', offset, ')');
+        // Use requestAnimationFrame to ensure DOM is fully rendered
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            const nightSection = dateSection.querySelector('.bma-night');
+            console.log('Autoscroll (create form): nightSection found?', !!nightSection);
+            if (nightSection) {
+              // Get the scrolling container and apply offset
+              const scrollContainer = nightSection.closest('.tab-content');
+              console.log('Autoscroll (create form): scrollContainer found?', !!scrollContainer);
+              console.log('Autoscroll (create form): scrollContainer height:', scrollContainer?.clientHeight, 'scrollHeight:', scrollContainer?.scrollHeight);
+              if (scrollContainer) {
+                // Force layout recalculation
+                scrollContainer.offsetHeight;
 
-            // Use instant scroll instead of smooth to avoid timing issues
-            scrollContainer.scrollTop = scrollTop;
-          } else {
-            console.log('Autoscroll (create form): using fallback scrollIntoView on nightSection');
-            nightSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }
-        } else {
-          console.log('Autoscroll (create form): nightSection not found, scrolling form into view');
-          form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }
+                // Calculate position using getBoundingClientRect for accuracy
+                const containerRect = scrollContainer.getBoundingClientRect();
+                const elementRect = nightSection.getBoundingClientRect();
+                const offset = 10; // Additional pixels below the top
+                const scrollTop = scrollContainer.scrollTop + (elementRect.top - containerRect.top) - offset;
+                console.log('Autoscroll (create form): scrolling to', scrollTop, '(current scrollTop:', scrollContainer.scrollTop, 'element relative top:', elementRect.top - containerRect.top, 'offset:', offset, ')');
+
+                // Try both methods - direct assignment and scrollTo
+                scrollContainer.scrollTop = scrollTop;
+                scrollContainer.scrollTo(0, scrollTop);
+
+                // Verify scroll happened
+                setTimeout(() => {
+                  console.log('Autoscroll (create form): After scroll - current scrollTop:', scrollContainer.scrollTop);
+                  if (scrollContainer.scrollTop === 0 && scrollTop > 0) {
+                    console.warn('Autoscroll (create form) FAILED: scrollTop is still 0, trying scrollIntoView fallback');
+                    nightSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }
+                }, 100);
+              } else {
+                console.log('Autoscroll (create form): using fallback scrollIntoView on nightSection');
+                nightSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }
+            } else {
+              console.log('Autoscroll (create form): nightSection not found, scrolling form into view');
+              form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+          }, 150);
+        });
       } else {
         console.log('Autoscroll (create form): dateSection not found, scrolling form into view');
         form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
