@@ -824,11 +824,11 @@ function buildSpecialEventsAlert(specialEvents, onlineBookingAvailable) {
   // Add online booking closed warning if needed
   if (typeof onlineBookingAvailable !== 'undefined' && onlineBookingAvailable === false) {
     alertsHtml += '<div class="special-event-alert online-booking-closed">' +
+      '<div class="special-event-header">' +
       '<span class="material-symbols-outlined">block</span>' +
-      '<div class="special-event-content">' +
-      '<strong>Online Bookings Closed:</strong> ' +
-      '<span>Online bookings for the day closed from main Resos planner screen</span>' +
+      '<span class="special-event-title">Online Bookings Closed</span>' +
       '</div>' +
+      '<div class="special-event-description">Online bookings for the day closed from main Resos planner screen</div>' +
       '</div>';
   }
 
@@ -853,12 +853,14 @@ function buildSpecialEventsAlert(specialEvents, onlineBookingAvailable) {
           closeHour + ':' + (closeMin < 10 ? '0' + closeMin : closeMin);
       }
 
+      const title = timeInfo ? timeInfo : 'All Day';
+
       alertsHtml += '<div class="special-event-alert">' +
+        '<div class="special-event-header">' +
         '<span class="material-symbols-outlined">warning</span>' +
-        '<div class="special-event-content">' +
-        (timeInfo ? '<strong class="special-event-time">' + timeInfo + ':</strong>' : '<strong class="special-event-time">All Day:</strong>') +
-        '<span>' + (eventName || 'Restricted Service') + '</span>' +
+        '<span class="special-event-title">' + title + '</span>' +
         '</div>' +
+        '<div class="special-event-description">' + (eventName || 'Restricted Service') + '</div>' +
         '</div>';
     });
   }

@@ -1164,21 +1164,19 @@ button[data-action].loading::after {
 
 .special-events-horizontal {
   display: flex;
+  flex-direction: column;
   gap: 6px;
-  flex-wrap: wrap;
 }
 
 .special-events-horizontal .special-event-alert {
-  flex: 1;
-  min-width: 0;
   margin-bottom: 0;
 }
 
 .special-event-alert {
   display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
   background-color: #fff3cd;
   border: 1px solid #ffc107;
   border-left: 4px solid #ff9800;
@@ -1188,17 +1186,35 @@ button[data-action].loading::after {
   font-size: 12px;
 }
 
+.special-event-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .special-event-alert .material-symbols-outlined {
   color: #ff9800;
   font-size: 18px;
   flex-shrink: 0;
 }
 
+.special-event-title {
+  font-weight: 700;
+  color: #856404;
+  font-size: 12px;
+}
+
+.special-event-description {
+  font-size: 11px;
+  color: #856404;
+  padding-left: 24px;
+  line-height: 1.4;
+}
+
 .special-event-content {
   display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 6px;
+  flex-direction: column;
+  gap: 2px;
   flex: 1;
   font-size: 12px;
   color: #856404;
@@ -1223,6 +1239,14 @@ button[data-action].loading::after {
 
 .special-event-alert.online-booking-closed .material-symbols-outlined {
   color: #e65100;
+}
+
+.special-event-alert.online-booking-closed .special-event-title {
+  color: #bf360c;
+}
+
+.special-event-alert.online-booking-closed .special-event-description {
+  color: #6d4c41;
 }
 
 .special-event-alert.online-booking-closed .special-event-content {
