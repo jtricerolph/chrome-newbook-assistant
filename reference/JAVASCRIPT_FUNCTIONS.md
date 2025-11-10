@@ -667,6 +667,117 @@ async function loadAvailableTimesForPeriod(date, people, periodId, periodIndex) 
 
 ---
 
+## Section Content Indicator Functions
+
+### setupSectionIndicators(date, form) - IMPLEMENTED
+
+**Actual Location:** Lines 1993-2061 (in sidepanel.js)
+
+**Purpose:** Monitor form fields and show/hide content indicators on collapsible section headers
+
+**Parameters:**
+- `date` (string, required): Date identifier for the form
+- `form` (HTMLElement, required): The create form element
+
+**Returns:** void
+
+**Behavior:**
+- Monitors form fields in real-time using input/change event listeners
+- Shows green "draw" icon on section headers when they contain user-entered data
+- Hides indicator when data is removed
+- Detects content in three sections:
+  - **Details**: phone, email, hotel guest checkbox, DBB checkbox, notification preferences
+  - **Allergies**: checked dietary checkboxes or "other dietary" text field
+  - **Note**: booking note textarea content
+
+**Implementation:**
+```javascript
+function setupSectionIndicators(date, form) {
+  // Helper to check if section has content
+  function checkSectionContent(sectionType) {
+    const indicator = document.querySelector(`[data-indicator="${sectionType}-${date}"]`);
+    if (!indicator) return;
+
+    let hasContent = false;
+
+    if (sectionType === 'details') {
+      // Check Booking Details section fields (excluding pre-filled guest name/people)
+      const phone = form.querySelector('.form-phone')?.value;
+      const email = form.querySelector('.form-email')?.value;
+      const hotelGuest = form.querySelector('.form-hotel-guest')?.checked;
+      const dbb = form.querySelector('.form-dbb')?.checked;
+      const sms = form.querySelector('.form-notification-sms')?.checked;
+      const emailNotif = form.querySelector('.form-notification-email')?.checked;
+
+      // Show indicator if any non-default fields have values
+      hasContent = phone || email || !hotelGuest || dbb || sms || emailNotif;
+    } else if (sectionType === 'allergies') {
+      // Check Allergies & Dietary section
+      const checkedBoxes = form.querySelectorAll('#dietary-checkboxes-' + date + ' input[type="checkbox"]:checked');
+      const otherDiet = form.querySelector('.form-diet-other')?.value;
+      hasContent = checkedBoxes.length > 0 || (otherDiet && otherDiet.trim() !== '');
+    } else if (sectionType === 'note') {
+      // Check Add Note section
+      const note = form.querySelector('.form-booking-note')?.value;
+      hasContent = note && note.trim() !== '';
+    }
+
+    if (hasContent) {
+      indicator.classList.add('has-content');
+    } else {
+      indicator.classList.remove('has-content');
+    }
+  }
+
+  // Monitor Details section fields
+  const detailsFields = form.querySelectorAll('.form-phone, .form-email, .form-hotel-guest, .form-dbb, .form-notification-sms, .form-notification-email');
+  detailsFields.forEach(field => {
+    field.addEventListener('change', () => checkSectionContent('details'));
+    field.addEventListener('input', () => checkSectionContent('details'));
+  });
+
+  // Monitor Allergies section
+  const allergiesContainer = document.getElementById('dietary-checkboxes-' + date);
+  if (allergiesContainer) {
+    // Use event delegation for dynamically added checkboxes
+    allergiesContainer.addEventListener('change', () => checkSectionContent('allergies'));
+  }
+  const otherDiet = form.querySelector('.form-diet-other');
+  if (otherDiet) {
+    otherDiet.addEventListener('input', () => checkSectionContent('allergies'));
+  }
+
+  // Monitor Note section
+  const noteField = form.querySelector('.form-booking-note');
+  if (noteField) {
+    noteField.addEventListener('input', () => checkSectionContent('note'));
+  }
+
+  // Initial check
+  checkSectionContent('details');
+  checkSectionContent('allergies');
+  checkSectionContent('note');
+}
+```
+
+**Usage:**
+Called automatically from `initializeCreateFormForDate()` after form initialization:
+```javascript
+// After form is initialized
+setupSectionIndicators(date, form);
+```
+
+**CSS Classes:**
+- `.section-indicator` - The indicator icon element
+- `.has-content` - Class added when section contains data
+
+**Data Attributes:**
+- `data-indicator="details-{date}"` - Identifies Details section indicator
+- `data-indicator="allergies-{date}"` - Identifies Allergies section indicator
+- `data-indicator="note-{date}"` - Identifies Note section indicator
+
+---
+
 ## Form Functions (TO BE IMPLEMENTED)
 
 ### toggleFormSection(sectionId)

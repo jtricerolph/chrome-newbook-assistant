@@ -67,57 +67,80 @@ Location: `chrome-newbook-assistant/sidepanel/sidepanel.css`
 
 ### 3. Collapsible Sections
 
-**Purpose:** Space-efficient expandable form sections
+**Purpose:** Space-efficient expandable form sections with content indicators
+
+**Current Implementation (Lines 664-719):**
 
 ```css
 .bma-expandable-section {
-  margin-bottom: 12px;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  overflow: hidden;
+  margin-bottom: 8px;  /* Reduced from 12px for compact layout */
 }
 
 .bma-section-toggle {
   width: 100%;
-  padding: 12px 16px;
-  background: #f9fafb;
-  border: none;
   display: flex;
   align-items: center;
   gap: 8px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 8px 12px;     /* Reduced from 12px 16px to match service period headers */
+  font-size: 12px;       /* Reduced from 14px */
+  font-weight: 600;      /* Increased from 500 for bold text */
   color: #374151;
-  transition: background 0.2s;
-  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
 .bma-section-toggle:hover {
-  background: #f3f4f6;
+  background: #e5e7eb;
 }
 
 .bma-section-toggle .material-symbols-outlined {
-  font-size: 20px;
-  transition: transform 0.2s;
-  color: #6b7280;
+  font-size: 16px;       /* Reduced from 20px */
+  transition: transform 0.3s ease;
 }
 
-.bma-section-toggle:hover .material-symbols-outlined {
-  color: #374151;
+.bma-section-toggle[aria-expanded="true"] .material-symbols-outlined {
+  transform: rotate(180deg);
+}
+
+/* Section title with flex-grow to push indicator to right */
+.bma-section-toggle .section-title {
+  flex: 1;
+}
+
+/* Content indicator - shows when section has user-entered data */
+.bma-section-toggle .section-indicator {
+  font-size: 16px;
+  color: #10b981;        /* Green color */
+  margin-left: auto;
+  display: none;         /* Hidden by default */
+}
+
+.bma-section-toggle .section-indicator.has-content {
+  display: block;        /* Shows when section has content */
 }
 
 .bma-section-content {
+  border: 1px solid #e5e7eb;
+  border-top: none;
+  border-radius: 0 0 6px 6px;
   padding: 16px;
   background: white;
-  border-top: 1px solid #e5e7eb;
-}
-
-/* Optional: Rotate icon when expanded */
-.bma-section-toggle.expanded .material-symbols-outlined {
-  transform: rotate(180deg);
+  animation: slideDown 0.3s ease-out;
 }
 ```
+
+**Features:**
+- **Compact sizing**: Matches service period header styling for visual consistency
+- **Content indicators**: Green "draw" icon appears when sections contain user data
+- **Smart detection**: JavaScript monitors form fields and shows indicator when:
+  - Details section: phone, email, or checkboxes have non-default values
+  - Allergies section: any dietary options checked or "other" text entered
+  - Note section: note textarea contains text
+- **Real-time updates**: Indicators appear/disappear as user enters/removes content
+- **Accessibility**: Uses aria-expanded attribute for screen readers
 
 **JavaScript Integration:**
 ```javascript
