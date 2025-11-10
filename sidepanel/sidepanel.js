@@ -875,7 +875,7 @@ window.buildSpecialEventsAlert = buildSpecialEventsAlert;
 
 /**
  * Attach tooltip event listeners to Gantt booking bars
- * Shows booking details on hover: "people: name - room"
+ * Shows booking details on hover: "{people} pax {name} [hotel icon]"
  */
 function attachGanttTooltips() {
   // Create tooltip element if it doesn't exist
@@ -897,8 +897,8 @@ function attachGanttTooltips() {
 
       console.log('Gantt tooltip - name:', name, 'isResident:', isResident, 'data-is-resident attr:', bar.getAttribute('data-is-resident'));
 
-      // Format: "{people} {name} [hotel icon]" (Material Symbols hotel icon if resident)
-      let tooltipHTML = `${people} ${name}`;
+      // Format: "{people} pax {name} [hotel icon]" (Material Symbols hotel icon if resident)
+      let tooltipHTML = `${people} pax ${name}`;
       if (isResident) {
         tooltipHTML += ' <span class="material-symbols-outlined" style="font-size: 14px; vertical-align: middle;">hotel</span>';
         console.log('Adding hotel icon to tooltip');
