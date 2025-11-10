@@ -1269,9 +1269,15 @@ function attachRestaurantEventListeners(container) {
             allButtons.forEach(b => b.classList.remove('selected'));
             // Add selected class to clicked button
             this.classList.add('selected');
-            // Update hidden field
+            // Update hidden time field
             const timeValue = this.dataset.time || this.textContent.trim();
             document.getElementById('time-selected-' + date).value = timeValue;
+
+            // Update hidden opening hour ID field
+            const openingHourIdField = document.getElementById('opening-hour-id-' + date);
+            if (openingHourIdField) {
+              openingHourIdField.value = periodId;
+            }
 
             // Update booking time display in summary header
             const bookingTimeDisplay = document.getElementById('booking-time-display-' + date);
@@ -1367,12 +1373,12 @@ function attachRestaurantEventListeners(container) {
       return;
     }
 
-    // Get opening hour ID from selector
-    const openingHourSelector = document.getElementById('opening-hour-selector-' + date);
-    const openingHourId = openingHourSelector ? openingHourSelector.value : '';
+    // Get opening hour ID from hidden field (populated when time slot button clicked)
+    const openingHourIdField = form.querySelector('.form-opening-hour-id') || document.getElementById('opening-hour-id-' + date);
+    const openingHourId = openingHourIdField ? openingHourIdField.value : '';
 
     if (!openingHourId) {
-      showFeedback(feedback, 'Please select a service period', 'error');
+      showFeedback(feedback, 'Please select a time slot from a service period', 'error');
       return;
     }
 
