@@ -106,49 +106,6 @@ function returnToPreviousContext() {
 }
 
 /**
- * Wait for form initialization to complete
- * @param {HTMLElement} form - The form element to watch
- * @param {number} timeout - Maximum time to wait in milliseconds
- * @returns {Promise<boolean>} - Resolves when initialized or timeout
- */
-function waitForFormInitialization(form, timeout = 5000) {
-  return new Promise((resolve) => {
-    // Check if already initialized
-    if (form.dataset.initialized === 'true') {
-      resolve(true);
-      return;
-    }
-
-    let timeoutId;
-    const observer = new MutationObserver((mutations) => {
-      for (const mutation of mutations) {
-        if (mutation.type === 'attributes' && mutation.attributeName === 'data-initialized') {
-          if (form.dataset.initialized === 'true') {
-            clearTimeout(timeoutId);
-            observer.disconnect();
-            resolve(true);
-            return;
-          }
-        }
-      }
-    });
-
-    // Watch for data-initialized attribute changes
-    observer.observe(form, {
-      attributes: true,
-      attributeFilter: ['data-initialized']
-    });
-
-    // Timeout fallback
-    timeoutId = setTimeout(() => {
-      observer.disconnect();
-      console.warn('Form initialization timeout - scrolling anyway');
-      resolve(false);
-    }, timeout);
-  });
-}
-
-/**
  * Process navigation context after Restaurant tab loads
  * Called from loadRestaurantTab() to handle navigation intent
  */
@@ -175,23 +132,19 @@ async function processNavigationContext() {
     const createForm = document.getElementById(`create-form-${targetDate}`);
 
     if (createForm && createBtn) {
-      // Ensure form is hidden first to trigger MutationObserver
-      createForm.style.display = 'none';
+      // Show the form
+      createForm.style.display = 'block';
+      createBtn.style.display = 'none';
+      STATE.createFormOpen = true;
 
-      // Force a small delay then show to ensure mutation fires
-      setTimeout(() => {
-        createForm.style.display = 'block';
-        createBtn.style.display = 'none';
-        STATE.createFormOpen = true;
-      }, 10);
-
-      // Wait for form initialization to complete before scrolling
-      if (scrollAfterLoad) {
-        console.log('Waiting for form initialization...');
-        // Wait a bit for the display change to take effect
-        await new Promise(resolve => setTimeout(resolve, 50));
-        await waitForFormInitialization(createForm);
-        console.log('Form initialization complete, scrolling...');
+      // Initialize form if not already initialized
+      if (!createForm.dataset.initialized && typeof window.initializeCreateFormForDate === 'function') {
+        console.log('Manually initializing form for date:', targetDate);
+        createForm.dataset.initialized = 'true';
+        await window.initializeCreateFormForDate(targetDate, createForm);
+        console.log('Form initialization complete');
+      } else {
+        console.log('Form already initialized or function not available');
       }
     }
   }
@@ -1395,8 +1348,9 @@ function attachRestaurantEventListeners(container) {
     }
   }
 
-  // Expose to window for switchTimeTab lazy loading
+  // Expose to window for switchTimeTab lazy loading and manual initialization
   window.loadAvailableTimesForPeriod = loadAvailableTimesForPeriod;
+  window.initializeCreateFormForDate = initializeCreateFormForDate;
 
   function formatTimeHHMM(hhmm) {
     const hours = Math.floor(hhmm / 100);
