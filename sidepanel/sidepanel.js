@@ -1001,6 +1001,20 @@ function attachSummaryEventListeners(container) {
     });
   });
 
+  // Add click handler for restaurant header to navigate to Restaurant tab
+  const restaurantHeaders = container.querySelectorAll('.bma-restaurant-header-link');
+  restaurantHeaders.forEach(header => {
+    header.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const bookingId = this.dataset.bookingId;
+
+      console.log('Restaurant header clicked - bookingId:', bookingId);
+      navigateToRestaurantDate(null, parseInt(bookingId));
+    });
+  });
+
   // Update time since placed and apply highlighting
   updateTimeSincePlaced(container);
 }
