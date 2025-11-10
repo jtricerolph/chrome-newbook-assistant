@@ -401,8 +401,14 @@ function positionBookingsOnGrid(bookings, startHour, totalMinutes, bookingDurati
     }
   });
 
-  // Sort by start time
-  allBookings.sort((a, b) => a.minutesFromStart - b.minutesFromStart);
+  // Sort by start time, then by party size (largest first) for better visual hierarchy
+  allBookings.sort((a, b) => {
+    if (a.minutesFromStart !== b.minutesFromStart) {
+      return a.minutesFromStart - b.minutesFromStart;
+    }
+    // Secondary sort: larger parties first (descending)
+    return b.people - a.people;
+  });
 
   // Grid-based positioning algorithm
   const gridRows = [];
