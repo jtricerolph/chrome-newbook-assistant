@@ -584,7 +584,11 @@ function buildGanttChart(openingHours, specialEvents = [], availableTimes = [], 
   const totalGridRows = positionedBookings.length > 0 ? positionedBookings[0].total_grid_rows : 0;
   const chartHeight = totalGridRows > 0 ? topMargin + (totalGridRows * config.gridRowHeight) + bottomMargin : 100;
 
-  let html = '<div class="gantt-chart-container" data-start-hour="' + startHour + '" data-total-minutes="' + totalMinutes + '" style="position: relative; height: ' + chartHeight + 'px; width: 100%; min-width: ' + (totalMinutes * 2) + 'px; background: white; overflow: visible;">';
+  // Add extra padding at the end so last booking doesn't get cut off by scrollbar
+  const rightPadding = 100;
+  const minWidth = (totalMinutes * 2) + rightPadding;
+
+  let html = '<div class="gantt-chart-container" data-start-hour="' + startHour + '" data-total-minutes="' + totalMinutes + '" style="position: relative; height: ' + chartHeight + 'px; width: 100%; min-width: ' + minWidth + 'px; background: white; overflow: visible;">';
 
   // Time grid lines (15-minute intervals)
   for (let m = 0; m < totalMinutes; m += 15) {
