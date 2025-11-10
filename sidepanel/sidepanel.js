@@ -1127,7 +1127,10 @@ async function fetchSpecialEvents(date) {
  */
 async function fetchAllBookingsForDate(date) {
   try {
-    const response = await fetch(`${window.apiClient.baseUrl}/all-bookings-for-date?date=${date}`, {
+    const url = `${window.apiClient.baseUrl}/all-bookings-for-date?date=${date}`;
+    console.log('fetchAllBookingsForDate - URL:', url);
+
+    const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Authorization': window.apiClient.authHeader,
@@ -1135,11 +1138,17 @@ async function fetchAllBookingsForDate(date) {
       }
     });
 
+    console.log('fetchAllBookingsForDate - Response status:', response.status, response.statusText);
+
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
-    return await response.json();
+    const data = await response.json();
+    console.log('fetchAllBookingsForDate - Response data:', data);
+    console.log('fetchAllBookingsForDate - Bookings count:', data.bookings ? data.bookings.length : 0);
+
+    return data;
   } catch (error) {
     console.error('Error fetching all bookings for date:', error);
     throw error;
