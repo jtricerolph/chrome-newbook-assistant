@@ -807,10 +807,13 @@ function attachGanttTooltips() {
       const name = bar.getAttribute('data-name') || 'Guest';
       const isResident = bar.getAttribute('data-is-resident') === 'true';
 
-      // Format: "{people} {name} [hotel icon]" (Material UI hotel icon if resident)
+      console.log('Gantt tooltip - name:', name, 'isResident:', isResident, 'data-is-resident attr:', bar.getAttribute('data-is-resident'));
+
+      // Format: "{people} {name} [hotel icon]" (Material Symbols hotel icon if resident)
       let tooltipHTML = `${people} ${name}`;
       if (isResident) {
         tooltipHTML += ' <span class="material-symbols-outlined" style="font-size: 14px; vertical-align: middle;">hotel</span>';
+        console.log('Adding hotel icon to tooltip');
       }
 
       tooltip.innerHTML = tooltipHTML;
