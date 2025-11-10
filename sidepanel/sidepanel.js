@@ -266,27 +266,17 @@ function showGanttSightLine(chartId, time = null) {
   }
 
   // Calculate position as percentage of chart width
-  // We need to find the chart's time range
+  // Get the chart container which has the time range data
   const chartContainer = chart.querySelector('.gantt-chart-container') || chart;
-  const chartWidth = chartContainer.scrollWidth;
-  const chartBounds = chartContainer.getBoundingClientRect();
 
-  // Extract start/end hours from the chart's time labels
-  const timeLabels = chartContainer.querySelectorAll('.gantt-time-label');
-  if (timeLabels.length === 0) {
-    console.warn('No time labels found in chart');
+  // Read time range from data attributes (set by buildGanttChart)
+  const startHour = parseInt(chartContainer.dataset.startHour);
+  const totalMinutes = parseInt(chartContainer.dataset.totalMinutes);
+
+  if (isNaN(startHour) || isNaN(totalMinutes)) {
+    console.warn('Chart time range data not found');
     return;
   }
-
-  // Get first and last time label to determine range
-  const firstLabel = timeLabels[0].textContent;
-  const lastLabel = timeLabels[timeLabels.length - 1].textContent;
-
-  const startHour = parseInt(firstLabel.split(':')[0]);
-  const lastTime = lastLabel.split(':');
-  const endHour = parseInt(lastTime[0]) + (parseInt(lastTime[1]) === 30 ? 0.5 : 0) + 0.5; // Add buffer
-
-  const totalMinutes = (endHour - startHour) * 60;
   const targetHour = Math.floor(targetTime / 100);
   const targetMinute = targetTime % 100;
   const minutesFromStart = (targetHour - startHour) * 60 + targetMinute;
@@ -345,20 +335,14 @@ function scrollGanttToTime(chartId, time, smooth = true) {
 
   const chartContainer = chart.querySelector('.gantt-chart-container') || chart;
 
-  // Extract start/end hours from the chart's time labels
-  const timeLabels = chartContainer.querySelectorAll('.gantt-time-label');
-  if (timeLabels.length === 0) {
+  // Read time range from data attributes (set by buildGanttChart)
+  const startHour = parseInt(chartContainer.dataset.startHour);
+  const totalMinutes = parseInt(chartContainer.dataset.totalMinutes);
+
+  if (isNaN(startHour) || isNaN(totalMinutes)) {
+    console.warn('Chart time range data not found for auto-scroll');
     return;
   }
-
-  const firstLabel = timeLabels[0].textContent;
-  const lastLabel = timeLabels[timeLabels.length - 1].textContent;
-
-  const startHour = parseInt(firstLabel.split(':')[0]);
-  const lastTime = lastLabel.split(':');
-  const endHour = parseInt(lastTime[0]) + (parseInt(lastTime[1]) === 30 ? 0.5 : 0) + 0.5;
-
-  const totalMinutes = (endHour - startHour) * 60;
   const targetHour = Math.floor(targetTime / 100);
   const targetMinute = targetTime % 100;
   const minutesFromStart = (targetHour - startHour) * 60 + targetMinute;
@@ -544,7 +528,7 @@ function buildGanttChart(openingHours, specialEvents = [], availableTimes = [], 
   const totalGridRows = positionedBookings.length > 0 ? positionedBookings[0].total_grid_rows : 0;
   const chartHeight = totalGridRows > 0 ? 10 + (totalGridRows * config.gridRowHeight) + 10 : 100;
 
-  let html = '<div class="gantt-chart-container" style="position: relative; height: ' + chartHeight + 'px; width: 100%; min-width: ' + (totalMinutes * 2) + 'px; background: white; overflow: visible;">';
+  let html = '<div class="gantt-chart-container" data-start-hour="' + startHour + '" data-total-minutes="' + totalMinutes + '" style="position: relative; height: ' + chartHeight + 'px; width: 100%; min-width: ' + (totalMinutes * 2) + 'px; background: white; overflow: visible;">';
 
   // Time grid lines (15-minute intervals)
   for (let m = 0; m < totalMinutes; m += 15) {
