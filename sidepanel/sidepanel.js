@@ -133,11 +133,13 @@ async function processNavigationContext() {
   if (expandCreateForm) {
     const createBtn = document.getElementById(`create-btn-${targetDate}`);
     const createForm = document.getElementById(`create-form-${targetDate}`);
+    const status = document.getElementById(`status-${targetDate}`);
 
     if (createForm && createBtn) {
       // Show the form
       createForm.style.display = 'block';
       createBtn.style.display = 'none';
+      if (status) status.style.display = 'none'; // Hide status message (same as manual toggle)
       STATE.createFormOpen = true;
 
       // Initialize form if not already initialized
