@@ -580,7 +580,7 @@ function buildGanttChart(openingHours, specialEvents = [], availableTimes = [], 
 
   // Calculate total height with proper spacing for time labels
   const topMargin = 20; // Space for time labels
-  const bottomMargin = 10;
+  const bottomMargin = 40; // Extra space below last booking bar for visibility
   const totalGridRows = positionedBookings.length > 0 ? positionedBookings[0].total_grid_rows : 0;
   const chartHeight = totalGridRows > 0 ? topMargin + (totalGridRows * config.gridRowHeight) + bottomMargin : 100;
 
@@ -763,8 +763,9 @@ function buildGanttChart(openingHours, specialEvents = [], availableTimes = [], 
     }
 
     const barClass = 'gantt-booking-bar' + (isCapped ? ' gantt-bar-capped' : '');
+    const isResident = booking.is_resident ? 'true' : 'false';
 
-    html += '<div class="' + barClass + '" data-name="' + booking.name + '" data-people="' + booking.people + '" data-time="' + booking.time + '" data-room="' + booking.room + '" style="position: absolute; left: ' + leftPercent + '%; top: ' + yPosition + 'px; width: ' + widthPercent + '%; height: ' + barHeight + 'px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 4px; border: 2px solid #5568d3; padding: 2px 6px; color: white; font-weight: 500; display: flex; align-items: center; gap: 4px; overflow: hidden; cursor: pointer; z-index: 5;">';
+    html += '<div class="' + barClass + '" data-name="' + booking.name + '" data-people="' + booking.people + '" data-time="' + booking.time + '" data-is-resident="' + isResident + '" style="position: absolute; left: ' + leftPercent + '%; top: ' + yPosition + 'px; width: ' + widthPercent + '%; height: ' + barHeight + 'px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 4px; border: 2px solid #5568d3; padding: 2px 6px; color: white; font-weight: 500; display: flex; align-items: center; gap: 4px; overflow: hidden; cursor: pointer; z-index: 5;">';
 
     // Guest name and room (only in full mode)
     if (displayText) {
@@ -804,12 +805,12 @@ function attachGanttTooltips() {
     bar.addEventListener('mouseenter', (e) => {
       const people = bar.getAttribute('data-people') || '?';
       const name = bar.getAttribute('data-name') || 'Guest';
-      const room = bar.getAttribute('data-room') || 'Unknown';
+      const isResident = bar.getAttribute('data-is-resident') === 'true';
 
-      // Format: "{people} {name} {room}" (hide room if non-resident)
+      // Format: "{people} {name} 🛏️" (bed icon if resident)
       let tooltipText = `${people} ${name}`;
-      if (room && room !== 'Non-Resident' && room !== 'Unknown') {
-        tooltipText += ` ${room}`;
+      if (isResident) {
+        tooltipText += ' 🛏️';
       }
 
       tooltip.textContent = tooltipText;
