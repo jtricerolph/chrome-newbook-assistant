@@ -1773,7 +1773,7 @@ function attachRestaurantEventListeners(container) {
         const defaultPeriodIndex = periods.length - 1;
         const defaultPeriod = periods[defaultPeriodIndex];
         const people = parseInt(form.querySelector('.form-people').value) || 2;
-        await loadAvailableTimesForPeriod(date, people, defaultPeriod._id, defaultPeriodIndex);
+        await loadAvailableTimesForPeriod(date, people, defaultPeriod._id, defaultPeriodIndex, true);  // Auto-scroll Gantt to first available time
 
         console.log('Opening hours loaded, default period:', defaultPeriod.name);
       } else {
@@ -1822,8 +1822,8 @@ function attachRestaurantEventListeners(container) {
     }
   }
 
-  async function loadAvailableTimesForPeriod(date, people, periodId, periodIndex) {
-    console.log('DEBUG loadAvailableTimesForPeriod called:', {date, people, periodId, periodIndex});
+  async function loadAvailableTimesForPeriod(date, people, periodId, periodIndex, autoScrollGantt = false) {
+    console.log('DEBUG loadAvailableTimesForPeriod called:', {date, people, periodId, periodIndex, autoScrollGantt});
     try {
       const timesData = await fetchAvailableTimes(date, people, periodId);
       console.log('DEBUG fetchAvailableTimes result:', {success: timesData.success, hasHtml: !!timesData.html, htmlLength: timesData.html?.length});
@@ -1905,6 +1905,27 @@ function attachRestaurantEventListeners(container) {
             }
           });
         });
+
+        // Auto-scroll Gantt to first available time if requested (default period load)
+        if (autoScrollGantt && typeof scrollGanttToTime === 'function') {
+          // Find first available (not greyed out) time button
+          const firstAvailableBtn = Array.from(timeButtons).find(btn => !btn.classList.contains('time-slot-unavailable'));
+          if (firstAvailableBtn) {
+            const timeValue = firstAvailableBtn.dataset.time || firstAvailableBtn.textContent.trim();
+            const timeHHMM = timeValue.replace(':', '');
+            console.log('Auto-scrolling Gantt to first available time:', timeValue);
+
+            // Scroll to the time
+            scrollGanttToTime(ganttChartId, timeHHMM, true);
+
+            // Show sight line at this time (but don't lock it)
+            if (typeof showGanttSightLine === 'function') {
+              showGanttSightLine(ganttChartId, timeHHMM);
+            }
+          } else {
+            console.log('No available times found for auto-scroll');
+          }
+        }
 
         console.log('Loaded available times for period index:', periodIndex);
       } else {
