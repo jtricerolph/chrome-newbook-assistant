@@ -526,6 +526,147 @@ function initializeGanttChart(date) {
 
 ---
 
+## Service Period Accordion Functions
+
+### togglePeriodSection(date, periodIndex) - IMPLEMENTED
+
+**Actual Location:** Lines 382-442 (in sidepanel.js)
+
+**Purpose:** Toggle service period accordion section (expand/collapse) with exclusive behavior
+
+**Parameters:**
+- `date` (string, required): Date for the form
+- `periodIndex` (number, required): Index of the period section to toggle
+
+**Returns:** Promise<void>
+
+**Behavior:**
+- **Exclusive accordion**: When expanding a section, all other sections are collapsed first
+- Only one period section can be open at a time
+- Lazy loads available times when section is first expanded
+- Updates collapse icons (▶ when collapsed, ▼ when expanded)
+
+**Implementation:**
+```javascript
+async function togglePeriodSection(date, periodIndex) {
+  const sectionsContainer = document.getElementById('service-period-sections-' + date);
+  const allHeaders = sectionsContainer.querySelectorAll('.period-header');
+  const allTimes = sectionsContainer.querySelectorAll('.period-times');
+  const clickedHeader = sectionsContainer.querySelector(`.period-header[data-period-index="${periodIndex}"]`);
+  const clickedTimes = sectionsContainer.querySelector(`.period-times[data-period-index="${periodIndex}"]`);
+
+  const isCurrentlyExpanded = clickedHeader.classList.contains('expanded');
+
+  if (isCurrentlyExpanded) {
+    // Collapse it
+    clickedHeader.classList.remove('expanded');
+    clickedTimes.style.display = 'none';
+    const icon = clickedHeader.querySelector('.collapse-icon');
+    if (icon) icon.textContent = '▶';
+  } else {
+    // First, collapse all other sections (only one open at a time)
+    allHeaders.forEach(header => {
+      header.classList.remove('expanded');
+      const icon = header.querySelector('.collapse-icon');
+      if (icon) icon.textContent = '▶';
+    });
+    allTimes.forEach(times => {
+      times.style.display = 'none';
+    });
+
+    // Then expand the clicked section
+    clickedHeader.classList.add('expanded');
+    clickedTimes.style.display = 'flex';
+    const icon = clickedHeader.querySelector('.collapse-icon');
+    if (icon) icon.textContent = '▼';
+
+    // Check if times need to be loaded (lazy loading)
+    const needsLoading = clickedTimes.innerHTML.includes('Loading available times...');
+    if (needsLoading) {
+      const periodId = clickedHeader.dataset.periodId;
+      const form = document.getElementById('create-form-' + date);
+      const people = form ? parseInt(form.querySelector('.form-people').value) || 2 : 2;
+      await loadAvailableTimesForPeriod(date, people, periodId, periodIndex);
+    }
+  }
+}
+```
+
+**Exposed to window:** `window.togglePeriodSection = togglePeriodSection;`
+
+---
+
+### loadAvailableTimesForPeriod(date, people, periodId, periodIndex) - IMPLEMENTED
+
+**Actual Location:** Lines 1249-1304 (in sidepanel.js)
+
+**Purpose:** Lazy load available time slots for a specific service period
+
+**Parameters:**
+- `date` (string, required): Date for the booking
+- `people` (number, required): Party size
+- `periodId` (string, required): Opening hour period ID
+- `periodIndex` (number, required): Index of the period section
+
+**Returns:** Promise<void>
+
+**Behavior:**
+- Fetches available times from WordPress API for specific period
+- Populates period section with time slot buttons (without period headers)
+- Adds click handlers to time slot buttons
+- **Automatically captures period ID** when time slot clicked
+- Updates booking summary header with selected time
+
+**Implementation:**
+```javascript
+async function loadAvailableTimesForPeriod(date, people, periodId, periodIndex) {
+  try {
+    const timesData = await fetchAvailableTimes(date, people, periodId);
+    const sectionsContainer = document.getElementById('service-period-sections-' + date);
+    const periodTimes = sectionsContainer.querySelector(`.period-times[data-period-index="${periodIndex}"]`);
+
+    if (timesData.success && timesData.html) {
+      periodTimes.innerHTML = timesData.html;
+
+      // Add click handlers to time slot buttons
+      const timeButtons = periodTimes.querySelectorAll('.time-slot-btn');
+      timeButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+          // Remove selected class from ALL buttons
+          const allButtons = sectionsContainer.querySelectorAll('.time-slot-btn');
+          allButtons.forEach(b => b.classList.remove('selected'));
+          // Mark clicked button as selected
+          this.classList.add('selected');
+
+          // Update hidden time field
+          const timeValue = this.dataset.time || this.textContent.trim();
+          document.getElementById('time-selected-' + date).value = timeValue;
+
+          // Update hidden opening hour ID field
+          const openingHourIdField = document.getElementById('opening-hour-id-' + date);
+          if (openingHourIdField) {
+            openingHourIdField.value = periodId;
+          }
+
+          // Update booking time display in summary header
+          const bookingTimeDisplay = document.getElementById('booking-time-display-' + date);
+          if (bookingTimeDisplay) {
+            const displayTime = this.textContent.trim();
+            bookingTimeDisplay.textContent = displayTime;
+          }
+        });
+      });
+    }
+  } catch (error) {
+    console.error('Error loading available times:', error);
+  }
+}
+```
+
+**Exposed to window:** `window.loadAvailableTimesForPeriod = loadAvailableTimesForPeriod;`
+
+---
+
 ## Form Functions (TO BE IMPLEMENTED)
 
 ### toggleFormSection(sectionId)
@@ -675,12 +816,12 @@ async function submitCreateBooking(date) {
     return;
   }
 
-  // Get opening hour ID from selector
-  const openingHourSelector = document.getElementById('opening-hour-selector-' + date);
-  const openingHourId = openingHourSelector ? openingHourSelector.value : '';
+  // Get opening hour ID from hidden field (populated when time slot button clicked)
+  const openingHourIdField = form.querySelector('.form-opening-hour-id') || document.getElementById('opening-hour-id-' + date);
+  const openingHourId = openingHourIdField ? openingHourIdField.value : '';
 
   if (!openingHourId) {
-    showFeedback(feedback, 'Please select a service period', 'error');
+    showFeedback(feedback, 'Please select a time slot from a service period', 'error');
     return;
   }
 
