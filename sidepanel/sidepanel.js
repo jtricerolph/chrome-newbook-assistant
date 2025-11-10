@@ -554,7 +554,7 @@ function positionBookingsOnGrid(bookings, startHour, totalMinutes, bookingDurati
  * @param {string} chartId - Unique ID for this chart (for sight line)
  * @returns {string} HTML string for Gantt chart content
  */
-function buildGanttChart(openingHours, specialEvents = [], availableTimes = [], bookings = [], displayMode = 'compact', chartId = 'gantt') {
+function buildGanttChart(openingHours, specialEvents = [], availableTimes = [], bookings = [], displayMode = 'compact', chartId = 'gantt', onlineBookingAvailable = true) {
   if (!openingHours || !Array.isArray(openingHours) || openingHours.length === 0) {
     return '<p style="padding: 20px; text-align: center; color: #999;">No opening hours available</p>';
   }
@@ -670,6 +670,11 @@ function buildGanttChart(openingHours, specialEvents = [], availableTimes = [], 
     html += '<div class="gantt-closed-block outside-hours" style="position: absolute; left: ' + leftPercent + '%; top: ' + topMargin + 'px; width: ' + widthPercent + '%; height: ' + (chartHeight - topMargin) + 'px; background: rgba(100, 100, 100, 0.1); z-index: 3; pointer-events: none;"></div>';
   }
 
+  // Grey overlay for online booking closed (full day)
+  if (typeof onlineBookingAvailable !== 'undefined' && onlineBookingAvailable === false) {
+    html += '<div class="gantt-closed-block online-booking-closed" style="position: absolute; left: 0%; top: ' + topMargin + 'px; width: 100%; height: ' + (chartHeight - topMargin) + 'px; background: rgba(230, 81, 0, 0.08); z-index: 3; pointer-events: none;"></div>';
+  }
+
   // Grey overlays for special events (closures/restrictions)
   if (specialEvents && Array.isArray(specialEvents)) {
     specialEvents.forEach(event => {
@@ -678,7 +683,7 @@ function buildGanttChart(openingHours, specialEvents = [], availableTimes = [], 
 
       // Full day closure
       if (!event.open && !event.close) {
-        html += '<div class="gantt-closed-block special-event" style="position: absolute; left: 0%; top: ' + topMargin + 'px; width: 100%; height: ' + (chartHeight - topMargin) + 'px; background: rgba(100, 100, 100, 0.1); z-index: 3; pointer-events: none;"></div>';
+        html += '<div class="gantt-closed-block special-event" style="position: absolute; left: 0%; top: ' + topMargin + 'px; width: 100%; height: ' + (chartHeight - topMargin) + 'px; background: rgba(100, 100, 100, 0.15); z-index: 3; pointer-events: none;"></div>';
         return;
       }
 
@@ -697,7 +702,7 @@ function buildGanttChart(openingHours, specialEvents = [], availableTimes = [], 
           if (blockDuration > 0) {
             const leftPercent = (blockStart / totalMinutes) * 100;
             const widthPercent = (blockDuration / totalMinutes) * 100;
-            html += '<div class="gantt-closed-block special-event" style="position: absolute; left: ' + leftPercent + '%; top: ' + topMargin + 'px; width: ' + widthPercent + '%; height: ' + (chartHeight - topMargin) + 'px; background: rgba(100, 100, 100, 0.1); z-index: 3; pointer-events: none;"></div>';
+            html += '<div class="gantt-closed-block special-event" style="position: absolute; left: ' + leftPercent + '%; top: ' + topMargin + 'px; width: ' + widthPercent + '%; height: ' + (chartHeight - topMargin) + 'px; background: rgba(100, 100, 100, 0.15); z-index: 3; pointer-events: none;"></div>';
           }
         }
       }
@@ -1856,19 +1861,35 @@ function attachRestaurantEventListeners(container) {
               // Build alert banner HTML
               const alertsHtml = buildSpecialEventsAlert(specialEvents, onlineBookingAvailable);
 
+              // Insert alerts BEFORE the gantt container (not inside viewport)
+              const ganttContainer = document.getElementById('gantt-container-' + date);
+              if (ganttContainer && alertsHtml) {
+                // Remove any existing alert banner
+                const existingBanner = ganttContainer.previousElementSibling;
+                if (existingBanner && existingBanner.classList.contains('special-events-banner')) {
+                  existingBanner.remove();
+                }
+
+                // Insert new alert banner before gantt container
+                const bannerDiv = document.createElement('div');
+                bannerDiv.className = 'special-events-banner special-events-horizontal';
+                bannerDiv.innerHTML = alertsHtml;
+                ganttContainer.parentNode.insertBefore(bannerDiv, ganttContainer);
+              }
+
               // Build Gantt chart with special events for grey overlays
               const ganttHtml = buildGanttChart(
-                periods,            // opening hours
-                specialEvents,      // special events (for grey overlays)
-                [],                 // available times (TODO: fetch these)
-                bookingsForDate,    // ALL restaurant bookings (not just matched)
-                'compact',          // display mode
-                'gantt-' + date     // chart ID (must match viewport ID)
+                periods,                // opening hours
+                specialEvents,          // special events (for grey overlays)
+                [],                     // available times (TODO: fetch these)
+                bookingsForDate,        // ALL restaurant bookings (not just matched)
+                'compact',              // display mode
+                'gantt-' + date,        // chart ID (must match viewport ID)
+                onlineBookingAvailable  // online booking status (for grey overlay)
               );
 
-              // Combine alerts and Gantt chart
-              const fullHtml = (alertsHtml ? '<div class="special-events-banner special-events-horizontal">' + alertsHtml + '</div>' : '') + ganttHtml;
-              ganttViewport.innerHTML = fullHtml;
+              // Insert Gantt chart into viewport (without alerts)
+              ganttViewport.innerHTML = ganttHtml;
 
               // Update viewport height to match chart content
               const chartContainer = ganttViewport.querySelector('.gantt-chart-container');
