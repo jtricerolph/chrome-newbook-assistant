@@ -1159,13 +1159,13 @@ button[data-action].loading::after {
 
 /* Special Event Alerts Banner */
 .special-events-banner {
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .special-events-horizontal {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .special-events-horizontal .special-event-alert {
@@ -1175,8 +1175,8 @@ button[data-action].loading::after {
 .special-event-alert {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 8px 10px;
+  gap: 2px;
+  padding: 6px 8px;
   background-color: #fff3cd;
   border: 1px solid #ffc107;
   border-left: 4px solid #ff9800;
@@ -1208,7 +1208,7 @@ button[data-action].loading::after {
   font-size: 11px;
   color: #856404;
   padding-left: 24px;
-  line-height: 1.4;
+  line-height: 1.2;
 }
 
 .special-event-content {
