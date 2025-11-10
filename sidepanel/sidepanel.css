@@ -1157,7 +1157,83 @@ button[data-action].loading::after {
   color: white;
 }
 
-/* Special Event Alerts */
+/* Special Event Alerts Banner */
+.special-events-banner {
+  margin-bottom: 12px;
+}
+
+.special-events-horizontal {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.special-events-horizontal .special-event-alert {
+  flex: 1;
+  min-width: 0;
+  margin-bottom: 0;
+}
+
+.special-event-alert {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background-color: #fff3cd;
+  border: 1px solid #ffc107;
+  border-left: 4px solid #ff9800;
+  border-radius: 4px;
+  margin-bottom: 4px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  font-size: 12px;
+}
+
+.special-event-alert .material-symbols-outlined {
+  color: #ff9800;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.special-event-content {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  font-size: 12px;
+  color: #856404;
+}
+
+.special-event-content strong {
+  color: #856404;
+  font-weight: 700;
+}
+
+.special-event-time {
+  color: #856404;
+  font-weight: 700;
+}
+
+/* Online Booking Closed Variant - Darker Orange */
+.special-event-alert.online-booking-closed {
+  background-color: #ffe0b2;
+  border: 1px solid #fb8c00;
+  border-left: 4px solid #e65100;
+}
+
+.special-event-alert.online-booking-closed .material-symbols-outlined {
+  color: #e65100;
+}
+
+.special-event-alert.online-booking-closed .special-event-content {
+  color: #6d4c41;
+}
+
+.special-event-alert.online-booking-closed .special-event-content strong {
+  color: #bf360c;
+}
+
+/* Legacy alert style (deprecated, keeping for backwards compatibility) */
 .bma-special-event-alert {
   background: #fef3c7;
   border: 1px solid #fbbf24;

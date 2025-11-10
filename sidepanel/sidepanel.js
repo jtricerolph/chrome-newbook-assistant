@@ -808,6 +808,63 @@ function buildGanttChart(openingHours, specialEvents = [], availableTimes = [], 
 window.buildGanttChart = buildGanttChart;
 
 /**
+ * Build special events alert banners HTML
+ * @param {Array} specialEvents - Array of special event objects
+ * @param {boolean} onlineBookingAvailable - Whether online booking is available
+ * @returns {string} HTML string for alert banners
+ */
+function buildSpecialEventsAlert(specialEvents, onlineBookingAvailable) {
+  let alertsHtml = '';
+
+  // Add online booking closed warning if needed
+  if (typeof onlineBookingAvailable !== 'undefined' && onlineBookingAvailable === false) {
+    alertsHtml += '<div class="special-event-alert online-booking-closed">' +
+      '<span class="material-symbols-outlined">block</span>' +
+      '<div class="special-event-content">' +
+      '<strong>Online Bookings Closed:</strong> ' +
+      '<span>Online bookings for the day closed from main Resos planner screen</span>' +
+      '</div>' +
+      '</div>';
+  }
+
+  // Add special event warnings
+  if (specialEvents && Array.isArray(specialEvents) && specialEvents.length > 0) {
+    specialEvents.forEach(function(event) {
+      // Skip special events that are OPEN (isOpen = true)
+      if (event.isOpen === true) {
+        return;
+      }
+
+      const eventName = event.name || 'Service unavailable';
+      let timeInfo = '';
+
+      if (event.open && event.close) {
+        const openHour = Math.floor(event.open / 100);
+        const openMin = event.open % 100;
+        const closeHour = Math.floor(event.close / 100);
+        const closeMin = event.close % 100;
+
+        timeInfo = openHour + ':' + (openMin < 10 ? '0' + openMin : openMin) + ' - ' +
+          closeHour + ':' + (closeMin < 10 ? '0' + closeMin : closeMin);
+      }
+
+      alertsHtml += '<div class="special-event-alert">' +
+        '<span class="material-symbols-outlined">warning</span>' +
+        '<div class="special-event-content">' +
+        (timeInfo ? '<strong class="special-event-time">' + timeInfo + ':</strong>' : '<strong class="special-event-time">All Day:</strong>') +
+        '<span>' + (eventName || 'Restricted Service') + '</span>' +
+        '</div>' +
+        '</div>';
+    });
+  }
+
+  return alertsHtml;
+}
+
+// Expose to window
+window.buildSpecialEventsAlert = buildSpecialEventsAlert;
+
+/**
  * Attach tooltip event listeners to Gantt booking bars
  * Shows booking details on hover: "people: name - room"
  */
@@ -1791,15 +1848,27 @@ function attachRestaurantEventListeners(container) {
               const bookingsForDate = allBookingsData.success ? allBookingsData.bookings : [];
               console.log('DEBUG: Total bookings for Gantt chart:', bookingsForDate.length);
 
+              // Extract special events and online booking status from API response
+              const specialEvents = allBookingsData.specialEvents || [];
+              const onlineBookingAvailable = allBookingsData.onlineBookingAvailable;
+              console.log('DEBUG: Special events:', specialEvents, 'Online booking available:', onlineBookingAvailable);
+
+              // Build alert banner HTML
+              const alertsHtml = buildSpecialEventsAlert(specialEvents, onlineBookingAvailable);
+
+              // Build Gantt chart with special events for grey overlays
               const ganttHtml = buildGanttChart(
                 periods,            // opening hours
-                [],                 // special events (TODO: fetch these)
+                specialEvents,      // special events (for grey overlays)
                 [],                 // available times (TODO: fetch these)
                 bookingsForDate,    // ALL restaurant bookings (not just matched)
                 'compact',          // display mode
                 'gantt-' + date     // chart ID (must match viewport ID)
               );
-              ganttViewport.innerHTML = ganttHtml;
+
+              // Combine alerts and Gantt chart
+              const fullHtml = (alertsHtml ? '<div class="special-events-banner special-events-horizontal">' + alertsHtml + '</div>' : '') + ganttHtml;
+              ganttViewport.innerHTML = fullHtml;
 
               // Update viewport height to match chart content
               const chartContainer = ganttViewport.querySelector('.gantt-chart-container');
@@ -1817,7 +1886,7 @@ function attachRestaurantEventListeners(container) {
               const bookingsForDate = STATE.restaurantBookings[date] || [];
               const ganttHtml = buildGanttChart(
                 periods,
-                [],
+                [],                 // no special events available in fallback
                 [],
                 bookingsForDate,
                 'compact',
