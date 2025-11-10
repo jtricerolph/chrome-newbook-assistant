@@ -1446,6 +1446,29 @@ button[data-action].loading::after {
   padding: 0;
 }
 
+/* Vacant Room Line */
+.vacant-room-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  font-size: 12px;
+  color: #9ca3af;
+  border-bottom: 1px solid #f3f4f6;
+  background: #fafafa;
+}
+
+.vacant-room-line .room-number {
+  font-weight: 600;
+  color: #6b7280;
+  min-width: 40px;
+}
+
+.vacant-room-line .vacant-label {
+  font-style: italic;
+  color: #9ca3af;
+}
+
 /* Staying Booking Cards */
 .staying-card {
   background: #fff;
