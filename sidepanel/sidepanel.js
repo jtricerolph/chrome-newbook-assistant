@@ -1521,12 +1521,21 @@ function attachRestaurantEventListeners(container) {
       return;
     }
 
+    // Set flag immediately to prevent duplicate submissions
+    updateProcessing = true;
+
     const formId = 'update-form-' + date + '-' + resosBookingId;
     const form = document.getElementById(formId);
-    if (!form) return;
+    if (!form) {
+      updateProcessing = false;
+      return;
+    }
 
     const feedbackId = 'feedback-update-' + date + '-' + resosBookingId;
     const feedback = document.getElementById(feedbackId);
+
+    // Get submit button for UI feedback
+    const submitBtn = form.querySelector('.bma-btn-submit');
 
     // Collect checked updates
     const updates = {};
@@ -1541,11 +1550,17 @@ function attachRestaurantEventListeners(container) {
 
     if (Object.keys(updates).length === 0) {
       showFeedback(feedback, 'Please select at least one field to update', 'error');
+      updateProcessing = false;
       return;
     }
 
-    updateProcessing = true;
     console.log('Starting update booking operation');
+
+    // Disable button and update UI
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Updating...';
+    }
 
     try {
       showFeedback(feedback, 'Updating booking...', 'info');
@@ -1566,15 +1581,26 @@ function attachRestaurantEventListeners(container) {
 
       if (result.success) {
         showFeedback(feedback, 'Booking updated successfully!', 'success');
+        // On success, we reload the tab, so no need to re-enable button
         setTimeout(() => {
           form.style.display = 'none';
           window.reloadRestaurantTab();
         }, 1500);
       } else {
         showFeedback(feedback, 'Error: ' + (result.message || 'Unknown error'), 'error');
+        // Re-enable button on error
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Update Booking';
+        }
       }
     } catch (error) {
       showFeedback(feedback, 'Error: ' + error.message, 'error');
+      // Re-enable button on error
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Update Booking';
+      }
     } finally {
       updateProcessing = false;
       console.log('Update booking operation completed');
