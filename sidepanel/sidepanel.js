@@ -27,7 +27,8 @@ const STATE = {
   sessionLocked: false, // Track NewBook session lock dialog status
   createFormOpen: false, // Track if any create booking form is open
   navigationContext: null, // Track navigation context for cross-tab navigation
-  scrollPositions: {} // Track scroll positions per tab/date
+  scrollPositions: {}, // Track scroll positions per tab/date
+  restaurantBookings: {} // Store restaurant bookings by date: { '2026-01-31': [{time, people, name, room}, ...] }
 };
 
 // Global API client (exposed for use by injected template content)
@@ -1577,16 +1578,20 @@ function attachRestaurantEventListeners(container) {
         if (typeof buildGanttChart === 'function') {
           const ganttViewport = document.getElementById('gantt-' + date);
           if (ganttViewport) {
+            // Get existing restaurant bookings for this date
+            const bookingsForDate = STATE.restaurantBookings[date] || [];
+            console.log('DEBUG: Bookings for date', date, ':', bookingsForDate);
+
             const ganttHtml = buildGanttChart(
               periods,            // opening hours
               [],                 // special events (TODO: fetch these)
               [],                 // available times (TODO: fetch these)
-              [],                 // bookings (TODO: get from backend)
+              bookingsForDate,    // existing restaurant bookings
               'compact',          // display mode
               'gantt-' + date     // chart ID (must match viewport ID)
             );
             ganttViewport.innerHTML = ganttHtml;
-            console.log('Gantt chart generated for date:', date);
+            console.log('Gantt chart generated for date:', date, 'with', bookingsForDate.length, 'bookings');
           }
         }
 
@@ -2827,6 +2832,12 @@ async function loadRestaurantTab() {
       updateBadge('restaurant', data.critical_count || 0, data.warning_count || 0);
       STATE.cache.restaurant = data;
 
+      // Store restaurant bookings by date for Gantt chart
+      if (data.bookings_by_date) {
+        STATE.restaurantBookings = data.bookings_by_date;
+        console.log('DEBUG: Stored restaurant bookings:', STATE.restaurantBookings);
+      }
+
       // Process navigation context after content is loaded
       setTimeout(() => {
         processNavigationContext();
@@ -2965,6 +2976,13 @@ async function loadRestaurantTabSilently() {
     console.log('Full restaurant API response:', JSON.stringify(data, null, 2));
     updateBadge('restaurant', data.critical_count || 0, data.warning_count || 0);
     STATE.cache.restaurant = data;
+
+    // Store restaurant bookings by date for Gantt chart
+    if (data.bookings_by_date) {
+      STATE.restaurantBookings = data.bookings_by_date;
+      console.log('DEBUG: Stored restaurant bookings:', STATE.restaurantBookings);
+    }
+
     return data;
   } catch (error) {
     console.error('Error loading restaurant data:', error);
