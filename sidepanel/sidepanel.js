@@ -106,10 +106,53 @@ function returnToPreviousContext() {
 }
 
 /**
+ * Wait for form initialization to complete
+ * @param {HTMLElement} form - The form element to watch
+ * @param {number} timeout - Maximum time to wait in milliseconds
+ * @returns {Promise<boolean>} - Resolves when initialized or timeout
+ */
+function waitForFormInitialization(form, timeout = 5000) {
+  return new Promise((resolve) => {
+    // Check if already initialized
+    if (form.dataset.initialized === 'true') {
+      resolve(true);
+      return;
+    }
+
+    let timeoutId;
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        if (mutation.type === 'attributes' && mutation.attributeName === 'data-initialized') {
+          if (form.dataset.initialized === 'true') {
+            clearTimeout(timeoutId);
+            observer.disconnect();
+            resolve(true);
+            return;
+          }
+        }
+      }
+    });
+
+    // Watch for data-initialized attribute changes
+    observer.observe(form, {
+      attributes: true,
+      attributeFilter: ['data-initialized']
+    });
+
+    // Timeout fallback
+    timeoutId = setTimeout(() => {
+      observer.disconnect();
+      console.warn('Form initialization timeout - scrolling anyway');
+      resolve(false);
+    }, timeout);
+  });
+}
+
+/**
  * Process navigation context after Restaurant tab loads
  * Called from loadRestaurantTab() to handle navigation intent
  */
-function processNavigationContext() {
+async function processNavigationContext() {
   if (!STATE.navigationContext) {
     return;
   }
@@ -135,6 +178,13 @@ function processNavigationContext() {
       createForm.style.display = 'block';
       createBtn.style.display = 'none';
       STATE.createFormOpen = true;
+
+      // Wait for form initialization to complete before scrolling
+      if (scrollAfterLoad) {
+        console.log('Waiting for form initialization...');
+        await waitForFormInitialization(createForm);
+        console.log('Form initialization complete, scrolling...');
+      }
     }
   }
 
