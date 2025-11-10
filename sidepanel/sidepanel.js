@@ -830,7 +830,7 @@ function buildSpecialEventsAlert(specialEvents, onlineBookingAvailable) {
       '<span class="material-symbols-outlined">block</span>' +
       '<span class="special-event-title">Online Bookings Closed</span>' +
       '</div>' +
-      '<div class="special-event-description">Online bookings for the day closed from main Resos planner screen</div>' +
+      '<div class="special-event-description">Online bookings closed from planner screen</div>' +
       '</div>';
   }
 
