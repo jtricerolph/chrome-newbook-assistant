@@ -864,27 +864,25 @@ body {
   overflow: hidden;
   cursor: pointer;
   z-index: 5;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, z-index 0s;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.gantt-booking-bar:hover {
-  transform: scale(1.05) translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-  z-index: 10;
 }
 
 .gantt-booking-bar.gantt-bar-capped {
   border-right-style: dashed;
 }
 
-.gantt-party-size {
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 3px;
-  padding: 1px 4px;
-  font-size: 11px;
-  font-weight: bold;
-  flex-shrink: 0;
+/* Tooltip for booking bar hover */
+.gantt-booking-tooltip {
+  position: fixed;
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  pointer-events: none;
+  z-index: 1000;
+  white-space: nowrap;
+  display: none;
 }
 
 .gantt-bar-text {
