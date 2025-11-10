@@ -147,6 +147,11 @@ body {
   display: none;
 }
 
+/* Add bottom padding to restaurant tab to allow last night to scroll to top */
+[data-content="restaurant"] .tab-data {
+  padding-bottom: 60vh;
+}
+
 /* Error State */
 .tab-error {
   display: flex;
