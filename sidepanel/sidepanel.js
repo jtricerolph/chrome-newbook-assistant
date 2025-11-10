@@ -172,11 +172,14 @@ async function processNavigationContext() {
           const offset = 10; // Additional pixels below the top
           const scrollTop = scrollContainer.scrollTop + (elementRect.top - containerRect.top) - offset;
           console.log('Autoscroll: scrolling to', scrollTop, '(current scrollTop:', scrollContainer.scrollTop, 'element relative top:', elementRect.top - containerRect.top, 'offset:', offset, ')');
-          scrollContainer.scrollTo({ top: scrollTop, behavior: 'smooth' });
+
+          // Use instant scroll instead of smooth to avoid timing issues
+          scrollContainer.scrollTop = scrollTop;
+
           // Verify scroll happened
           setTimeout(() => {
             console.log('Autoscroll: After scroll - current scrollTop:', scrollContainer.scrollTop);
-          }, 500);
+          }, 100);
         } else {
           // Fallback to standard scrollIntoView
           console.log('Autoscroll: using fallback scrollIntoView');
@@ -1655,7 +1658,9 @@ function attachRestaurantEventListeners(container) {
             const offset = 10; // Additional pixels below the top
             const scrollTop = scrollContainer.scrollTop + (elementRect.top - containerRect.top) - offset;
             console.log('Autoscroll (create form): scrolling to', scrollTop, '(current scrollTop:', scrollContainer.scrollTop, 'element relative top:', elementRect.top - containerRect.top, 'offset:', offset, ')');
-            scrollContainer.scrollTo({ top: scrollTop, behavior: 'smooth' });
+
+            // Use instant scroll instead of smooth to avoid timing issues
+            scrollContainer.scrollTop = scrollTop;
           } else {
             console.log('Autoscroll (create form): using fallback scrollIntoView on nightSection');
             nightSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
