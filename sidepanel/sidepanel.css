@@ -933,6 +933,15 @@ body {
   font-weight: 600;
 }
 
+/* Selected unavailable button - selected state takes precedence */
+.time-slot-btn.selected.time-slot-unavailable {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 .time-slot-btn.time-slot-unavailable {
   background: #f3f4f6;
   color: #9ca3af;
