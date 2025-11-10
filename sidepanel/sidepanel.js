@@ -3563,10 +3563,74 @@ async function loadStayingTab(date = null) {
  * Initialize expand/collapse functionality for staying cards
  */
 function initializeStayingCards() {
+  const stayingTab = document.querySelector('[data-content="staying"] .tab-data');
+  if (!stayingTab) return;
+
+  // Expand/collapse headers
   document.querySelectorAll('.staying-card .staying-header').forEach(header => {
     header.addEventListener('click', function() {
       const card = this.closest('.staying-card');
       card.classList.toggle('expanded');
+    });
+  });
+
+  // Open booking in NewBook buttons
+  stayingTab.querySelectorAll('.open-booking-btn').forEach(button => {
+    button.addEventListener('click', function(e) {
+      e.stopPropagation();
+      const bookingId = this.dataset.bookingId;
+      const url = `https://appeu.newbook.cloud/bookings_view/${bookingId}`;
+      chrome.tabs.update({ url: url });
+    });
+  });
+
+  // Restaurant header links - navigate to Restaurant tab
+  stayingTab.querySelectorAll('.restaurant-header-link').forEach(header => {
+    header.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      const bookingId = this.dataset.bookingId;
+      console.log('Restaurant header clicked - bookingId:', bookingId);
+      navigateToRestaurantDate(null, parseInt(bookingId));
+    });
+  });
+
+  // Create booking links - navigate to Restaurant tab with date
+  stayingTab.querySelectorAll('.create-booking-link').forEach(link => {
+    link.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      const date = this.dataset.date;
+      const bookingId = this.dataset.bookingId;
+      console.log('Create booking link clicked - date:', date, 'bookingId:', bookingId);
+      navigateToRestaurantDate(date, parseInt(bookingId));
+    });
+  });
+
+  // Clickable issues - navigate to Restaurant tab
+  stayingTab.querySelectorAll('.clickable-issue').forEach(issue => {
+    issue.addEventListener('click', function(e) {
+      e.stopPropagation();
+      const bookingId = this.dataset.bookingId;
+      console.log('Issue clicked - switching to Restaurant tab for booking:', bookingId);
+      STATE.currentBookingId = bookingId;
+      switchTab('restaurant');
+    });
+  });
+
+  // ResOS deep links - open ResOS in new tab
+  stayingTab.querySelectorAll('.resos-deep-link').forEach(link => {
+    link.addEventListener('click', function(e) {
+      e.stopPropagation();
+      const resosId = this.dataset.resosId;
+      const restaurantId = this.dataset.restaurantId;
+      const date = this.dataset.date;
+
+      if (resosId && restaurantId && date) {
+        const resosUrl = `https://app.resos.com/${restaurantId}/bookings/timetable/${date}/${resosId}`;
+        console.log('Opening ResOS booking in new tab:', resosUrl);
+        chrome.tabs.create({ url: resosUrl });
+      }
     });
   });
 }
