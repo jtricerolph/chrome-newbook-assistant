@@ -638,6 +638,28 @@ body {
   color: #1f2937;
 }
 
+/* Booking Summary Header (Above form actions) */
+.bma-booking-summary-header {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 12px 16px;
+  margin: 16px 0;
+  font-size: 14px;
+  color: #374151;
+  text-align: center;
+}
+
+.bma-booking-summary-header strong {
+  color: #111827;
+  font-weight: 600;
+}
+
+.booking-time-display {
+  color: #3b82f6;
+  font-weight: 600;
+}
+
 /* Collapsible Sections */
 .bma-expandable-section {
   margin-bottom: 16px;

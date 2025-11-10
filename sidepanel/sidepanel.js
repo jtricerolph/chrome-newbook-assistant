@@ -406,7 +406,17 @@ async function togglePeriodSection(date, periodIndex) {
     const icon = clickedHeader.querySelector('.collapse-icon');
     if (icon) icon.textContent = '▶';
   } else {
-    // Expand it
+    // First, collapse all other sections (only one open at a time)
+    allHeaders.forEach(header => {
+      header.classList.remove('expanded');
+      const icon = header.querySelector('.collapse-icon');
+      if (icon) icon.textContent = '▶';
+    });
+    allTimes.forEach(times => {
+      times.style.display = 'none';
+    });
+
+    // Then expand the clicked section
     clickedHeader.classList.add('expanded');
     clickedTimes.style.display = 'flex';
     const icon = clickedHeader.querySelector('.collapse-icon');
@@ -1262,6 +1272,14 @@ function attachRestaurantEventListeners(container) {
             // Update hidden field
             const timeValue = this.dataset.time || this.textContent.trim();
             document.getElementById('time-selected-' + date).value = timeValue;
+
+            // Update booking time display in summary header
+            const bookingTimeDisplay = document.getElementById('booking-time-display-' + date);
+            if (bookingTimeDisplay) {
+              // Format time for display (e.g., "1800" -> "18:00")
+              const displayTime = this.textContent.trim();
+              bookingTimeDisplay.textContent = displayTime;
+            }
           });
         });
 
