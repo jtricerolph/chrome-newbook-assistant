@@ -1228,11 +1228,12 @@ function attachRestaurantEventListeners(container) {
         console.log('Using choices array for dietary:', dietaryData.choices.length, 'choices');
         container.innerHTML = '';
         dietaryData.choices.forEach(choice => {
+          const div = document.createElement('div');
+          div.className = 'dietary-checkbox-item';
           const label = document.createElement('label');
-          label.style.display = 'block';
-          label.style.marginBottom = '8px';
           label.innerHTML = `<input type="checkbox" class="diet-checkbox" data-choice-id="${escapeHtml(choice._id)}" data-choice-name="${escapeHtml(choice.name)}"> ${escapeHtml(choice.name)}`;
-          container.appendChild(label);
+          div.appendChild(label);
+          container.appendChild(div);
         });
       } else {
         console.warn('Dietary response has no html or choices:', dietaryData);
