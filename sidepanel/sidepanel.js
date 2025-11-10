@@ -123,6 +123,8 @@ async function processNavigationContext() {
 
   if (!dateSection) {
     console.warn('Target date section not found:', targetDate);
+    // Clear navigation context even on error to prevent re-triggering
+    STATE.navigationContext = null;
     return;
   }
 
@@ -162,6 +164,9 @@ async function processNavigationContext() {
       }
     }, 100);
   }
+
+  // Clear navigation context after processing to prevent re-triggering
+  STATE.navigationContext = null;
 }
 
 // =============================================================================
