@@ -157,11 +157,20 @@ async function processNavigationContext() {
     setTimeout(() => {
       // Try to find the bma-night element within the date section for more precise scrolling
       const nightSection = dateSection.querySelector('.bma-night');
-      if (nightSection) {
-        nightSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      } else {
-        // Fallback to date section if bma-night not found
-        dateSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const targetElement = nightSection || dateSection;
+
+      if (targetElement) {
+        // Get the scrolling container (tab-content)
+        const scrollContainer = targetElement.closest('.tab-content');
+        if (scrollContainer) {
+          // Calculate position with offset (10px below tabs)
+          const elementTop = targetElement.offsetTop;
+          const offset = 10; // Additional pixels below the top
+          scrollContainer.scrollTo({ top: elementTop - offset, behavior: 'smooth' });
+        } else {
+          // Fallback to standard scrollIntoView
+          targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
       }
     }, 100);
   }
@@ -1023,6 +1032,32 @@ async function fetchSpecialEvents(date) {
   }
 }
 
+/**
+ * Fetch all restaurant bookings for a specific date
+ * @param {string} date - Date in YYYY-MM-DD format
+ * @returns {Promise<Object>} - All bookings data
+ */
+async function fetchAllBookingsForDate(date) {
+  try {
+    const response = await fetch(`${window.apiClient.baseUrl}/all-bookings-for-date?date=${date}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': window.apiClient.authHeader,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching all bookings for date:', error);
+    throw error;
+  }
+}
+
 // Authentication State Management
 const AuthManager = {
   // Check if NewBook session is active by checking cookies
@@ -1499,7 +1534,15 @@ function attachRestaurantEventListeners(container) {
       if (dateSection) {
         const nightSection = dateSection.querySelector('.bma-night');
         if (nightSection) {
-          nightSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          // Get the scrolling container and apply offset
+          const scrollContainer = nightSection.closest('.tab-content');
+          if (scrollContainer) {
+            const elementTop = nightSection.offsetTop;
+            const offset = 10; // Additional pixels below the top
+            scrollContainer.scrollTo({ top: elementTop - offset, behavior: 'smooth' });
+          } else {
+            nightSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
         } else {
           form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
@@ -1578,20 +1621,43 @@ function attachRestaurantEventListeners(container) {
         if (typeof buildGanttChart === 'function') {
           const ganttViewport = document.getElementById('gantt-' + date);
           if (ganttViewport) {
-            // Get existing restaurant bookings for this date
-            const bookingsForDate = STATE.restaurantBookings[date] || [];
-            console.log('DEBUG: Bookings for date', date, ':', bookingsForDate);
+            // Fetch ALL restaurant bookings for this date
+            try {
+              const allBookingsData = await fetchAllBookingsForDate(date);
+              console.log('DEBUG: All bookings from API:', allBookingsData);
 
-            const ganttHtml = buildGanttChart(
-              periods,            // opening hours
-              [],                 // special events (TODO: fetch these)
-              [],                 // available times (TODO: fetch these)
-              bookingsForDate,    // existing restaurant bookings
-              'compact',          // display mode
-              'gantt-' + date     // chart ID (must match viewport ID)
-            );
-            ganttViewport.innerHTML = ganttHtml;
-            console.log('Gantt chart generated for date:', date, 'with', bookingsForDate.length, 'bookings');
+              // Get matched bookings for this date from STATE
+              const matchedBookings = STATE.restaurantBookings[date] || [];
+              console.log('DEBUG: Matched bookings from STATE:', matchedBookings);
+
+              // Use all bookings from API for comprehensive view
+              const bookingsForDate = allBookingsData.success ? allBookingsData.bookings : [];
+              console.log('DEBUG: Total bookings for Gantt chart:', bookingsForDate.length);
+
+              const ganttHtml = buildGanttChart(
+                periods,            // opening hours
+                [],                 // special events (TODO: fetch these)
+                [],                 // available times (TODO: fetch these)
+                bookingsForDate,    // ALL restaurant bookings (not just matched)
+                'compact',          // display mode
+                'gantt-' + date     // chart ID (must match viewport ID)
+              );
+              ganttViewport.innerHTML = ganttHtml;
+              console.log('Gantt chart generated for date:', date, 'with', bookingsForDate.length, 'bookings');
+            } catch (error) {
+              console.error('Error fetching all bookings for Gantt chart:', error);
+              // Fallback to matched bookings only if API fails
+              const bookingsForDate = STATE.restaurantBookings[date] || [];
+              const ganttHtml = buildGanttChart(
+                periods,
+                [],
+                [],
+                bookingsForDate,
+                'compact',
+                'gantt-' + date
+              );
+              ganttViewport.innerHTML = ganttHtml;
+            }
           }
         }
 
