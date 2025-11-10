@@ -173,6 +173,10 @@ async function processNavigationContext() {
           const scrollTop = scrollContainer.scrollTop + (elementRect.top - containerRect.top) - offset;
           console.log('Autoscroll: scrolling to', scrollTop, '(current scrollTop:', scrollContainer.scrollTop, 'element relative top:', elementRect.top - containerRect.top, 'offset:', offset, ')');
           scrollContainer.scrollTo({ top: scrollTop, behavior: 'smooth' });
+          // Verify scroll happened
+          setTimeout(() => {
+            console.log('Autoscroll: After scroll - current scrollTop:', scrollContainer.scrollTop);
+          }, 500);
         } else {
           // Fallback to standard scrollIntoView
           console.log('Autoscroll: using fallback scrollIntoView');
@@ -1148,6 +1152,13 @@ async function fetchAllBookingsForDate(date) {
     const data = await response.json();
     console.log('fetchAllBookingsForDate - Response data:', data);
     console.log('fetchAllBookingsForDate - Bookings count:', data.bookings ? data.bookings.length : 0);
+
+    // Debug: Log each booking's is_resident value
+    if (data.bookings && data.bookings.length > 0) {
+      data.bookings.forEach((booking, i) => {
+        console.log(`Booking ${i}: name="${booking.name}", is_resident=${booking.is_resident}`);
+      });
+    }
 
     return data;
   } catch (error) {
