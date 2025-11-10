@@ -1346,13 +1346,23 @@ function attachRestaurantEventListeners(container) {
       return;
     }
 
+    // Set flag immediately to prevent duplicate submissions
+    createProcessing = true;
+
     const formId = 'create-form-' + date;
     const form = document.getElementById(formId);
-    if (!form) return;
+    if (!form) {
+      createProcessing = false;
+      return;
+    }
+
+    // Get submit button for UI feedback
+    const submitBtn = form.querySelector('.bma-btn-submit');
 
     // Validate form before submission
     if (!validateBookingForm(formId)) {
       console.log('Form validation failed');
+      createProcessing = false;
       return;
     }
 
@@ -1371,6 +1381,7 @@ function attachRestaurantEventListeners(container) {
 
     if (!timeValue) {
       showFeedback(feedback, 'Please select a time slot', 'error');
+      createProcessing = false;
       return;
     }
 
@@ -1380,6 +1391,7 @@ function attachRestaurantEventListeners(container) {
 
     if (!openingHourId) {
       showFeedback(feedback, 'Please select a time slot from a service period', 'error');
+      createProcessing = false;
       return;
     }
 
@@ -1445,8 +1457,13 @@ function attachRestaurantEventListeners(container) {
       formData.booking_ref = bookingRef;
     }
 
-    createProcessing = true;
     console.log('Starting create booking operation with data:', formData);
+
+    // Disable button and update UI
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Creating...';
+    }
 
     try {
       showFeedback(feedback, 'Creating booking...', 'info');
@@ -1464,6 +1481,7 @@ function attachRestaurantEventListeners(container) {
 
       if (result.success) {
         showFeedback(feedback, 'Booking created successfully!', 'success');
+        // On success, we navigate away, so no need to re-enable button
         setTimeout(() => {
           form.style.display = 'none';
           STATE.createFormOpen = false;
@@ -1477,9 +1495,19 @@ function attachRestaurantEventListeners(container) {
         }, 1500);
       } else {
         showFeedback(feedback, 'Error: ' + (result.message || 'Unknown error'), 'error');
+        // Re-enable button on error
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Create Booking';
+        }
       }
     } catch (error) {
       showFeedback(feedback, 'Error: ' + error.message, 'error');
+      // Re-enable button on error
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Create Booking';
+      }
     } finally {
       createProcessing = false;
       console.log('Create booking operation completed');
@@ -1563,6 +1591,9 @@ function attachRestaurantEventListeners(container) {
       return;
     }
 
+    // Set flag immediately to prevent duplicate modal dialogs
+    excludeProcessing = true;
+
     const confirmed = await showModal(
       'Exclude This Match?',
       `This will add a "NOT-#${hotelBookingId}" note to the ResOS booking for ${guestName}, marking it as excluded from this hotel booking.`,
@@ -1571,10 +1602,10 @@ function attachRestaurantEventListeners(container) {
     );
 
     if (!confirmed) {
+      excludeProcessing = false;
       return;
     }
 
-    excludeProcessing = true;
     console.log('Starting exclude operation for booking:', hotelBookingId);
 
     try {
