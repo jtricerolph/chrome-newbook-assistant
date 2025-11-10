@@ -176,7 +176,7 @@ async function processNavigationContext() {
             // Calculate position using getBoundingClientRect for accuracy
             const containerRect = scrollContainer.getBoundingClientRect();
             const elementRect = targetElement.getBoundingClientRect();
-            const offset = 10; // Additional pixels below the top
+            const offset = 30; // Additional pixels below the tab title bar for visual spacing
             const scrollTop = scrollContainer.scrollTop + (elementRect.top - containerRect.top) - offset;
             console.log('Autoscroll: scrolling to', scrollTop, '(current scrollTop:', scrollContainer.scrollTop, 'element relative top:', elementRect.top - containerRect.top, 'offset:', offset, ')');
 
@@ -1675,7 +1675,7 @@ function attachRestaurantEventListeners(container) {
                 // Calculate position using getBoundingClientRect for accuracy
                 const containerRect = scrollContainer.getBoundingClientRect();
                 const elementRect = nightSection.getBoundingClientRect();
-                const offset = 10; // Additional pixels below the top
+                const offset = 30; // Additional pixels below the tab title bar for visual spacing
                 const scrollTop = scrollContainer.scrollTop + (elementRect.top - containerRect.top) - offset;
                 console.log('Autoscroll (create form): scrolling to', scrollTop, '(current scrollTop:', scrollContainer.scrollTop, 'element relative top:', elementRect.top - containerRect.top, 'offset:', offset, ')');
 
