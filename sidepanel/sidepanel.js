@@ -802,10 +802,10 @@ function attachGanttTooltips() {
       const name = bar.getAttribute('data-name') || 'Guest';
       const room = bar.getAttribute('data-room') || 'Unknown';
 
-      // Format: "people: name - room" (hide room if non-resident)
-      let tooltipText = `${people}: ${name}`;
+      // Format: "{people} {name} {room}" (hide room if non-resident)
+      let tooltipText = `${people} ${name}`;
       if (room && room !== 'Non-Resident' && room !== 'Unknown') {
-        tooltipText += ` - ${room}`;
+        tooltipText += ` ${room}`;
       }
 
       tooltip.textContent = tooltipText;
@@ -1773,7 +1773,7 @@ function attachRestaurantEventListeners(container) {
         const defaultPeriodIndex = periods.length - 1;
         const defaultPeriod = periods[defaultPeriodIndex];
         const people = parseInt(form.querySelector('.form-people').value) || 2;
-        await loadAvailableTimesForPeriod(date, people, defaultPeriod._id, defaultPeriodIndex, true);  // Auto-scroll Gantt to first available time
+        await loadAvailableTimesForPeriod(date, people, defaultPeriod._id, defaultPeriodIndex, true, defaultPeriod);  // Auto-scroll Gantt to first booking
 
         console.log('Opening hours loaded, default period:', defaultPeriod.name);
       } else {
@@ -1822,8 +1822,8 @@ function attachRestaurantEventListeners(container) {
     }
   }
 
-  async function loadAvailableTimesForPeriod(date, people, periodId, periodIndex, autoScrollGantt = false) {
-    console.log('DEBUG loadAvailableTimesForPeriod called:', {date, people, periodId, periodIndex, autoScrollGantt});
+  async function loadAvailableTimesForPeriod(date, people, periodId, periodIndex, autoScrollGantt = false, periodData = null) {
+    console.log('DEBUG loadAvailableTimesForPeriod called:', {date, people, periodId, periodIndex, autoScrollGantt, periodData});
     try {
       const timesData = await fetchAvailableTimes(date, people, periodId);
       console.log('DEBUG fetchAvailableTimes result:', {success: timesData.success, hasHtml: !!timesData.html, htmlLength: timesData.html?.length});
@@ -1887,43 +1887,70 @@ function attachRestaurantEventListeners(container) {
             // Convert HH:MM to HHMM format
             const timeHHMM = timeValue.replace(':', '');
 
-            // Show sight line at this time
-            if (typeof showGanttSightLine === 'function') {
+            // Check if sight line is locked before showing it
+            const sightLine = document.getElementById('gantt-sight-line-' + ganttChartId);
+            const isLocked = sightLine && sightLine.getAttribute('data-locked') === 'true';
+
+            // Only show sight line on hover if not locked
+            if (!isLocked && typeof showGanttSightLine === 'function') {
               showGanttSightLine(ganttChartId, timeHHMM);
             }
 
-            // Auto-scroll Gantt chart to center on this time
-            if (typeof scrollGanttToTime === 'function') {
+            // Only auto-scroll if not locked (let user stay at selected time)
+            if (!isLocked && typeof scrollGanttToTime === 'function') {
               scrollGanttToTime(ganttChartId, timeHHMM, true);
             }
           });
 
           btn.addEventListener('mouseleave', function() {
-            // Hide sight line when not hovering
+            // Hide sight line when not hovering (hideGanttSightLine already respects lock)
             if (typeof hideGanttSightLine === 'function') {
               hideGanttSightLine(ganttChartId);
             }
           });
         });
 
-        // Auto-scroll Gantt to first available time if requested (default period load)
-        if (autoScrollGantt && typeof scrollGanttToTime === 'function') {
-          // Find first available (not greyed out) time button
-          const firstAvailableBtn = Array.from(timeButtons).find(btn => !btn.classList.contains('time-slot-unavailable'));
-          if (firstAvailableBtn) {
-            const timeValue = firstAvailableBtn.dataset.time || firstAvailableBtn.textContent.trim();
-            const timeHHMM = timeValue.replace(':', '');
-            console.log('Auto-scrolling Gantt to first available time:', timeValue);
+        // Auto-scroll Gantt to first booking within period if requested (default period load)
+        if (autoScrollGantt && periodData && typeof scrollGanttToTime === 'function') {
+          const ganttChart = document.getElementById(ganttChartId);
+          if (ganttChart) {
+            // Get all booking bars in the Gantt chart
+            const bookingBars = ganttChart.querySelectorAll('.gantt-booking-bar');
 
-            // Scroll to the time
-            scrollGanttToTime(ganttChartId, timeHHMM, true);
+            // Get period time range
+            const periodOpen = periodData.open || 1800;
+            const periodClose = periodData.close || 2200;
 
-            // Show sight line at this time (but don't lock it)
-            if (typeof showGanttSightLine === 'function') {
-              showGanttSightLine(ganttChartId, timeHHMM);
+            // Find first booking that falls within this period
+            let firstBookingTime = null;
+            for (const bar of bookingBars) {
+              const bookingTime = bar.getAttribute('data-time');
+              if (bookingTime) {
+                // Convert HH:MM to HHMM format
+                const timeHHMM = bookingTime.replace(':', '');
+                const timeInt = parseInt(timeHHMM);
+
+                // Check if booking falls within period hours
+                if (timeInt >= periodOpen && timeInt <= periodClose) {
+                  firstBookingTime = timeHHMM;
+                  break;
+                }
+              }
             }
-          } else {
-            console.log('No available times found for auto-scroll');
+
+            if (firstBookingTime) {
+              console.log('Auto-scrolling Gantt to first booking time:', firstBookingTime, 'within period:', periodOpen, '-', periodClose);
+
+              // Scroll to the booking time
+              scrollGanttToTime(ganttChartId, firstBookingTime, true);
+
+              // Show sight line at this time (but don't lock it)
+              if (typeof showGanttSightLine === 'function') {
+                showGanttSightLine(ganttChartId, firstBookingTime);
+              }
+            } else {
+              console.log('No bookings found within period time range for auto-scroll');
+            }
           }
         }
 
