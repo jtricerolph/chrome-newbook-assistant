@@ -1581,9 +1581,10 @@ button[data-action].loading::after {
 
 .group-id-badge {
   font-size: 11px;
-  color: #6b7280;
+  color: #d97706;
   font-weight: 500;
-  background: #f3f4f6;
+  background: transparent;
+  border: 1px solid #f59e0b;
   padding: 2px 6px;
   border-radius: 4px;
 }
