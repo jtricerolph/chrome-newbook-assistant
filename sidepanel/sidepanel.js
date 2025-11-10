@@ -463,6 +463,7 @@ function positionBookingsOnGrid(bookings, startHour, totalMinutes, bookingDurati
         people: booking.people || 2,
         name: booking.name || 'Guest',
         room: booking.room || 'Unknown',
+        is_resident: booking.is_resident || false,
         hours: hours,
         minutes: minutes,
         minutesFromStart: minutesFromStart
