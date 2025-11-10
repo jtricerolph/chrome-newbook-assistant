@@ -807,13 +807,13 @@ function attachGanttTooltips() {
       const name = bar.getAttribute('data-name') || 'Guest';
       const isResident = bar.getAttribute('data-is-resident') === 'true';
 
-      // Format: "{people} {name} 🛏️" (bed icon if resident)
-      let tooltipText = `${people} ${name}`;
+      // Format: "{people} {name} [hotel icon]" (Material UI hotel icon if resident)
+      let tooltipHTML = `${people} ${name}`;
       if (isResident) {
-        tooltipText += ' 🛏️';
+        tooltipHTML += ' <span class="material-symbols-outlined" style="font-size: 14px; vertical-align: middle;">hotel</span>';
       }
 
-      tooltip.textContent = tooltipText;
+      tooltip.innerHTML = tooltipHTML;
       tooltip.style.display = 'block';
     });
 
