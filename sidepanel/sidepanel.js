@@ -1647,13 +1647,15 @@ function attachRestaurantEventListeners(container) {
   }
 
   async function loadAvailableTimesForPeriod(date, people, periodId, periodIndex) {
+    console.log('DEBUG loadAvailableTimesForPeriod called:', {date, people, periodId, periodIndex});
     try {
       const timesData = await fetchAvailableTimes(date, people, periodId);
+      console.log('DEBUG fetchAvailableTimes result:', {success: timesData.success, hasHtml: !!timesData.html, htmlLength: timesData.html?.length});
       const sectionsContainer = document.getElementById('service-period-sections-' + date);
       const periodTimes = sectionsContainer ? sectionsContainer.querySelector(`.period-times[data-period-index="${periodIndex}"]`) : null;
 
       if (!periodTimes) {
-        console.warn('Period times container not found for index:', periodIndex);
+        console.warn('Period times container not found for index:', periodIndex, 'sectionsContainer:', sectionsContainer);
         return;
       }
 
@@ -1726,6 +1728,8 @@ function attachRestaurantEventListeners(container) {
       const periodTimes = sectionsContainer ? sectionsContainer.querySelector(`.period-times[data-period-index="${periodIndex}"]`) : null;
       if (periodTimes) {
         periodTimes.innerHTML = '<p style="color: #ef4444;">Error loading times</p>';
+      } else {
+        console.warn('Could not find period-times container to show error message');
       }
     }
   }
