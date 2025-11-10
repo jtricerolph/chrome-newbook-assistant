@@ -1556,6 +1556,10 @@ button[data-action].loading::after {
 }
 
 .restaurant-status.no-booking {
+  color: inherit;
+}
+
+.restaurant-status.no-booking .material-symbols-outlined {
   color: #10b981;
 }
 
@@ -1568,6 +1572,10 @@ button[data-action].loading::after {
 }
 
 .restaurant-status.has-package {
+  color: inherit;
+}
+
+.restaurant-status.has-package .material-symbols-outlined {
   color: #dc2626;
 }
 
