@@ -604,7 +604,9 @@ function buildGanttChart(openingHours, specialEvents = [], availableTimes = [], 
   const topMargin = 20; // Space for time labels
   const bottomMargin = 40; // Extra space below last booking bar for visibility
   const totalGridRows = positionedBookings.length > 0 ? positionedBookings[0].total_grid_rows : 0;
-  const chartHeight = totalGridRows > 0 ? topMargin + (totalGridRows * config.gridRowHeight) + bottomMargin : 100;
+  const minChartHeight = 300; // Minimum height to fill viewport even with few bookings
+  const calculatedHeight = totalGridRows > 0 ? topMargin + (totalGridRows * config.gridRowHeight) + bottomMargin : 100;
+  const chartHeight = Math.max(calculatedHeight, minChartHeight);
 
   // Add extra padding at the end so last booking doesn't get cut off by scrollbar
   const rightPadding = 100;
