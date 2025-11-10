@@ -314,12 +314,40 @@ function showGanttSightLine(chartId, time = null) {
 }
 
 /**
- * Hide the sight line on a Gantt chart
+ * Hide the sight line on a Gantt chart (unless locked)
  * @param {string} chartId - ID of the Gantt chart container
+ * @param {boolean} force - Force hide even if locked
  */
-function hideGanttSightLine(chartId) {
+function hideGanttSightLine(chartId, force = false) {
   const sightLine = document.getElementById('gantt-sight-line-' + chartId);
   if (sightLine) {
+    // Check if sight line is locked (has data-locked attribute)
+    const isLocked = sightLine.getAttribute('data-locked') === 'true';
+    if (!isLocked || force) {
+      sightLine.style.display = 'none';
+    }
+  }
+}
+
+/**
+ * Lock the sight line at current position (when time selected)
+ * @param {string} chartId - ID of the Gantt chart container
+ */
+function lockGanttSightLine(chartId) {
+  const sightLine = document.getElementById('gantt-sight-line-' + chartId);
+  if (sightLine) {
+    sightLine.setAttribute('data-locked', 'true');
+  }
+}
+
+/**
+ * Unlock the sight line (when time deselected)
+ * @param {string} chartId - ID of the Gantt chart container
+ */
+function unlockGanttSightLine(chartId) {
+  const sightLine = document.getElementById('gantt-sight-line-' + chartId);
+  if (sightLine) {
+    sightLine.setAttribute('data-locked', 'false');
     sightLine.style.display = 'none';
   }
 }
@@ -743,7 +771,7 @@ function buildGanttChart(openingHours, specialEvents = [], availableTimes = [], 
   });
 
   // Sight line (hidden by default, shown on hover)
-  html += '<div class="gantt-sight-line" id="gantt-sight-line-' + chartId + '" style="position: absolute; width: 2px; height: ' + chartHeight + 'px; background: #ef4444; top: 0; left: 0; display: none; z-index: 100; pointer-events: none;"></div>';
+  html += '<div class="gantt-sight-line" id="gantt-sight-line-' + chartId + '" data-locked="false" style="position: absolute; width: 2px; height: ' + chartHeight + 'px; background: #ef4444; top: 0; left: 0; display: none; z-index: 100; pointer-events: none;"></div>';
 
   html += '</div>';
   return html;
@@ -1703,6 +1731,15 @@ function attachRestaurantEventListeners(container) {
                 'gantt-' + date     // chart ID (must match viewport ID)
               );
               ganttViewport.innerHTML = ganttHtml;
+
+              // Update viewport height to match chart content
+              const chartContainer = ganttViewport.querySelector('.gantt-chart-container');
+              if (chartContainer) {
+                const chartHeight = parseInt(chartContainer.style.height) || 120;
+                ganttViewport.style.height = chartHeight + 'px';
+                console.log('Updated Gantt viewport height to:', chartHeight + 'px');
+              }
+
               attachGanttTooltips();
               console.log('Gantt chart generated for date:', date, 'with', bookingsForDate.length, 'bookings');
             } catch (error) {
@@ -1718,6 +1755,15 @@ function attachRestaurantEventListeners(container) {
                 'gantt-' + date
               );
               ganttViewport.innerHTML = ganttHtml;
+
+              // Update viewport height to match chart content
+              const chartContainer = ganttViewport.querySelector('.gantt-chart-container');
+              if (chartContainer) {
+                const chartHeight = parseInt(chartContainer.style.height) || 120;
+                ganttViewport.style.height = chartHeight + 'px';
+                console.log('Updated Gantt viewport height to:', chartHeight + 'px (fallback)');
+              }
+
               attachGanttTooltips();
             }
           }
@@ -1820,6 +1866,18 @@ function attachRestaurantEventListeners(container) {
               // Format time for display (e.g., "1800" -> "18:00")
               const displayTime = this.textContent.trim();
               bookingTimeDisplay.textContent = displayTime;
+            }
+
+            // Lock sight line at selected time and scroll to it
+            const timeHHMM = timeValue.replace(':', '');
+            if (typeof showGanttSightLine === 'function') {
+              showGanttSightLine(ganttChartId, timeHHMM);
+              if (typeof lockGanttSightLine === 'function') {
+                lockGanttSightLine(ganttChartId);
+              }
+            }
+            if (typeof scrollGanttToTime === 'function') {
+              scrollGanttToTime(ganttChartId, timeHHMM, true);
             }
           });
 
