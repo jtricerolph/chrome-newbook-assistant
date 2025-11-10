@@ -538,12 +538,13 @@ function buildGanttChart(openingHours, specialEvents = [], availableTimes = [], 
 
   // Position bookings using grid algorithm
   const positionedBookings = positionBookingsOnGrid(bookings, startHour, totalMinutes, bookingDuration, config.gridRowHeight);
+  console.log('DEBUG buildGanttChart: Received', bookings.length, 'bookings, positioned', positionedBookings.length, 'bookings');
 
   // Calculate total height
   const totalGridRows = positionedBookings.length > 0 ? positionedBookings[0].total_grid_rows : 0;
   const chartHeight = totalGridRows > 0 ? 10 + (totalGridRows * config.gridRowHeight) + 10 : 100;
 
-  let html = '<div class="gantt-chart-container" id="' + chartId + '" style="position: relative; height: ' + chartHeight + 'px; width: 100%; min-width: ' + (totalMinutes * 2) + 'px; background: white; overflow: visible;">';
+  let html = '<div class="gantt-chart-container" style="position: relative; height: ' + chartHeight + 'px; width: 100%; min-width: ' + (totalMinutes * 2) + 'px; background: white; overflow: visible;">';
 
   // Time grid lines (15-minute intervals)
   for (let m = 0; m < totalMinutes; m += 15) {
