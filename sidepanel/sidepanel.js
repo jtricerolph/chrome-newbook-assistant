@@ -1002,7 +1002,7 @@ function attachSummaryEventListeners(container) {
   });
 
   // Add click handler for restaurant header to navigate to Restaurant tab
-  const restaurantHeaders = container.querySelectorAll('.bma-restaurant-header-link');
+  const restaurantHeaders = container.querySelectorAll('.restaurant-header-link');
   restaurantHeaders.forEach(header => {
     header.addEventListener('click', function(e) {
       e.preventDefault();
