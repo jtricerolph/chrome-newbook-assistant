@@ -933,21 +933,21 @@ body {
   font-weight: 600;
 }
 
-.time-slot-btn.unavailable {
+.time-slot-btn.time-slot-unavailable {
   background: #f3f4f6;
   color: #9ca3af;
   border-color: #e5e7eb;
   cursor: help;
 }
 
-.time-slot-btn.unavailable:hover {
+.time-slot-btn.time-slot-unavailable:hover {
   background: #fef3c7;
   border-color: #fbbf24;
   color: #92400e;
 }
 
-.time-slot-btn.unavailable::before {
-  content: attr(data-tooltip);
+.time-slot-btn.time-slot-unavailable::before {
+  content: attr(data-restriction);
   position: absolute;
   bottom: 100%;
   left: 50%;
@@ -965,7 +965,7 @@ body {
   z-index: 1000;
 }
 
-.time-slot-btn.unavailable:hover::before {
+.time-slot-btn.time-slot-unavailable:hover::before {
   opacity: 1;
 }
 
