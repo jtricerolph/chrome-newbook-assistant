@@ -1550,8 +1550,8 @@ function attachSummaryEventListeners(container) {
 
       if (resosId && restaurantId && date) {
         const resosUrl = `https://app.resos.com/${restaurantId}/bookings/timetable/${date}/${resosId}`;
-        console.log('Opening ResOS booking:', resosUrl);
-        chrome.tabs.update({ url: resosUrl });
+        console.log('Opening ResOS booking in new tab:', resosUrl);
+        chrome.tabs.create({ url: resosUrl });
       }
     });
   });
