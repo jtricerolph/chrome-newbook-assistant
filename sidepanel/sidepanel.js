@@ -175,13 +175,21 @@ async function processNavigationContext() {
     const createForm = document.getElementById(`create-form-${targetDate}`);
 
     if (createForm && createBtn) {
-      createForm.style.display = 'block';
-      createBtn.style.display = 'none';
-      STATE.createFormOpen = true;
+      // Ensure form is hidden first to trigger MutationObserver
+      createForm.style.display = 'none';
+
+      // Force a small delay then show to ensure mutation fires
+      setTimeout(() => {
+        createForm.style.display = 'block';
+        createBtn.style.display = 'none';
+        STATE.createFormOpen = true;
+      }, 10);
 
       // Wait for form initialization to complete before scrolling
       if (scrollAfterLoad) {
         console.log('Waiting for form initialization...');
+        // Wait a bit for the display change to take effect
+        await new Promise(resolve => setTimeout(resolve, 50));
         await waitForFormInitialization(createForm);
         console.log('Form initialization complete, scrolling...');
       }
