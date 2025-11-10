@@ -1383,3 +1383,245 @@ button[data-action].loading::after {
   white-space: nowrap;
   border-width: 0;
 }
+
+/* ========================================
+   STAYING TAB STYLES
+   ======================================== */
+
+/* Date Picker Header */
+.staying-date-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.date-nav-btn {
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.date-nav-btn:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.date-nav-btn .material-symbols-outlined {
+  font-size: 20px;
+  color: #374151;
+}
+
+.date-input {
+  flex: 1;
+  padding: 6px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #1f2937;
+  text-align: center;
+}
+
+.date-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Staying List Container */
+.staying-list {
+  padding: 0;
+}
+
+/* Staying Booking Cards */
+.staying-card {
+  background: #fff;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  transition: all 0.2s;
+  position: relative;
+}
+
+/* Border colors based on NewBook status */
+.staying-card[data-status="arrived"] {
+  border: 2px solid #3b82f6; /* Blue */
+}
+
+.staying-card[data-status="confirmed"] {
+  border: 2px solid #10b981; /* Green */
+}
+
+.staying-card[data-status="unconfirmed"] {
+  border: 2px solid #f59e0b; /* Amber */
+}
+
+.staying-card[data-status="departed"] {
+  border: 2px solid #a855f7; /* Purple */
+}
+
+.staying-card:hover {
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.staying-card.expanded {
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+/* Group highlighting */
+.staying-card.group-highlight {
+  background: #fef3c7 !important; /* Light amber background */
+}
+
+/* Staying Card Header */
+.staying-header {
+  padding: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  position: relative;
+}
+
+.staying-main-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.staying-guest-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.room-number {
+  font-weight: 600;
+  color: #3b82f6;
+  min-width: 40px;
+}
+
+.guest-name {
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.night-progress {
+  background: #edf2f7;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #4a5568;
+  margin-left: auto;
+}
+
+.staying-restaurant-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #4a5568;
+}
+
+.staying-restaurant-line .material-symbols-outlined {
+  font-size: 16px;
+  color: #6b7280;
+}
+
+.restaurant-status {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.restaurant-status .material-symbols-outlined {
+  font-size: 14px;
+}
+
+.restaurant-status.no-booking {
+  color: #10b981;
+}
+
+.restaurant-status.has-booking {
+  color: #3b82f6;
+}
+
+.restaurant-status.has-issue {
+  color: #f59e0b;
+}
+
+.restaurant-status.has-package {
+  color: #dc2626;
+}
+
+.group-id-badge {
+  font-size: 11px;
+  color: #6b7280;
+  font-weight: 500;
+  background: #f3f4f6;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* Staying badges (issues) */
+.staying-badges {
+  display: flex;
+  gap: 6px;
+  align-self: flex-start;
+}
+
+.staying-expand-icon {
+  font-size: 12px;
+  color: #a0aec0;
+  transition: transform 0.2s;
+}
+
+.staying-card.expanded .staying-expand-icon {
+  transform: rotate(180deg);
+}
+
+/* Staying card details */
+.staying-details {
+  padding: 0 8px 8px 8px;
+  border-top: 1px solid #e2e8f0;
+  display: none;
+}
+
+.staying-card.expanded .staying-details {
+  display: block;
+}
+
+/* Empty state */
+.staying-empty {
+  text-align: center;
+  padding: 60px 20px;
+}
+
+.staying-empty .empty-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.staying-empty p {
+  font-size: 16px;
+  font-weight: 500;
+  color: #374151;
+}

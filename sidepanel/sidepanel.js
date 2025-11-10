@@ -6,7 +6,8 @@ const STATE = {
   badges: {
     summary: { critical: 0, warning: 0 },
     restaurant: { critical: 0, warning: 0 },
-    checks: { critical: 0, warning: 0 }
+    checks: { critical: 0, warning: 0 },
+    staying: { critical: 0, warning: 0 }
   },
   timers: {
     summaryRefresh: null,
@@ -16,7 +17,8 @@ const STATE = {
   cache: {
     summary: null,
     restaurant: null,
-    checks: null
+    checks: null,
+    staying: null
   },
   newbookAuth: {
     isAuthenticated: false,
@@ -27,8 +29,14 @@ const STATE = {
   sessionLocked: false, // Track NewBook session lock dialog status
   createFormOpen: false, // Track if any create booking form is open
   navigationContext: null, // Track navigation context for cross-tab navigation
-  scrollPositions: {}, // Track scroll positions per tab/date
-  restaurantBookings: {} // Store restaurant bookings by date: { '2026-01-31': [{time, people, name, room}, ...] }
+  scrollPositions: {
+    summary: 0,
+    restaurant: 0,
+    checks: 0,
+    staying: 0
+  }, // Track scroll positions per tab/date
+  restaurantBookings: {}, // Store restaurant bookings by date: { '2026-01-31': [{time, people, name, room}, ...] }
+  stayingDate: new Date().toISOString().split('T')[0] // Current date for staying tab
 };
 
 // Global API client (exposed for use by injected template content)
@@ -3137,6 +3145,9 @@ function switchTab(tabName) {
   } else if (tabName === 'checks') {
     loadChecksTab();
     startInactivityTimer();
+  } else if (tabName === 'staying') {
+    loadStayingTab();
+    startInactivityTimer();
   }
 
   // Restore scroll position after a short delay
@@ -3495,6 +3506,129 @@ async function loadChecksTabSilently() {
   }
 }
 
+// =============================================================================
+// Staying Tab Functions
+// =============================================================================
+
+/**
+ * Load staying tab for a specific date
+ * @param {string} date - Date in YYYY-MM-DD format (optional, defaults to STATE.stayingDate)
+ */
+async function loadStayingTab(date = null) {
+  console.log('Loading staying tab for date:', date);
+
+  const targetDate = date || STATE.stayingDate;
+  STATE.stayingDate = targetDate;
+
+  // Update date input
+  const dateInput = document.getElementById('staying-date-input');
+  if (dateInput) {
+    dateInput.value = targetDate;
+  }
+
+  showLoading('staying');
+
+  try {
+    const api = new APIClient(STATE.settings);
+    const response = await fetch(`${api.baseUrl}/staying?date=${targetDate}`, {
+      headers: {
+        'Authorization': api.authHeader
+      }
+    });
+
+    const data = await response.json();
+
+    if (data.success && data.html) {
+      showData('staying', data.html);
+      updateBadge('staying', data.critical_count || 0, data.warning_count || 0);
+      STATE.cache.staying = data;
+
+      // Initialize group hover functionality
+      initializeGroupHover();
+
+      // Initialize card expand/collapse
+      initializeStayingCards();
+    } else if (data.success && (!data.html || data.html.trim() === '')) {
+      showEmpty('staying');
+    } else {
+      showError('staying', data.message || 'Failed to load staying bookings');
+    }
+  } catch (error) {
+    console.error('Error loading staying tab:', error);
+    showError('staying', error.message);
+  }
+}
+
+/**
+ * Initialize expand/collapse functionality for staying cards
+ */
+function initializeStayingCards() {
+  document.querySelectorAll('.staying-card .staying-header').forEach(header => {
+    header.addEventListener('click', function() {
+      const card = this.closest('.staying-card');
+      card.classList.toggle('expanded');
+    });
+  });
+}
+
+/**
+ * Initialize group hover highlighting
+ */
+function initializeGroupHover() {
+  document.querySelectorAll('.staying-card[data-group-id]').forEach(card => {
+    const groupId = card.dataset.groupId;
+
+    card.addEventListener('mouseenter', function() {
+      // Highlight all cards in the same group
+      document.querySelectorAll(`.staying-card[data-group-id="${groupId}"]`).forEach(groupCard => {
+        groupCard.classList.add('group-highlight');
+      });
+    });
+
+    card.addEventListener('mouseleave', function() {
+      // Remove highlight from all cards in the group
+      document.querySelectorAll(`.staying-card[data-group-id="${groupId}"]`).forEach(groupCard => {
+        groupCard.classList.remove('group-highlight');
+      });
+    });
+  });
+}
+
+/**
+ * Change staying date by offset
+ * @param {number} offset - Days to add/subtract (-1 for previous, +1 for next)
+ */
+function changeStayingDate(offset) {
+  const currentDate = new Date(STATE.stayingDate);
+  currentDate.setDate(currentDate.getDate() + offset);
+  const newDate = currentDate.toISOString().split('T')[0];
+  loadStayingTab(newDate);
+}
+
+/**
+ * Initialize staying tab date picker controls
+ */
+function initializeStayingDatePicker() {
+  const dateInput = document.getElementById('staying-date-input');
+  const prevBtn = document.getElementById('staying-prev-date');
+  const nextBtn = document.getElementById('staying-next-date');
+
+  if (dateInput) {
+    dateInput.value = STATE.stayingDate;
+    dateInput.addEventListener('change', function() {
+      loadStayingTab(this.value);
+    });
+  }
+
+  if (prevBtn) {
+    prevBtn.addEventListener('click', () => changeStayingDate(-1));
+  }
+
+  if (nextBtn) {
+    nextBtn.addEventListener('click', () => changeStayingDate(1));
+  }
+}
+
 // Message Listener
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log('Sidepanel received message:', message);
@@ -3526,6 +3660,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         loadRestaurantTab();
       } else if (STATE.currentTab === 'checks') {
         loadChecksTab();
+      } else if (STATE.currentTab === 'staying') {
+        loadStayingTab();
       }
     });
   }
@@ -3595,6 +3731,9 @@ async function init() {
       // Set up global inactivity timer reset on ANY user interaction
       setupGlobalInactivityReset();
 
+      // Initialize staying tab date picker
+      initializeStayingDatePicker();
+
       // Load summary tab on startup
       loadSummaryTab();
 
@@ -3610,8 +3749,8 @@ async function init() {
 // Global inactivity timer reset - detects ANY user activity
 function setupGlobalInactivityReset() {
   const resetTimerGlobal = () => {
-    // Only reset if we're on Restaurant or Checks tab
-    if (STATE.currentTab === 'restaurant' || STATE.currentTab === 'checks') {
+    // Only reset if we're on Restaurant, Checks, or Staying tab
+    if (STATE.currentTab === 'restaurant' || STATE.currentTab === 'checks' || STATE.currentTab === 'staying') {
       resetInactivityTimer();
       startInactivityTimer();
     }

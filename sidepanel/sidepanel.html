@@ -26,6 +26,11 @@
         <span class="tab-label">Checks</span>
         <span class="tab-badge hidden" data-badge="checks">0</span>
       </button>
+      <button class="tab-button" data-tab="staying">
+        <span class="material-symbols-outlined">hotel</span>
+        <span class="tab-label">Staying</span>
+        <span class="tab-badge hidden" data-badge="staying">0</span>
+      </button>
     </nav>
 
     <!-- Tab Contents -->
@@ -82,6 +87,35 @@
         <div class="tab-empty hidden">
           <span class="material-symbols-outlined">info</span>
           <p>Navigate to a booking page to run validation checks</p>
+        </div>
+      </div>
+
+      <!-- Staying Tab -->
+      <div class="tab-content" data-content="staying">
+        <!-- Date Picker Header -->
+        <div class="staying-date-picker">
+          <button class="date-nav-btn" id="staying-prev-date">
+            <span class="material-symbols-outlined">chevron_left</span>
+          </button>
+          <input type="date" id="staying-date-input" class="date-input" />
+          <button class="date-nav-btn" id="staying-next-date">
+            <span class="material-symbols-outlined">chevron_right</span>
+          </button>
+        </div>
+
+        <div class="tab-loading">
+          <div class="spinner"></div>
+          <p>Loading staying bookings...</p>
+        </div>
+        <div class="tab-data hidden"></div>
+        <div class="tab-error hidden">
+          <span class="material-symbols-outlined">error</span>
+          <p class="error-message"></p>
+          <button class="retry-button">Retry</button>
+        </div>
+        <div class="tab-empty hidden">
+          <span class="material-symbols-outlined">info</span>
+          <p>No bookings staying on this date</p>
         </div>
       </div>
     </div>
