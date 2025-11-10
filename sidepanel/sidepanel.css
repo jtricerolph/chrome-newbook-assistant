@@ -699,6 +699,21 @@ body {
   transform: rotate(180deg);
 }
 
+.bma-section-toggle .section-title {
+  flex: 1;
+}
+
+.bma-section-toggle .section-indicator {
+  font-size: 16px;
+  color: #10b981;
+  margin-left: auto;
+  display: none;
+}
+
+.bma-section-toggle .section-indicator.has-content {
+  display: block;
+}
+
 .bma-section-content {
   border: 1px solid #e5e7eb;
   border-top: none;
