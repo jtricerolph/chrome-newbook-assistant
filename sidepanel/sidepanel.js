@@ -138,10 +138,17 @@ function processNavigationContext() {
     }
   }
 
-  // Scroll to the date section
+  // Scroll to the bma-night section within the date section
   if (scrollAfterLoad) {
     setTimeout(() => {
-      dateSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // Try to find the bma-night element within the date section for more precise scrolling
+      const nightSection = dateSection.querySelector('.bma-night');
+      if (nightSection) {
+        nightSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else {
+        // Fallback to date section if bma-night not found
+        dateSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     }, 100);
   }
 }
@@ -1115,7 +1122,19 @@ function attachRestaurantEventListeners(container) {
       if (btn) btn.style.display = 'none'; // Hide button when form is open
       if (status) status.style.display = 'none'; // Hide status message
       STATE.createFormOpen = true; // Track form state
-      form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+      // Scroll to the bma-night section for better context
+      const dateSection = document.getElementById(`date-section-${date}`);
+      if (dateSection) {
+        const nightSection = dateSection.querySelector('.bma-night');
+        if (nightSection) {
+          nightSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else {
+          form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      } else {
+        form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
 
       // Initialize form if not already initialized
       if (!form.dataset.initialized) {
