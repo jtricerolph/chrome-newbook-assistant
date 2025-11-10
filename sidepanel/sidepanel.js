@@ -1954,7 +1954,25 @@ function attachRestaurantEventListeners(container) {
                 showGanttSightLine(ganttChartId, firstBookingTime);
               }
             } else {
-              console.log('No bookings found within period time range for auto-scroll');
+              // No bookings found - fall back to first available time slot in period
+              console.log('No bookings found within period, falling back to first available time');
+
+              // Find first available (non-unavailable) time button in this period
+              const timeButtons = periodTimes.querySelectorAll('.time-slot-btn:not(.time-slot-unavailable)');
+              if (timeButtons.length > 0) {
+                const firstAvailableBtn = timeButtons[0];
+                const firstAvailableTime = firstAvailableBtn.dataset.time || firstAvailableBtn.textContent.trim();
+                const timeHHMM = firstAvailableTime.replace(':', '');
+
+                console.log('Auto-scrolling Gantt to first available time:', timeHHMM);
+                scrollGanttToTime(ganttChartId, timeHHMM, true);
+
+                if (typeof showGanttSightLine === 'function') {
+                  showGanttSightLine(ganttChartId, timeHHMM);
+                }
+              } else {
+                console.log('No available time slots found in period for auto-scroll');
+              }
             }
           }
         }
