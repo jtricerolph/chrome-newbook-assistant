@@ -166,11 +166,12 @@ async function processNavigationContext() {
         const scrollContainer = targetElement.closest('.tab-content');
         console.log('Autoscroll: scrollContainer found?', !!scrollContainer);
         if (scrollContainer) {
-          // Calculate position with offset (10px below tabs)
-          const elementTop = targetElement.offsetTop;
+          // Calculate position using getBoundingClientRect for accuracy
+          const containerRect = scrollContainer.getBoundingClientRect();
+          const elementRect = targetElement.getBoundingClientRect();
           const offset = 10; // Additional pixels below the top
-          const scrollTop = elementTop - offset;
-          console.log('Autoscroll: scrolling to', scrollTop, '(elementTop:', elementTop, 'offset:', offset, ')');
+          const scrollTop = scrollContainer.scrollTop + (elementRect.top - containerRect.top) - offset;
+          console.log('Autoscroll: scrolling to', scrollTop, '(current scrollTop:', scrollContainer.scrollTop, 'element relative top:', elementRect.top - containerRect.top, 'offset:', offset, ')');
           scrollContainer.scrollTo({ top: scrollTop, behavior: 'smooth' });
         } else {
           // Fallback to standard scrollIntoView
@@ -1637,10 +1638,12 @@ function attachRestaurantEventListeners(container) {
           const scrollContainer = nightSection.closest('.tab-content');
           console.log('Autoscroll (create form): scrollContainer found?', !!scrollContainer);
           if (scrollContainer) {
-            const elementTop = nightSection.offsetTop;
+            // Calculate position using getBoundingClientRect for accuracy
+            const containerRect = scrollContainer.getBoundingClientRect();
+            const elementRect = nightSection.getBoundingClientRect();
             const offset = 10; // Additional pixels below the top
-            const scrollTop = elementTop - offset;
-            console.log('Autoscroll (create form): scrolling to', scrollTop, '(elementTop:', elementTop, 'offset:', offset, ')');
+            const scrollTop = scrollContainer.scrollTop + (elementRect.top - containerRect.top) - offset;
+            console.log('Autoscroll (create form): scrolling to', scrollTop, '(current scrollTop:', scrollContainer.scrollTop, 'element relative top:', elementRect.top - containerRect.top, 'offset:', offset, ')');
             scrollContainer.scrollTo({ top: scrollTop, behavior: 'smooth' });
           } else {
             console.log('Autoscroll (create form): using fallback scrollIntoView on nightSection');
