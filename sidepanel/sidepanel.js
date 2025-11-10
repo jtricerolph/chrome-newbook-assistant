@@ -80,6 +80,27 @@ function navigateToRestaurantDate(date, bookingId = null) {
 }
 
 /**
+ * Navigate to checks tab with specific booking
+ * @param {number} bookingId - Booking ID to show checks for
+ */
+function navigateToChecksTab(bookingId) {
+  console.log('Navigating to Checks tab for bookingId:', bookingId);
+
+  // Save current scroll position
+  const currentContent = document.querySelector(`[data-content="${STATE.currentTab}"]`);
+  if (currentContent) {
+    STATE.scrollPositions[STATE.currentTab] = currentContent.scrollTop;
+  }
+
+  // Update current booking ID
+  STATE.currentBookingId = bookingId;
+  chrome.storage.local.set({ currentBookingId: bookingId });
+
+  // Switch to checks tab
+  switchTab('checks');
+}
+
+/**
  * Return to the previous context after completing a task
  */
 function returnToPreviousContext() {
@@ -1606,6 +1627,20 @@ function attachSummaryEventListeners(container) {
 
       console.log('Restaurant header clicked - bookingId:', bookingId);
       navigateToRestaurantDate(null, parseInt(bookingId));
+    });
+  });
+
+  // Add click handler for checks header to navigate to Checks tab
+  const checksHeaders = container.querySelectorAll('.checks-header-link');
+  checksHeaders.forEach(header => {
+    header.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const bookingId = this.dataset.bookingId;
+
+      console.log('Checks header clicked - bookingId:', bookingId);
+      navigateToChecksTab(parseInt(bookingId));
     });
   });
 
@@ -3377,6 +3412,20 @@ async function loadChecksTab() {
       showData('checks', data.html);
       updateBadge('checks', data.critical_count || 0, data.warning_count || 0);
       STATE.cache.checks = data;
+
+      // Attach event listeners for the checks tab
+      const checksTab = document.querySelector('[data-content="checks"] .tab-data');
+      if (checksTab) {
+        // Open booking in NewBook button
+        const openBookingBtn = checksTab.querySelector('.open-booking-btn');
+        if (openBookingBtn) {
+          openBookingBtn.addEventListener('click', function() {
+            const bookingId = this.dataset.bookingId;
+            const url = `https://appeu.newbook.cloud/bookings_view/${bookingId}`;
+            chrome.tabs.update({ url: url });
+          });
+        }
+      }
     } else if (data.success && !data.html) {
       showEmpty('checks');
       updateBadge('checks', 0, 0);
@@ -3615,6 +3664,17 @@ function initializeStayingCards() {
       console.log('Issue clicked - switching to Restaurant tab for booking:', bookingId);
       STATE.currentBookingId = bookingId;
       switchTab('restaurant');
+    });
+  });
+
+  // Checks header links - navigate to Checks tab
+  stayingTab.querySelectorAll('.checks-header-link').forEach(header => {
+    header.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      const bookingId = this.dataset.bookingId;
+      console.log('Checks header clicked - bookingId:', bookingId);
+      navigateToChecksTab(parseInt(bookingId));
     });
   });
 
