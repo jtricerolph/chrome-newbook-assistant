@@ -4254,6 +4254,342 @@ document.querySelectorAll('.retry-button').forEach(button => {
   });
 });
 
+// ============================================
+// GROUP MANAGEMENT MODAL
+// ============================================
+
+// Global state for group modal
+const GROUP_MODAL_STATE = {
+  resosBookingId: null,
+  hotelBookingId: null,
+  date: null,
+  bookings: [],
+  groups: {},
+  currentGroupId: null
+};
+
+// Open group management modal
+async function openGroupManagementModal(resosBookingId, hotelBookingId, date) {
+  const modal = document.getElementById('group-management-modal');
+  const dateValue = document.getElementById('group-modal-date-value');
+  const groupSection = document.getElementById('group-section-container');
+  const otherSection = document.getElementById('other-section-container');
+  const loading = modal.querySelector('.group-modal-loading');
+  const error = modal.querySelector('.group-modal-error');
+  const container = modal.querySelector('.group-bookings-container');
+
+  // Store state
+  GROUP_MODAL_STATE.resosBookingId = resosBookingId;
+  GROUP_MODAL_STATE.hotelBookingId = hotelBookingId;
+  GROUP_MODAL_STATE.date = date;
+
+  // Show modal
+  modal.classList.remove('hidden');
+  dateValue.textContent = date;
+
+  // Show loading
+  loading.classList.remove('hidden');
+  container.classList.add('hidden');
+  error.classList.add('hidden');
+
+  try {
+    // Fetch bookings for date
+    const bookingsData = await fetchBookingsForDate(date, hotelBookingId);
+
+    GROUP_MODAL_STATE.bookings = bookingsData.bookings;
+    GROUP_MODAL_STATE.groups = bookingsData.groups;
+
+    // Find current booking's group
+    const currentBooking = bookingsData.bookings.find(b => b.booking_id == hotelBookingId);
+    GROUP_MODAL_STATE.currentGroupId = currentBooking?.bookings_group_id || null;
+
+    // Render bookings
+    renderGroupModal();
+
+    // Hide loading, show content
+    loading.classList.add('hidden');
+    container.classList.remove('hidden');
+
+  } catch (err) {
+    console.error('Error loading bookings:', err);
+    loading.classList.add('hidden');
+    error.classList.remove('hidden');
+    error.querySelector('.error-message').textContent = err.message || 'Failed to load bookings';
+  }
+}
+
+// Fetch bookings for a specific date
+async function fetchBookingsForDate(date, excludeBookingId) {
+  const config = getAPIConfig();
+  let url = `${config.baseUrl}/bookings/for-date?date=${date}`;
+  if (excludeBookingId) {
+    url += `&exclude_booking_id=${excludeBookingId}`;
+  }
+
+  const response = await fetch(url, {
+    headers: {
+      'Authorization': `Basic ${config.auth}`,
+      'Content-Type': 'application/json'
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+
+  const result = await response.json();
+  return result;
+}
+
+// Render the group modal with bookings
+function renderGroupModal() {
+  const groupSection = document.getElementById('group-section-container');
+  const otherSection = document.getElementById('other-section-container');
+  const groupLinkCheckbox = document.getElementById('group-link-whole-group');
+  const groupLinkGroupId = document.getElementById('group-link-group-id');
+  const groupLinkToggle = document.querySelector('.group-link-toggle');
+
+  // Separate bookings into groups and others
+  const groupBookings = [];
+  const otherBookings = [];
+
+  GROUP_MODAL_STATE.bookings.forEach(booking => {
+    if (booking.bookings_group_id === GROUP_MODAL_STATE.currentGroupId && GROUP_MODAL_STATE.currentGroupId) {
+      groupBookings.push(booking);
+    } else {
+      otherBookings.push(booking);
+    }
+  });
+
+  // Show/hide group link toggle
+  if (GROUP_MODAL_STATE.currentGroupId) {
+    groupLinkToggle.classList.remove('hidden');
+    groupLinkGroupId.textContent = `G#${GROUP_MODAL_STATE.currentGroupId}`;
+  } else {
+    groupLinkToggle.classList.add('hidden');
+    groupLinkCheckbox.checked = false;
+  }
+
+  // Render group section
+  if (groupBookings.length > 0) {
+    groupSection.classList.remove('hidden');
+    groupSection.innerHTML = renderBookingsTable(groupBookings, true);
+  } else {
+    groupSection.classList.add('hidden');
+  }
+
+  // Render other section
+  if (otherBookings.length > 0) {
+    otherSection.classList.remove('hidden');
+    otherSection.innerHTML = renderBookingsTable(otherBookings, false);
+  } else {
+    otherSection.classList.add('hidden');
+  }
+
+  // Attach event listeners
+  attachGroupModalEventListeners();
+}
+
+// Render bookings table
+function renderBookingsTable(bookings, isGroupSection) {
+  const linkWhole = document.getElementById('group-link-whole-group').checked;
+  const isGroupActive = isGroupSection && linkWhole;
+
+  let html = '';
+
+  if (isGroupSection) {
+    html += `<div class="group-section-header ${isGroupActive ? 'exclude-mode' : ''}">`;
+    html += isGroupActive ? 'Exclude from Group' : `Bookings in Group #${GROUP_MODAL_STATE.currentGroupId}`;
+    html += '</div>';
+  } else {
+    html += '<div class="other-section-header">Other Bookings</div>';
+  }
+
+  html += '<table class="group-bookings-table"><thead><tr>';
+  html += '<th>Lead</th>';
+  html += `<th>${isGroupActive ? 'Exclude' : 'Group'}</th>`;
+  html += '<th>Booking</th>';
+  html += '</tr></thead><tbody>';
+
+  bookings.forEach(booking => {
+    html += '<tr>';
+
+    // Lead radio
+    html += '<td>';
+    html += `<input type="radio" name="lead-booking" value="${booking.booking_id}" class="lead-radio">`;
+    html += '</td>';
+
+    // Group/Exclude checkbox
+    html += '<td>';
+    if (isGroupActive) {
+      html += `<input type="checkbox" value="${booking.booking_id}" class="exclude-checkbox">`;
+    } else {
+      html += `<input type="checkbox" value="${booking.booking_id}" class="group-checkbox">`;
+    }
+    html += '</td>';
+
+    // Booking info
+    html += '<td>';
+    html += '<div class="booking-info">';
+    html += `<span class="booking-guest-name">${booking.guest_name || 'Guest'}</span>`;
+    html += `<span class="booking-room">Room ${booking.site_name || 'N/A'}</span>`;
+    html += '</div>';
+    html += '</td>';
+
+    html += '</tr>';
+  });
+
+  html += '</tbody></table>';
+  return html;
+}
+
+// Attach event listeners for group modal
+function attachGroupModalEventListeners() {
+  // Group link toggle
+  const groupLinkCheckbox = document.getElementById('group-link-whole-group');
+  groupLinkCheckbox.addEventListener('change', () => {
+    const groupSection = document.getElementById('group-section-container');
+    if (groupLinkCheckbox.checked) {
+      groupSection.classList.add('active');
+    } else {
+      groupSection.classList.remove('active');
+    }
+    renderGroupModal();
+  });
+
+  // Lead radio auto-checks group checkbox
+  document.querySelectorAll('.lead-radio').forEach(radio => {
+    radio.addEventListener('change', (e) => {
+      const row = e.target.closest('tr');
+      const groupCheckbox = row.querySelector('.group-checkbox');
+      if (groupCheckbox && !groupCheckbox.checked) {
+        groupCheckbox.checked = true;
+      }
+    });
+  });
+}
+
+// Save group configuration
+async function saveGroupConfiguration() {
+  const groupLinkCheckbox = document.getElementById('group-link-whole-group');
+  const leadRadios = document.querySelectorAll('.lead-radio');
+  const groupCheckboxes = document.querySelectorAll('.group-checkbox');
+  const excludeCheckboxes = document.querySelectorAll('.exclude-checkbox');
+
+  // Get lead booking ID
+  let leadBookingId = null;
+  leadRadios.forEach(radio => {
+    if (radio.checked) {
+      leadBookingId = radio.value;
+    }
+  });
+
+  // Get group configuration
+  let groupId = null;
+  const individualIds = [];
+  const excludeIds = [];
+
+  if (groupLinkCheckbox.checked && GROUP_MODAL_STATE.currentGroupId) {
+    // Use group ID
+    groupId = GROUP_MODAL_STATE.currentGroupId;
+
+    // Get excluded IDs
+    excludeCheckboxes.forEach(checkbox => {
+      if (checkbox.checked) {
+        excludeIds.push(checkbox.value);
+      }
+    });
+  } else {
+    // Use individual IDs
+    groupCheckboxes.forEach(checkbox => {
+      if (checkbox.checked) {
+        individualIds.push(checkbox.value);
+      }
+    });
+  }
+
+  // Make API call
+  try {
+    const config = getAPIConfig();
+    const response = await fetch(`${config.baseUrl}/bookings/group`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${config.auth}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        resos_booking_id: GROUP_MODAL_STATE.resosBookingId,
+        lead_booking_id: leadBookingId,
+        group_id: groupId,
+        individual_ids: individualIds,
+        exclude_ids: excludeIds
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    // Show success message
+    if (window.showToast) {
+      window.showToast('Group updated successfully!', 'success');
+    }
+
+    // Close modal
+    closeGroupModal();
+
+    // Reload restaurant tab
+    if (window.parent && window.parent.reloadRestaurantTab) {
+      window.parent.reloadRestaurantTab();
+    } else if (window.reloadRestaurantTab) {
+      window.reloadRestaurantTab();
+    }
+
+  } catch (err) {
+    console.error('Error saving group:', err);
+    if (window.showToast) {
+      window.showToast(`Error: ${err.message}`, 'error');
+    }
+  }
+}
+
+// Close group modal
+function closeGroupModal() {
+  const modal = document.getElementById('group-management-modal');
+  modal.classList.add('hidden');
+
+  // Reset state
+  GROUP_MODAL_STATE.resosBookingId = null;
+  GROUP_MODAL_STATE.hotelBookingId = null;
+  GROUP_MODAL_STATE.date = null;
+  GROUP_MODAL_STATE.bookings = [];
+  GROUP_MODAL_STATE.groups = {};
+  GROUP_MODAL_STATE.currentGroupId = null;
+}
+
+// Make functions globally available for template content
+window.openGroupManagementModal = openGroupManagementModal;
+
+// Initialize group modal event listeners
+function initializeGroupModal() {
+  const modal = document.getElementById('group-management-modal');
+  const closeBtn = modal.querySelector('.group-modal-close');
+  const cancelBtn = modal.querySelector('.group-modal-cancel');
+  const saveBtn = modal.querySelector('.group-modal-save');
+  const overlay = modal.querySelector('.group-modal-overlay');
+
+  closeBtn.addEventListener('click', closeGroupModal);
+  cancelBtn.addEventListener('click', closeGroupModal);
+  overlay.addEventListener('click', closeGroupModal);
+  saveBtn.addEventListener('click', saveGroupConfiguration);
+}
+
+// ============================================
+// INITIALIZATION
+// ============================================
+
 // Initialize
 async function init() {
   const settingsLoaded = await loadSettings();
@@ -4279,6 +4615,9 @@ async function init() {
 
       // Initialize refresh buttons
       initializeRefreshButtons();
+
+      // Initialize group management modal
+      initializeGroupModal();
 
       // Load summary tab on startup
       loadSummaryTab();

@@ -157,6 +157,50 @@
     </div>
   </div>
 
+  <!-- Group Management Modal -->
+  <div id="group-management-modal" class="group-modal hidden">
+    <div class="group-modal-overlay"></div>
+    <div class="group-modal-content">
+      <div class="group-modal-header">
+        <h3>Manage Group Bookings</h3>
+        <button class="group-modal-close" title="Close">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <div class="group-modal-body">
+        <div class="group-modal-date">
+          <strong>Date:</strong> <span id="group-modal-date-value"></span>
+        </div>
+
+        <div class="group-link-toggle">
+          <label class="toggle-label">
+            <input type="checkbox" id="group-link-whole-group">
+            <span>Link whole group <span id="group-link-group-id"></span></span>
+          </label>
+        </div>
+
+        <div class="group-bookings-container">
+          <div id="group-section-container" class="group-section"></div>
+          <div id="other-section-container" class="other-section"></div>
+        </div>
+
+        <div class="group-modal-loading hidden">
+          <div class="spinner"></div>
+          <p>Loading bookings...</p>
+        </div>
+
+        <div class="group-modal-error hidden">
+          <span class="material-symbols-outlined">error</span>
+          <p class="error-message"></p>
+        </div>
+      </div>
+      <div class="group-modal-footer">
+        <button class="group-modal-cancel">Cancel</button>
+        <button class="group-modal-save">Save Group</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Container -->
   <div id="bma-toast-container"></div>
 
