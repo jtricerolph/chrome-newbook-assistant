@@ -1489,13 +1489,14 @@ class APIClient {
     this.authHeader = 'Basic ' + btoa(`${settings.username}:${settings.applicationPassword}`);
   }
 
-  async fetchSummary() {
+  async fetchSummary(force_refresh = false) {
     const limit = this.settings.recentBookingsCount || 10;
     console.log('fetchSummary - settings:', this.settings);
     console.log('fetchSummary - recentBookingsCount:', this.settings.recentBookingsCount);
     console.log('fetchSummary - limit:', limit);
+    console.log('fetchSummary - force_refresh:', force_refresh);
 
-    const url = `${this.baseUrl}/summary?context=chrome-summary&limit=${limit}`;
+    const url = `${this.baseUrl}/summary?context=chrome-summary&limit=${limit}&force_refresh=${force_refresh}`;
     console.log('fetchSummary - URL:', url);
 
     const response = await fetch(url, {
@@ -1513,7 +1514,7 @@ class APIClient {
     return response.json();
   }
 
-  async fetchRestaurantMatch(bookingId) {
+  async fetchRestaurantMatch(bookingId, force_refresh = false) {
     const response = await fetch(`${this.baseUrl}/bookings/match`, {
       method: 'POST',
       headers: {
@@ -1522,7 +1523,8 @@ class APIClient {
       },
       body: JSON.stringify({
         booking_id: parseInt(bookingId),
-        context: 'chrome-sidepanel'
+        context: 'chrome-sidepanel',
+        force_refresh: force_refresh
       })
     });
 
@@ -1533,8 +1535,8 @@ class APIClient {
     return response.json();
   }
 
-  async fetchChecks(bookingId) {
-    const response = await fetch(`${this.baseUrl}/checks/${bookingId}?context=chrome-checks`, {
+  async fetchChecks(bookingId, force_refresh = false) {
+    const response = await fetch(`${this.baseUrl}/checks/${bookingId}?context=chrome-checks&force_refresh=${force_refresh}`, {
       method: 'GET',
       headers: {
         'Authorization': this.authHeader,
@@ -3313,23 +3315,27 @@ function switchTab(tabName) {
 }
 
 // Summary Tab
-async function loadSummaryTab(isAutoRefresh = false) {
+async function loadSummaryTab(force_refresh = false) {
   if (!STATE.settings) {
     showError('summary', 'Please configure settings first');
     return;
   }
 
+  // Determine if this is auto-refresh (called automatically, not by user)
+  const isAutoRefresh = force_refresh === false && typeof force_refresh === 'boolean';
+
   // Smart refresh: Check if we're already showing Summary tab content
+  // Skip smart refresh if force_refresh is true
   const isSummaryTabActive = STATE.currentTab === 'summary';
   const hasExistingData = STATE.loadedBookingIds.summary && STATE.cache.summary && STATE.cache.summary.html;
 
-  if (!isAutoRefresh && isSummaryTabActive && hasExistingData) {
+  if (!force_refresh && !isAutoRefresh && isSummaryTabActive && hasExistingData) {
     console.log('Smart refresh: Summary already loaded, checking for changes...');
 
     try {
       // Fetch data silently in background
       const api = new APIClient(STATE.settings);
-      const newData = await api.fetchSummary();
+      const newData = await api.fetchSummary(force_refresh);
 
       if (newData.success && newData.html) {
         // Compare HTML content
@@ -3359,7 +3365,7 @@ async function loadSummaryTab(isAutoRefresh = false) {
     }
 
     const api = new APIClient(STATE.settings);
-    const data = await api.fetchSummary();
+    const data = await api.fetchSummary(force_refresh);
 
     if (data.success && data.html) {
       // Check if data has changed (compare counts instead of HTML to avoid false positives)
@@ -3537,7 +3543,7 @@ function showNoChangesMessage() {
 }
 
 // Restaurant Tab
-async function loadRestaurantTab() {
+async function loadRestaurantTab(force_refresh = false) {
   if (!STATE.settings) {
     showError('restaurant', 'Please configure settings first');
     return;
@@ -3551,17 +3557,18 @@ async function loadRestaurantTab() {
   }
 
   // Smart refresh: Check if we're already showing the same booking
+  // Skip smart refresh if force_refresh is true
   const isRestaurantTabActive = STATE.currentTab === 'restaurant';
   const isSameBooking = STATE.loadedBookingIds.restaurant === STATE.currentBookingId;
   const hasExistingData = STATE.cache.restaurant && STATE.cache.restaurant.html;
 
-  if (isRestaurantTabActive && isSameBooking && hasExistingData) {
+  if (!force_refresh && isRestaurantTabActive && isSameBooking && hasExistingData) {
     console.log('Smart refresh: Same booking already loaded, checking for changes...');
 
     try {
       // Fetch data silently in background
       const api = new APIClient(STATE.settings);
-      const newData = await api.fetchRestaurantMatch(STATE.currentBookingId);
+      const newData = await api.fetchRestaurantMatch(STATE.currentBookingId, force_refresh);
 
       if (newData.success && newData.html) {
         // Compare HTML content
@@ -3588,7 +3595,7 @@ async function loadRestaurantTab() {
   try {
     showLoading('restaurant');
     const api = new APIClient(STATE.settings);
-    const data = await api.fetchRestaurantMatch(STATE.currentBookingId);
+    const data = await api.fetchRestaurantMatch(STATE.currentBookingId, force_refresh);
 
     if (data.success && data.html) {
       showData('restaurant', data.html);
@@ -3629,7 +3636,7 @@ async function loadRestaurantTab() {
 }
 
 // Checks Tab
-async function loadChecksTab() {
+async function loadChecksTab(force_refresh = false) {
   if (!STATE.settings) {
     showError('checks', 'Please configure settings first');
     return;
@@ -3643,17 +3650,18 @@ async function loadChecksTab() {
   }
 
   // Smart refresh: Check if we're already showing the same booking
+  // Skip smart refresh if force_refresh is true
   const isChecksTabActive = STATE.currentTab === 'checks';
   const isSameBooking = STATE.loadedBookingIds.checks === STATE.currentBookingId;
   const hasExistingData = STATE.cache.checks && STATE.cache.checks.html;
 
-  if (isChecksTabActive && isSameBooking && hasExistingData) {
+  if (!force_refresh && isChecksTabActive && isSameBooking && hasExistingData) {
     console.log('Smart refresh: Same booking already loaded in Checks, checking for changes...');
 
     try {
       // Fetch data silently in background
       const api = new APIClient(STATE.settings);
-      const newData = await api.fetchChecks(STATE.currentBookingId);
+      const newData = await api.fetchChecks(STATE.currentBookingId, force_refresh);
 
       if (newData.success && newData.html) {
         // Compare HTML content
@@ -3679,7 +3687,7 @@ async function loadChecksTab() {
   try {
     showLoading('checks');
     const api = new APIClient(STATE.settings);
-    const data = await api.fetchChecks(STATE.currentBookingId);
+    const data = await api.fetchChecks(STATE.currentBookingId, force_refresh);
 
     if (data.success && data.html) {
       showData('checks', data.html);
@@ -3874,8 +3882,8 @@ async function loadStayingTabSilently(date = null) {
  * Load staying tab for a specific date
  * @param {string} date - Date in YYYY-MM-DD format (optional, defaults to STATE.stayingDate)
  */
-async function loadStayingTab(date = null) {
-  console.log('Loading staying tab for date:', date);
+async function loadStayingTab(date = null, force_refresh = false) {
+  console.log('Loading staying tab for date:', date, 'force_refresh:', force_refresh);
 
   const targetDate = date || STATE.stayingDate;
   STATE.stayingDate = targetDate;
@@ -3887,17 +3895,18 @@ async function loadStayingTab(date = null) {
   }
 
   // Smart refresh: Check if we're already showing the same date in Staying tab
+  // Skip smart refresh if force_refresh is true
   const isStayingTabActive = STATE.currentTab === 'staying';
   const isSameDate = STATE.loadedBookingIds.staying === targetDate;
   const hasExistingData = STATE.cache.staying && STATE.cache.staying.html;
 
-  if (isStayingTabActive && isSameDate && hasExistingData) {
+  if (!force_refresh && isStayingTabActive && isSameDate && hasExistingData) {
     console.log('Smart refresh: Same date already loaded in Staying, checking for changes...');
 
     try {
       // Fetch data silently in background
       const api = new APIClient(STATE.settings);
-      const response = await fetch(`${api.baseUrl}/staying?date=${targetDate}`, {
+      const response = await fetch(`${api.baseUrl}/staying?date=${targetDate}&force_refresh=${force_refresh}`, {
         headers: {
           'Authorization': api.authHeader
         }
@@ -3930,7 +3939,7 @@ async function loadStayingTab(date = null) {
 
   try {
     const api = new APIClient(STATE.settings);
-    const response = await fetch(`${api.baseUrl}/staying?date=${targetDate}`, {
+    const response = await fetch(`${api.baseUrl}/staying?date=${targetDate}&force_refresh=${force_refresh}`, {
       headers: {
         'Authorization': api.authHeader
       }
@@ -4143,13 +4152,15 @@ function initializeRefreshButtons() {
         STATE.cache[tabName] = null;
         STATE.loadedBookingIds[tabName] = null;
 
-        // Trigger reload based on tab type
-        if (tabName === 'restaurant') {
-          await loadRestaurantTab();
+        // Trigger reload based on tab type with force_refresh=true
+        if (tabName === 'summary') {
+          await loadSummaryTab(true);
+        } else if (tabName === 'restaurant') {
+          await loadRestaurantTab(true);
         } else if (tabName === 'checks') {
-          await loadChecksTab();
+          await loadChecksTab(true);
         } else if (tabName === 'staying') {
-          await loadStayingTab(STATE.stayingDate);
+          await loadStayingTab(STATE.stayingDate, true);
         }
       } catch (error) {
         console.error(`Error refreshing ${tabName} tab:`, error);
