@@ -31,7 +31,9 @@ const STATE = {
   navigationContext: null, // Track navigation context for cross-tab navigation
   loadedBookingIds: {
     restaurant: null, // Track which booking ID is currently loaded in Restaurant tab
-    checks: null
+    checks: null,
+    summary: false, // Track if Summary tab has been loaded
+    staying: null // Track which date is currently loaded in Staying tab
   },
   scrollPositions: {
     summary: 0,
@@ -3264,6 +3266,39 @@ async function loadSummaryTab(isAutoRefresh = false) {
     return;
   }
 
+  // Smart refresh: Check if we're already showing Summary tab content
+  const isSummaryTabActive = STATE.currentTab === 'summary';
+  const hasExistingData = STATE.loadedBookingIds.summary && STATE.cache.summary && STATE.cache.summary.html;
+
+  if (!isAutoRefresh && isSummaryTabActive && hasExistingData) {
+    console.log('Smart refresh: Summary already loaded, checking for changes...');
+
+    try {
+      // Fetch data silently in background
+      const api = new APIClient(STATE.settings);
+      const newData = await api.fetchSummary();
+
+      if (newData.success && newData.html) {
+        // Compare HTML content
+        const currentHtml = STATE.cache.summary.html;
+        const newHtml = newData.html;
+
+        if (currentHtml === newHtml) {
+          // No changes detected
+          console.log('Smart refresh: No changes detected in Summary, keeping current view');
+          updateBadge('summary', newData.critical_count || 0, newData.warning_count || 0);
+          return; // Don't reload
+        } else {
+          // Changes detected, proceed with refresh
+          console.log('Smart refresh: Changes detected in Summary, refreshing content');
+        }
+      }
+    } catch (error) {
+      console.error('Smart refresh check failed for Summary, proceeding with normal load:', error);
+      // Fall through to normal load on error
+    }
+  }
+
   try {
     // Only show loading spinner on first load, not on auto-refresh
     if (!isAutoRefresh) {
@@ -3291,6 +3326,7 @@ async function loadSummaryTab(isAutoRefresh = false) {
         showData('summary', data.html);
         updateBadge('summary', data.critical_count || 0, data.warning_count || 0);
         STATE.cache.summary = data;
+        STATE.loadedBookingIds.summary = true;
         STATE.lastSummaryUpdate = Date.now(); // Track update time only when data changes
         console.log(hasChanged ? 'Summary updated with new data' : 'Summary displayed (no change but manual load)');
       } else {
@@ -3728,6 +3764,46 @@ async function loadStayingTab(date = null) {
     dateInput.value = targetDate;
   }
 
+  // Smart refresh: Check if we're already showing the same date in Staying tab
+  const isStayingTabActive = STATE.currentTab === 'staying';
+  const isSameDate = STATE.loadedBookingIds.staying === targetDate;
+  const hasExistingData = STATE.cache.staying && STATE.cache.staying.html;
+
+  if (isStayingTabActive && isSameDate && hasExistingData) {
+    console.log('Smart refresh: Same date already loaded in Staying, checking for changes...');
+
+    try {
+      // Fetch data silently in background
+      const api = new APIClient(STATE.settings);
+      const response = await fetch(`${api.baseUrl}/staying?date=${targetDate}`, {
+        headers: {
+          'Authorization': api.authHeader
+        }
+      });
+
+      const newData = await response.json();
+
+      if (newData.success && newData.html) {
+        // Compare HTML content
+        const currentHtml = STATE.cache.staying.html;
+        const newHtml = newData.html;
+
+        if (currentHtml === newHtml) {
+          // No changes detected
+          console.log('Smart refresh: No changes detected in Staying, keeping current view');
+          updateBadge('staying', newData.critical_count || 0, newData.warning_count || 0);
+          return; // Don't reload
+        } else {
+          // Changes detected, proceed with refresh
+          console.log('Smart refresh: Changes detected in Staying, refreshing content');
+        }
+      }
+    } catch (error) {
+      console.error('Smart refresh check failed for Staying, proceeding with normal load:', error);
+      // Fall through to normal load on error
+    }
+  }
+
   showLoading('staying');
 
   try {
@@ -3744,6 +3820,7 @@ async function loadStayingTab(date = null) {
       showData('staying', data.html);
       updateBadge('staying', data.critical_count || 0, data.warning_count || 0);
       STATE.cache.staying = data;
+      STATE.loadedBookingIds.staying = targetDate;
 
       // Initialize group hover functionality
       initializeGroupHover();
@@ -3752,12 +3829,15 @@ async function loadStayingTab(date = null) {
       initializeStayingCards();
     } else if (data.success && (!data.html || data.html.trim() === '')) {
       showEmpty('staying');
+      STATE.loadedBookingIds.staying = null;
     } else {
       showError('staying', data.message || 'Failed to load staying bookings');
+      STATE.loadedBookingIds.staying = null;
     }
   } catch (error) {
     console.error('Error loading staying tab:', error);
     showError('staying', error.message);
+    STATE.loadedBookingIds.staying = null;
   }
 }
 
