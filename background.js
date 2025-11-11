@@ -79,7 +79,7 @@ async function handleTabUpdate(tabId, url) {
       });
 
       // Detect if it's a booking page
-      const bookingIdMatch = url.match(/\/bookings_view\/(\d+)/i);
+      const bookingIdMatch = url.match(/\/bookings_(?:view|checkin)\/(\d+)/i);
       if (bookingIdMatch) {
         const bookingId = bookingIdMatch[1];
 

@@ -19,7 +19,7 @@ async function loadSettings() {
 // Multi-method booking ID detection with cascading fallbacks
 function findBookingIdFromContext() {
   // Method 1: Check URL pattern (highest priority)
-  const urlMatch = window.location.href.match(/\/bookings_view\/(\d+)/i);
+  const urlMatch = window.location.href.match(/\/bookings_(?:view|checkin)\/(\d+)/i);
   if (urlMatch) {
     return urlMatch[1];
   }
@@ -68,8 +68,8 @@ function findBookingIdFromContext() {
 function detectBookingPage() {
   const url = window.location.href;
 
-  // Pattern: /bookings_view/12345
-  const bookingIdMatch = url.match(/\/bookings_view\/(\d+)/i);
+  // Pattern: /bookings_view/12345 or /bookings_checkin/12345
+  const bookingIdMatch = url.match(/\/bookings_(?:view|checkin)\/(\d+)/i);
 
   if (bookingIdMatch) {
     const bookingId = bookingIdMatch[1];
