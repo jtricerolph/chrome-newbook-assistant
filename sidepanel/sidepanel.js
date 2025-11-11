@@ -51,8 +51,8 @@ window.apiClient = null;
  * @param {string} date - Date in YYYY-MM-DD format
  * @param {number|null} bookingId - Optional booking ID to set as current
  */
-function navigateToRestaurantDate(date, bookingId = null) {
-  console.log('Navigating to Restaurant tab for date:', date, 'bookingId:', bookingId);
+function navigateToRestaurantDate(date, bookingId = null, resosBookingId = null) {
+  console.log('Navigating to Restaurant tab for date:', date, 'bookingId:', bookingId, 'resosBookingId:', resosBookingId);
 
   // Save current scroll position
   const currentContent = document.querySelector(`[data-content="${STATE.currentTab}"]`);
@@ -65,7 +65,8 @@ function navigateToRestaurantDate(date, bookingId = null) {
     returnTab: STATE.currentTab,
     returnBookingId: STATE.currentBookingId,
     targetDate: date,
-    expandCreateForm: true,
+    expandCreateForm: resosBookingId ? false : true, // Expand create form only if not viewing a comparison
+    expandComparisonRow: resosBookingId ? { resosBookingId, date } : null, // Expand comparison row if resosBookingId provided
     scrollAfterLoad: true
   };
 
@@ -138,24 +139,60 @@ function returnToPreviousContext() {
 /**
  * Process navigation context after Restaurant tab loads
  * Called from loadRestaurantTab() to handle navigation intent
+ * @param {number} retryCount - Number of retries attempted so far
  */
-async function processNavigationContext() {
+async function processNavigationContext(retryCount = 0) {
   if (!STATE.navigationContext) {
     return;
   }
 
-  const { targetDate, expandCreateForm, scrollAfterLoad } = STATE.navigationContext;
+  const { targetDate, expandCreateForm, expandComparisonRow, scrollAfterLoad } = STATE.navigationContext;
 
-  console.log('Processing navigation context:', STATE.navigationContext);
+  console.log('Processing navigation context:', STATE.navigationContext, 'retry:', retryCount);
 
   // Find the date section
   const dateSection = document.getElementById(`date-section-${targetDate}`);
 
   if (!dateSection) {
-    console.warn('Target date section not found:', targetDate);
-    // Clear navigation context even on error to prevent re-triggering
-    STATE.navigationContext = null;
-    return;
+    // Retry up to 3 times with increasing delays if DOM isn't ready yet
+    if (retryCount < 3) {
+      console.warn(`Target date section not found: ${targetDate}, retrying in ${100 * (retryCount + 1)}ms...`);
+      setTimeout(() => {
+        processNavigationContext(retryCount + 1);
+      }, 100 * (retryCount + 1));
+      return;
+    } else {
+      console.error('Target date section not found after 3 retries:', targetDate);
+      // Clear navigation context to prevent infinite retries
+      STATE.navigationContext = null;
+      return;
+    }
+  }
+
+  // Expand comparison row if requested (for suggested matches)
+  if (expandComparisonRow && typeof window.loadComparisonView === 'function') {
+    const { resosBookingId, date } = expandComparisonRow;
+    console.log('Expanding comparison row for resosBookingId:', resosBookingId, 'date:', date);
+
+    // Call the loadComparisonView function to expand the comparison row
+    // Note: We need to create a fake event object since loadComparisonView expects it
+    const fakeEvent = {
+      target: {
+        closest: () => null // Return null since we're not clicking a button
+      }
+    };
+
+    // Temporarily store the event in global context for loadComparisonView to access
+    window.event = fakeEvent;
+
+    try {
+      await window.loadComparisonView(date, STATE.currentBookingId, resosBookingId);
+    } catch (error) {
+      console.error('Error loading comparison view:', error);
+    } finally {
+      // Clean up the fake event
+      delete window.event;
+    }
   }
 
   // Expand create form if requested
@@ -183,16 +220,27 @@ async function processNavigationContext() {
     }
   }
 
-  // Scroll to the bma-night section within the date section
+  // Scroll to the bma-night section within the date section (or comparison row if expanded)
   if (scrollAfterLoad) {
     console.log('Autoscroll: scrollAfterLoad=true, attempting to scroll');
     // Use requestAnimationFrame to ensure DOM is fully rendered
     requestAnimationFrame(() => {
       setTimeout(() => {
-        // Try to find the bma-night element within the date section for more precise scrolling
-        const nightSection = dateSection.querySelector('.bma-night');
-        const targetElement = nightSection || dateSection;
-        console.log('Autoscroll: nightSection found?', !!nightSection, 'targetElement?', !!targetElement);
+        let targetElement;
+
+        // If we expanded a comparison row, scroll to it; otherwise scroll to the date section
+        if (expandComparisonRow) {
+          const { resosBookingId, date } = expandComparisonRow;
+          const containerId = 'comparison-' + date + '-' + resosBookingId;
+          const comparisonContainer = document.getElementById(containerId);
+          targetElement = comparisonContainer || dateSection.querySelector('.bma-night') || dateSection;
+        } else {
+          // Try to find the bma-night element within the date section for more precise scrolling
+          const nightSection = dateSection.querySelector('.bma-night');
+          targetElement = nightSection || dateSection;
+        }
+
+        console.log('Autoscroll: targetElement found?', !!targetElement);
 
         if (targetElement) {
           // Get the scrolling container (tab-content)
@@ -1566,11 +1614,18 @@ function attachSummaryEventListeners(container) {
     issue.addEventListener('click', function(e) {
       e.stopPropagation(); // Prevent header click event
       const bookingId = this.dataset.bookingId;
-      console.log('Issue clicked - switching to Restaurant tab for booking:', bookingId);
+      const date = this.dataset.date;
+      const resosId = this.dataset.resosId;
+      console.log('Suggested match clicked - navigating to Restaurant tab:', { bookingId, date, resosId });
 
-      // Set current booking ID and switch to Restaurant tab
-      STATE.currentBookingId = bookingId;
-      switchTab('restaurant');
+      // Navigate to Restaurant tab with date and expand comparison row
+      if (date && resosId) {
+        navigateToRestaurantDate(date, parseInt(bookingId), resosId);
+      } else {
+        // Fallback if data attributes not available (shouldn't happen with updated templates)
+        STATE.currentBookingId = bookingId;
+        switchTab('restaurant');
+      }
     });
   });
 
@@ -3028,6 +3083,10 @@ function attachRestaurantEventListeners(container) {
       chrome.tabs.update({ url: newbookUrl });
     }
   });
+
+  // Expose functions to window for access from processNavigationContext
+  window.loadComparisonView = loadComparisonView;
+  window.buildComparisonHTML = buildComparisonHTML;
 }
 
 function updateTimeSincePlaced(container) {
@@ -3375,9 +3434,12 @@ async function loadRestaurantTab() {
       }
 
       // Process navigation context after content is loaded
-      setTimeout(() => {
-        processNavigationContext();
-      }, 100);
+      // Use requestAnimationFrame + setTimeout to ensure DOM is fully rendered
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          processNavigationContext();
+        }, 200);
+      });
     } else if (data.success && !data.html) {
       showEmpty('restaurant');
       updateBadge('restaurant', 0, 0);
@@ -3656,14 +3718,23 @@ function initializeStayingCards() {
     });
   });
 
-  // Clickable issues - navigate to Restaurant tab
+  // Clickable issues - navigate to Restaurant tab with comparison row expansion
   stayingTab.querySelectorAll('.clickable-issue').forEach(issue => {
     issue.addEventListener('click', function(e) {
       e.stopPropagation();
       const bookingId = this.dataset.bookingId;
-      console.log('Issue clicked - switching to Restaurant tab for booking:', bookingId);
-      STATE.currentBookingId = bookingId;
-      switchTab('restaurant');
+      const date = this.dataset.date;
+      const resosId = this.dataset.resosId;
+      console.log('Suggested match clicked - navigating to Restaurant tab:', { bookingId, date, resosId });
+
+      // Navigate to Restaurant tab with date and expand comparison row
+      if (date && resosId) {
+        navigateToRestaurantDate(date, parseInt(bookingId), resosId);
+      } else {
+        // Fallback if data attributes not available (shouldn't happen with updated templates)
+        STATE.currentBookingId = bookingId;
+        switchTab('restaurant');
+      }
     });
   });
 
