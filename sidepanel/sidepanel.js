@@ -29,6 +29,10 @@ const STATE = {
   sessionLocked: false, // Track NewBook session lock dialog status
   createFormOpen: false, // Track if any create booking form is open
   navigationContext: null, // Track navigation context for cross-tab navigation
+  loadedBookingIds: {
+    restaurant: null, // Track which booking ID is currently loaded in Restaurant tab
+    checks: null
+  },
   scrollPositions: {
     summary: 0,
     restaurant: 0,
@@ -3414,7 +3418,43 @@ async function loadRestaurantTab() {
   if (!STATE.currentBookingId) {
     showEmpty('restaurant');
     updateBadge('restaurant', 0);
+    STATE.loadedBookingIds.restaurant = null;
     return;
+  }
+
+  // Smart refresh: Check if we're already showing the same booking
+  const isRestaurantTabActive = STATE.currentTab === 'restaurant';
+  const isSameBooking = STATE.loadedBookingIds.restaurant === STATE.currentBookingId;
+  const hasExistingData = STATE.cache.restaurant && STATE.cache.restaurant.html;
+
+  if (isRestaurantTabActive && isSameBooking && hasExistingData) {
+    console.log('Smart refresh: Same booking already loaded, checking for changes...');
+
+    try {
+      // Fetch data silently in background
+      const api = new APIClient(STATE.settings);
+      const newData = await api.fetchRestaurantMatch(STATE.currentBookingId);
+
+      if (newData.success && newData.html) {
+        // Compare HTML content
+        const currentHtml = STATE.cache.restaurant.html;
+        const newHtml = newData.html;
+
+        if (currentHtml === newHtml) {
+          // No changes detected
+          console.log('Smart refresh: No changes detected, keeping current view');
+          // Update badge in case counts changed (though HTML is same)
+          updateBadge('restaurant', newData.critical_count || 0, newData.warning_count || 0);
+          return; // Don't reload
+        } else {
+          // Changes detected, proceed with refresh
+          console.log('Smart refresh: Changes detected, refreshing content');
+        }
+      }
+    } catch (error) {
+      console.error('Smart refresh check failed, proceeding with normal load:', error);
+      // Fall through to normal load on error
+    }
   }
 
   try {
@@ -3426,6 +3466,7 @@ async function loadRestaurantTab() {
       showData('restaurant', data.html);
       updateBadge('restaurant', data.critical_count || 0, data.warning_count || 0);
       STATE.cache.restaurant = data;
+      STATE.loadedBookingIds.restaurant = STATE.currentBookingId;
 
       // Store restaurant bookings by date for Gantt chart
       if (data.bookings_by_date) {
@@ -3443,12 +3484,15 @@ async function loadRestaurantTab() {
     } else if (data.success && !data.html) {
       showEmpty('restaurant');
       updateBadge('restaurant', 0, 0);
+      STATE.loadedBookingIds.restaurant = null;
     } else {
       showError('restaurant', 'Invalid response from API');
+      STATE.loadedBookingIds.restaurant = null;
     }
   } catch (error) {
     console.error('Error loading restaurant tab:', error);
     showError('restaurant', error.message);
+    STATE.loadedBookingIds.restaurant = null;
   }
 }
 
@@ -3462,7 +3506,42 @@ async function loadChecksTab() {
   if (!STATE.currentBookingId) {
     showEmpty('checks');
     updateBadge('checks', 0);
+    STATE.loadedBookingIds.checks = null;
     return;
+  }
+
+  // Smart refresh: Check if we're already showing the same booking
+  const isChecksTabActive = STATE.currentTab === 'checks';
+  const isSameBooking = STATE.loadedBookingIds.checks === STATE.currentBookingId;
+  const hasExistingData = STATE.cache.checks && STATE.cache.checks.html;
+
+  if (isChecksTabActive && isSameBooking && hasExistingData) {
+    console.log('Smart refresh: Same booking already loaded in Checks, checking for changes...');
+
+    try {
+      // Fetch data silently in background
+      const api = new APIClient(STATE.settings);
+      const newData = await api.fetchChecks(STATE.currentBookingId);
+
+      if (newData.success && newData.html) {
+        // Compare HTML content
+        const currentHtml = STATE.cache.checks.html;
+        const newHtml = newData.html;
+
+        if (currentHtml === newHtml) {
+          // No changes detected
+          console.log('Smart refresh: No changes detected in Checks, keeping current view');
+          updateBadge('checks', newData.critical_count || 0, newData.warning_count || 0);
+          return; // Don't reload
+        } else {
+          // Changes detected, proceed with refresh
+          console.log('Smart refresh: Changes detected in Checks, refreshing content');
+        }
+      }
+    } catch (error) {
+      console.error('Smart refresh check failed for Checks, proceeding with normal load:', error);
+      // Fall through to normal load on error
+    }
   }
 
   try {
@@ -3474,6 +3553,7 @@ async function loadChecksTab() {
       showData('checks', data.html);
       updateBadge('checks', data.critical_count || 0, data.warning_count || 0);
       STATE.cache.checks = data;
+      STATE.loadedBookingIds.checks = STATE.currentBookingId;
 
       // Attach event listeners for the checks tab
       const checksTab = document.querySelector('[data-content="checks"] .tab-data');
@@ -3491,12 +3571,15 @@ async function loadChecksTab() {
     } else if (data.success && !data.html) {
       showEmpty('checks');
       updateBadge('checks', 0, 0);
+      STATE.loadedBookingIds.checks = null;
     } else {
       showError('checks', 'Invalid response from API');
+      STATE.loadedBookingIds.checks = null;
     }
   } catch (error) {
     console.error('Error loading checks tab:', error);
     showError('checks', error.message);
+    STATE.loadedBookingIds.checks = null;
   }
 }
 
@@ -3536,6 +3619,14 @@ function resetInactivityTimer() {
 // Booking Detection Handler
 function handleBookingDetected(bookingId) {
   console.log('Booking detected, updating sidepanel for booking:', bookingId);
+
+  // Clear loadedBookingIds only if switching to a different booking
+  if (STATE.currentBookingId !== bookingId) {
+    console.log('Booking changed from', STATE.currentBookingId, 'to', bookingId, '- clearing loaded tracking');
+    STATE.loadedBookingIds.restaurant = null;
+    STATE.loadedBookingIds.checks = null;
+  }
+
   STATE.currentBookingId = bookingId;
 
   // Load both Restaurant and Checks tabs in parallel
