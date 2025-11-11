@@ -26,6 +26,9 @@ const STATE = {
   },
   lastSummaryInteraction: Date.now(), // Track last user interaction on Summary tab
   lastSummaryUpdate: null, // Track when summary was last updated
+  lastRestaurantUpdate: null, // Track when restaurant tab was last updated
+  lastChecksUpdate: null, // Track when checks tab was last updated
+  lastStayingUpdate: null, // Track when staying tab was last updated
   sessionLocked: false, // Track NewBook session lock dialog status
   createFormOpen: false, // Track if any create booking form is open
   navigationContext: null, // Track navigation context for cross-tab navigation
@@ -3424,6 +3427,45 @@ function updateLastUpdatedText() {
   lastUpdatedElement.textContent = `Last updated: ${timeText}`;
 }
 
+/**
+ * Update "last updated" display for Restaurant, Checks, or Staying tabs
+ * @param {string} tabName - The tab name ('restaurant', 'checks', or 'staying')
+ * @param {number|null} timestamp - The timestamp of last update (Date.now()), or null to hide
+ */
+function updateTabLastUpdated(tabName, timestamp = null) {
+  const lastUpdatedContainer = document.querySelector(`[data-content="${tabName}"] .tab-last-updated`);
+  const lastUpdatedTextEl = lastUpdatedContainer?.querySelector('.last-updated-text');
+
+  if (!lastUpdatedContainer || !lastUpdatedTextEl) return;
+
+  // Hide if no timestamp provided
+  if (!timestamp) {
+    lastUpdatedContainer.classList.add('hidden');
+    return;
+  }
+
+  // Calculate elapsed time
+  const now = Date.now();
+  const elapsed = now - timestamp;
+  const minutes = Math.floor(elapsed / 60000);
+  const seconds = Math.floor((elapsed % 60000) / 1000);
+
+  let timeText;
+  if (minutes === 0 && seconds < 10) {
+    timeText = 'just now';
+  } else if (minutes === 0) {
+    timeText = `${seconds}s ago`;
+  } else if (minutes < 60) {
+    timeText = `${minutes}m ago`;
+  } else {
+    const hours = Math.floor(minutes / 60);
+    timeText = `${hours}h ago`;
+  }
+
+  lastUpdatedTextEl.textContent = `Last updated ${timeText}`;
+  lastUpdatedContainer.classList.remove('hidden');
+}
+
 function showNoChangesMessage() {
   const countdownElement = document.querySelector('[data-content="summary"] .summary-countdown');
   const countdownText = countdownElement.querySelector('.countdown-text');
@@ -3503,6 +3545,10 @@ async function loadRestaurantTab() {
       updateBadge('restaurant', data.critical_count || 0, data.warning_count || 0);
       STATE.cache.restaurant = data;
       STATE.loadedBookingIds.restaurant = STATE.currentBookingId;
+
+      // Update last updated timestamp and display
+      STATE.lastRestaurantUpdate = Date.now();
+      updateTabLastUpdated('restaurant', STATE.lastRestaurantUpdate);
 
       // Store restaurant bookings by date for Gantt chart
       if (data.bookings_by_date) {
@@ -3590,6 +3636,10 @@ async function loadChecksTab() {
       updateBadge('checks', data.critical_count || 0, data.warning_count || 0);
       STATE.cache.checks = data;
       STATE.loadedBookingIds.checks = STATE.currentBookingId;
+
+      // Update last updated timestamp and display
+      STATE.lastChecksUpdate = Date.now();
+      updateTabLastUpdated('checks', STATE.lastChecksUpdate);
 
       // Attach event listeners for the checks tab
       const checksTab = document.querySelector('[data-content="checks"] .tab-data');
@@ -3821,6 +3871,10 @@ async function loadStayingTab(date = null) {
       updateBadge('staying', data.critical_count || 0, data.warning_count || 0);
       STATE.cache.staying = data;
       STATE.loadedBookingIds.staying = targetDate;
+
+      // Update last updated timestamp and display
+      STATE.lastStayingUpdate = Date.now();
+      updateTabLastUpdated('staying', STATE.lastStayingUpdate);
 
       // Initialize group hover functionality
       initializeGroupHover();
