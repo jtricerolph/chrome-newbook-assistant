@@ -9,7 +9,8 @@ const DEFAULT_SETTINGS = {
   enablePlannerClickUpdate: true,
   highlightNewestMinutes: 60,
   inactivityTimeout: 60,
-  pauseInactivityWhenFormOpen: true
+  pauseInactivityWhenFormOpen: true,
+  autoRefreshOnStaleCache: true
 };
 
 // DOM elements
@@ -22,6 +23,7 @@ const elements = {
   summaryRefreshRate: document.getElementById('summaryRefreshRate'),
   enablePlannerClickUpdate: document.getElementById('enablePlannerClickUpdate'),
   highlightNewestMinutes: document.getElementById('highlightNewestMinutes'),
+  autoRefreshOnStaleCache: document.getElementById('autoRefreshOnStaleCache'),
   inactivityTimeout: document.getElementById('inactivityTimeout'),
   pauseInactivityWhenFormOpen: document.getElementById('pauseInactivityWhenFormOpen'),
   testConnection: document.getElementById('testConnection'),
@@ -43,6 +45,7 @@ async function loadSettings() {
     elements.summaryRefreshRate.value = settings.summaryRefreshRate || 60;
     elements.enablePlannerClickUpdate.checked = settings.enablePlannerClickUpdate !== false;
     elements.highlightNewestMinutes.value = settings.highlightNewestMinutes || 60;
+    elements.autoRefreshOnStaleCache.checked = settings.autoRefreshOnStaleCache !== false;
     elements.inactivityTimeout.value = settings.inactivityTimeout || 60;
     elements.pauseInactivityWhenFormOpen.checked = settings.pauseInactivityWhenFormOpen !== false;
   } catch (error) {
@@ -124,6 +127,7 @@ async function saveSettings() {
       summaryRefreshRate: refreshRate,
       enablePlannerClickUpdate: elements.enablePlannerClickUpdate.checked,
       highlightNewestMinutes: highlightMinutes,
+      autoRefreshOnStaleCache: elements.autoRefreshOnStaleCache.checked,
       inactivityTimeout: inactivityTimeout,
       pauseInactivityWhenFormOpen: elements.pauseInactivityWhenFormOpen.checked
     };

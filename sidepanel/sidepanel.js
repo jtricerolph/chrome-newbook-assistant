@@ -12,7 +12,8 @@ const STATE = {
   timers: {
     summaryRefresh: null,
     summaryCountdown: null,
-    inactivityTimeout: null
+    inactivityTimeout: null,
+    staleRefresh: null
   },
   cache: {
     summary: null,
@@ -1578,6 +1579,55 @@ function showData(tabName, html) {
   if (tabName === 'restaurant') {
     attachRestaurantEventListeners(dataElement);
   }
+
+  // Check for stale cache indicators and schedule auto-refresh if enabled
+  checkForStaleDataAndScheduleRefresh(tabName, dataElement);
+}
+
+// Check for stale cache indicators and schedule auto-refresh
+function checkForStaleDataAndScheduleRefresh(tabName, dataElement) {
+  // Check if stale indicators exist
+  const staleIndicators = dataElement.querySelectorAll('.stale-indicator, .bma-stale-badge');
+
+  if (staleIndicators.length === 0) {
+    console.log(`[Stale Refresh] No stale indicators found in ${tabName} tab`);
+    return;
+  }
+
+  console.log(`[Stale Refresh] Found ${staleIndicators.length} stale indicator(s) in ${tabName} tab`);
+
+  // Get the autoRefreshOnStaleCache setting (default: true)
+  const autoRefreshEnabled = STATE.settings?.autoRefreshOnStaleCache !== false;
+
+  if (!autoRefreshEnabled) {
+    console.log(`[Stale Refresh] Auto-refresh is disabled in settings`);
+    return;
+  }
+
+  // Clear any existing stale refresh timer
+  if (STATE.timers.staleRefresh) {
+    clearTimeout(STATE.timers.staleRefresh);
+    STATE.timers.staleRefresh = null;
+  }
+
+  // Schedule refresh after 10 seconds
+  console.log(`[Stale Refresh] Scheduling auto-refresh for ${tabName} tab in 10 seconds...`);
+  STATE.timers.staleRefresh = setTimeout(() => {
+    console.log(`[Stale Refresh] Auto-refreshing ${tabName} tab due to stale cache`);
+
+    // Trigger refresh based on tab type
+    if (tabName === 'summary') {
+      loadSummaryData(true); // Force refresh
+    } else if (tabName === 'staying') {
+      loadStayingData(STATE.stayingDate, true); // Force refresh
+    } else if (tabName === 'restaurant') {
+      reloadRestaurantTab(); // Refresh restaurant tab
+    } else if (tabName === 'checks') {
+      loadChecksData(STATE.currentBookingId, true); // Force refresh
+    }
+
+    STATE.timers.staleRefresh = null;
+  }, 10000); // 10 seconds
 }
 
 // Attach event listeners to summary tab booking cards
