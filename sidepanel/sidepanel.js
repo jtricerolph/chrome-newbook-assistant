@@ -192,16 +192,10 @@ async function processNavigationContext(retryCount = 0) {
       }
     };
 
-    // Temporarily store the event in global context for loadComparisonView to access
-    window.event = fakeEvent;
-
     try {
-      await window.loadComparisonView(date, STATE.currentBookingId, resosBookingId);
+      await window.loadComparisonView(date, STATE.currentBookingId, resosBookingId, null);
     } catch (error) {
       console.error('Error loading comparison view:', error);
-    } finally {
-      // Clean up the fake event
-      delete window.event;
     }
   }
 
@@ -1842,7 +1836,8 @@ function attachRestaurantEventListeners(container) {
           await loadComparisonView(
             button.dataset.date,
             button.dataset.bookingId,
-            button.dataset.resosBookingId
+            button.dataset.resosBookingId,
+            button
           );
           break;
 
@@ -2745,7 +2740,7 @@ function attachRestaurantEventListeners(container) {
     }
   }
 
-  async function loadComparisonView(date, bookingId, resosBookingId) {
+  async function loadComparisonView(date, bookingId, resosBookingId, buttonElement) {
     const containerId = 'comparison-' + date + '-' + resosBookingId;
     const comparisonContainer = document.getElementById(containerId);
     if (!comparisonContainer) return;
@@ -2756,12 +2751,11 @@ function attachRestaurantEventListeners(container) {
       return;
     }
 
-    // Get button that triggered this to access data attributes
-    const triggerButton = event.target.closest('button[data-action="view-comparison"]');
-    const isConfirmed = triggerButton && triggerButton.dataset.isConfirmed === '1';
-    const isMatchedElsewhere = triggerButton && triggerButton.dataset.isMatchedElsewhere === '1';
-    const hotelBookingId = triggerButton ? triggerButton.dataset.hotelBookingId : '';
-    const guestName = triggerButton ? triggerButton.dataset.guestName : '';
+    // Get button data attributes
+    const isConfirmed = buttonElement && buttonElement.dataset.isConfirmed === '1';
+    const isMatchedElsewhere = buttonElement && buttonElement.dataset.isMatchedElsewhere === '1';
+    const hotelBookingId = buttonElement ? buttonElement.dataset.hotelBookingId : '';
+    const guestName = buttonElement ? buttonElement.dataset.guestName : '';
 
     // Show loading state
     comparisonContainer.innerHTML = '<div class="bma-comparison-loading">Loading comparison data...</div>';
