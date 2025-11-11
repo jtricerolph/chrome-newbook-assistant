@@ -420,12 +420,16 @@ function checkUrlChange() {
   if (currentUrl !== lastUrl) {
     lastUrl = currentUrl;
     detectBookingPage();
+    // Show button on navigation (in case user navigated and sidepanel is closed)
+    setTimeout(createOpenButton, 1000);
   }
 }
 
 // Listen for popstate events (SPA navigation)
 window.addEventListener('popstate', () => {
   detectBookingPage();
+  // Show button on navigation
+  setTimeout(createOpenButton, 1000);
 });
 
 // Poll for URL changes (backup for SPA detection)
@@ -436,8 +440,20 @@ function createOpenButton() {
   // Check if already exists
   if (document.getElementById('newbook-helper-btn')) return;
 
-  // Check if dismissed this session
-  if (sessionStorage.getItem('sidepanel-dismissed')) return;
+  // Check if permanently dismissed (using localStorage for persistence across sessions)
+  if (localStorage.getItem('sidepanel-button-dismissed') === 'permanent') return;
+
+  // Check if temporarily hidden (recently opened sidepanel)
+  const tempHiddenUntil = sessionStorage.getItem('sidepanel-button-temp-hidden');
+  if (tempHiddenUntil) {
+    const hiddenUntilTime = parseInt(tempHiddenUntil, 10);
+    if (Date.now() < hiddenUntilTime) {
+      // Still in temporary hide period, schedule showing it later
+      const remainingTime = hiddenUntilTime - Date.now();
+      setTimeout(createOpenButton, remainingTime + 1000);
+      return;
+    }
+  }
 
   const button = document.createElement('button');
   button.id = 'newbook-helper-btn';
@@ -483,30 +499,36 @@ function createOpenButton() {
     if (e.target.id === 'close-btn') return; // Let close handle it
 
     chrome.runtime.sendMessage({ action: 'openSidePanel' });
-    button.remove();
-    sessionStorage.setItem('sidepanel-dismissed', 'true');
+
+    // Hide button with fade out animation
+    button.style.opacity = '0';
+    button.style.transition = 'opacity 0.3s';
+    setTimeout(() => button.remove(), 300);
+
+    // Temporarily hide for 30 seconds (user is likely using the sidepanel)
+    // Button will reappear after 30s in case sidepanel was closed
+    const hideUntil = Date.now() + 30000; // 30 seconds
+    sessionStorage.setItem('sidepanel-button-temp-hidden', hideUntil.toString());
+
+    // Schedule button to reappear after temp hide period
+    setTimeout(createOpenButton, 30000 + 1000);
   });
 
-  // Close button click
+  // Close button click - permanently dismiss
   const closeBtn = button.querySelector('#close-btn');
   closeBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     button.style.opacity = '0';
     button.style.transition = 'opacity 0.3s';
     setTimeout(() => button.remove(), 300);
-    sessionStorage.setItem('sidepanel-dismissed', 'true');
+
+    // Permanently dismiss (persists across sessions)
+    localStorage.setItem('sidepanel-button-dismissed', 'permanent');
+    console.log('Open Assistant button permanently dismissed. To re-enable, clear localStorage.');
   });
 
   document.body.appendChild(button);
-
-  // Auto-hide after 15 seconds
-  setTimeout(() => {
-    if (button.parentElement) {
-      button.style.opacity = '0';
-      button.style.transition = 'opacity 0.3s';
-      setTimeout(() => button.remove(), 300);
-    }
-  }, 15000);
+  console.log('Open Assistant button shown');
 }
 
 // Session Lock Dialog Detection
@@ -607,6 +629,12 @@ async function init() {
 
   // Show floating button to prompt user to open sidepanel
   setTimeout(createOpenButton, 1000); // Small delay to let page load
+
+  // Periodically check if button should be shown (every 60 seconds)
+  // This ensures the button reappears if user closes sidepanel
+  setInterval(() => {
+    createOpenButton();
+  }, 60000); // Check every minute
 
   console.log('NewBook Assistant ready');
 }
