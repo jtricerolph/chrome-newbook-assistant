@@ -3794,6 +3794,28 @@ async function loadChecksTabSilently() {
   }
 }
 
+async function loadStayingTabSilently(date = null) {
+  try {
+    const targetDate = date || STATE.stayingDate;
+    const api = new APIClient(STATE.settings);
+    const response = await fetch(`${api.baseUrl}/staying?date=${targetDate}`, {
+      headers: {
+        'Authorization': api.authHeader
+      }
+    });
+
+    const data = await response.json();
+    console.log('Staying data loaded silently for date:', targetDate, 'critical:', data.critical_count, 'warning:', data.warning_count);
+    updateBadge('staying', data.critical_count || 0, data.warning_count || 0);
+    STATE.cache.staying = data;
+    STATE.loadedBookingIds.staying = targetDate;
+    return data;
+  } catch (error) {
+    console.error('Error loading staying data silently:', error);
+    return null;
+  }
+}
+
 // =============================================================================
 // Staying Tab Functions
 // =============================================================================
@@ -4199,6 +4221,9 @@ async function init() {
 
       // Load summary tab on startup
       loadSummaryTab();
+
+      // Silently preload staying tab with today's date to populate badge
+      loadStayingTabSilently();
 
       // Check if there's a current booking from storage
       const result = await chrome.storage.local.get('currentBookingId');
