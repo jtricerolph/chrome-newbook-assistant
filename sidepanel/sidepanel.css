@@ -288,6 +288,33 @@ body {
   width: auto;
 }
 
+.tab-refresh-btn {
+  margin-left: auto;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s;
+  color: #6b7280;
+}
+
+.tab-refresh-btn:hover {
+  background-color: #e5e7eb;
+  color: #374151;
+}
+
+.tab-refresh-btn .material-symbols-outlined {
+  font-size: 20px;
+}
+
+.tab-refresh-btn.refreshing .material-symbols-outlined {
+  animation: spin 1s linear infinite;
+}
+
 /* Footer */
 .sidepanel-footer {
   background-color: #fff;

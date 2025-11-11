@@ -4049,6 +4049,46 @@ function initializeStayingDatePicker() {
   }
 }
 
+/**
+ * Initialize refresh buttons for Restaurant, Checks, and Staying tabs
+ */
+function initializeRefreshButtons() {
+  const refreshButtons = document.querySelectorAll('.tab-refresh-btn');
+
+  refreshButtons.forEach(btn => {
+    btn.addEventListener('click', async function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const tabName = this.dataset.tab;
+      console.log('Refresh button clicked for tab:', tabName);
+
+      // Add refreshing class for animation
+      this.classList.add('refreshing');
+
+      try {
+        // Clear cache for this tab to force full reload
+        STATE.cache[tabName] = null;
+        STATE.loadedBookingIds[tabName] = null;
+
+        // Trigger reload based on tab type
+        if (tabName === 'restaurant') {
+          await loadRestaurantTab();
+        } else if (tabName === 'checks') {
+          await loadChecksTab();
+        } else if (tabName === 'staying') {
+          await loadStayingTab(STATE.stayingDate);
+        }
+      } catch (error) {
+        console.error(`Error refreshing ${tabName} tab:`, error);
+      } finally {
+        // Remove refreshing class
+        this.classList.remove('refreshing');
+      }
+    });
+  });
+}
+
 // Message Listener
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log('Sidepanel received message:', message);
@@ -4153,6 +4193,9 @@ async function init() {
 
       // Initialize staying tab date picker
       initializeStayingDatePicker();
+
+      // Initialize refresh buttons
+      initializeRefreshButtons();
 
       // Load summary tab on startup
       loadSummaryTab();
