@@ -2781,6 +2781,9 @@ function attachRestaurantEventListeners(container) {
       if (result.success && result.comparison) {
         const comparisonHTML = buildComparisonHTML(result.comparison, date, resosBookingId, isConfirmed, isMatchedElsewhere, hotelBookingId, guestName);
         comparisonContainer.innerHTML = comparisonHTML;
+
+        // Add event listeners for visual feedback on checkbox changes
+        setupComparisonCheckboxListeners(comparisonContainer);
       } else {
         comparisonContainer.innerHTML = `
           <div class="bma-comparison-error">
@@ -2880,6 +2883,51 @@ function attachRestaurantEventListeners(container) {
     return html;
   }
 
+  // Setup event listeners for comparison checkbox visual feedback
+  function setupComparisonCheckboxListeners(container) {
+    const checkboxes = container.querySelectorAll('.suggestion-checkbox');
+    checkboxes.forEach(checkbox => {
+      // Set initial state
+      toggleComparisonVisualFeedback(checkbox);
+
+      // Add change event listener
+      checkbox.addEventListener('change', function() {
+        toggleComparisonVisualFeedback(this);
+      });
+    });
+  }
+
+  // Toggle visual feedback based on checkbox state
+  function toggleComparisonVisualFeedback(checkbox) {
+    const field = checkbox.dataset.field;
+    const isChecked = checkbox.checked;
+    const container = checkbox.closest('.comparison-row-content');
+
+    if (container) {
+      // Toggle strikethrough on Resos value
+      const resosValue = container.querySelector(`.resos-value[data-field="${field}"]`);
+      if (resosValue) {
+        if (isChecked) {
+          resosValue.style.textDecoration = 'line-through';
+          resosValue.style.opacity = '0.6';
+        } else {
+          resosValue.style.textDecoration = 'none';
+          resosValue.style.opacity = '1';
+        }
+      }
+
+      // Toggle opacity on suggestion text
+      const suggestionText = container.querySelector(`.suggestion-text[data-field="${field}"]`);
+      if (suggestionText) {
+        if (isChecked) {
+          suggestionText.style.opacity = '1';
+        } else {
+          suggestionText.style.opacity = '0.5';
+        }
+      }
+    }
+  }
+
   // Build a single comparison table row
   function buildComparisonRow(label, field, hotelValue, resosValue, isMatch, suggestionValue, isHTML = false) {
     const matchClass = isMatch ? ' class="match-row"' : '';
@@ -2892,6 +2940,11 @@ function attachRestaurantEventListeners(container) {
     let resosDisplay = resosValue !== undefined && resosValue !== null && resosValue !== ''
       ? (isHTML ? resosValue : escapeHTML(String(resosValue)))
       : '<em style="color: #adb5bd;">-</em>';
+
+    // Add strikethrough to Resos value if there's a suggestion
+    if (hasSuggestion && resosDisplay !== '<em style="color: #adb5bd;">-</em>') {
+      resosDisplay = `<span class="resos-value" data-field="${escapeHTML(field)}" style="text-decoration: line-through; opacity: 0.6;">${resosDisplay}</span>`;
+    }
 
     // Get plain text values for title attributes (tooltips)
     const hotelTitle = hotelValue !== undefined && hotelValue !== null && hotelValue !== ''
@@ -2924,8 +2977,8 @@ function attachRestaurantEventListeners(container) {
       html += `<td colspan="3">`;
       html += `<div class="suggestion-content">`;
       html += `<label>`;
-      html += `<input type="checkbox" class="suggestion-checkbox" name="suggestion_${field}" value="${escapeHTML(String(suggestionValue))}"${checkedAttr}> `;
-      html += `Update to: ${suggestionDisplay}`;
+      html += `<input type="checkbox" class="suggestion-checkbox" data-field="${escapeHTML(field)}" name="suggestion_${field}" value="${escapeHTML(String(suggestionValue))}"${checkedAttr}> `;
+      html += `<span class="suggestion-text" data-field="${escapeHTML(field)}">Update to: ${suggestionDisplay}</span>`;
       html += `</label>`;
       html += `</div>`;
       html += `</td>`;
