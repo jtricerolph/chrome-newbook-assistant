@@ -4030,7 +4030,53 @@ async function loadStayingTab(date = null, force_refresh = false) {
   }
 }
 
-// Group filtering functions moved to API template inline JavaScript (chrome-staying-response.php)
+/**
+ * Filter staying cards by group ID
+ * @param {number|null} groupId - Group ID to filter by, or null to show all
+ */
+function filterStayingByGroup(groupId) {
+  const cards = document.querySelectorAll('.staying-card');
+  const vacantRows = document.querySelectorAll('.vacant-room-line');
+
+  if (groupId === null) {
+    cards.forEach(card => card.style.display = '');
+    vacantRows.forEach(row => row.style.display = '');
+    window.activeGroupFilter = null;
+  } else {
+    cards.forEach(card => {
+      const cardGroupId = card.dataset.groupId;
+      card.style.display = (cardGroupId === groupId.toString()) ? '' : 'none';
+    });
+    vacantRows.forEach(row => row.style.display = 'none');
+    window.activeGroupFilter = groupId;
+  }
+
+  updateGroupBadgeUI(groupId);
+}
+
+/**
+ * Update visual state of group badges based on active filter
+ * @param {number|null} activeGroupId - Currently active group filter
+ */
+function updateGroupBadgeUI(activeGroupId) {
+  const badges = document.querySelectorAll('.group-id-badge');
+
+  badges.forEach(badge => {
+    const badgeGroupId = parseInt(badge.textContent.replace('G#', ''));
+
+    if (activeGroupId === null) {
+      badge.style.backgroundColor = '';
+      badge.style.color = '';
+      badge.style.opacity = '';
+    } else if (badgeGroupId === activeGroupId) {
+      badge.style.backgroundColor = '#6366f1';
+      badge.style.color = 'white';
+      badge.style.opacity = '';
+    } else {
+      badge.style.opacity = '0.5';
+    }
+  });
+}
 
 /**
  * Initialize expand/collapse functionality for staying cards
@@ -4039,7 +4085,13 @@ function initializeStayingCards() {
   const stayingTab = document.querySelector('[data-content="staying"] .tab-data');
   if (!stayingTab) return;
 
-  // Expand/collapse now handled by inline onclick in API template
+  // Expand/collapse headers
+  stayingTab.querySelectorAll('.staying-header').forEach(header => {
+    header.addEventListener('click', function(e) {
+      const card = this.closest('.staying-card');
+      card.classList.toggle('expanded');
+    });
+  });
 
   // Open booking in NewBook buttons
   stayingTab.querySelectorAll('.open-booking-btn').forEach(button => {
@@ -4121,7 +4173,23 @@ function initializeStayingCards() {
     });
   });
 
-  // Group badge click handlers moved to API template inline JavaScript
+  // Group badge click handlers - toggle group filter
+  stayingTab.querySelectorAll('.group-id-badge').forEach(badge => {
+    badge.addEventListener('click', function(e) {
+      e.stopPropagation();
+      e.preventDefault();
+
+      const groupId = parseInt(this.textContent.replace('G#', ''));
+
+      if (window.activeGroupFilter === groupId) {
+        console.log('Clearing group filter');
+        filterStayingByGroup(null);
+      } else {
+        console.log('Filtering to group:', groupId);
+        filterStayingByGroup(groupId);
+      }
+    });
+  });
 }
 
 /**
