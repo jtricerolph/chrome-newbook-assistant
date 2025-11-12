@@ -1509,7 +1509,7 @@ button[data-action].loading::after {
 .vacant-room-line {
   padding: 8px; /* Match staying-header padding */
   color: #9ca3af;
-  border: 1px solid #d1d5db;
+  border: 2px solid #d1d5db; /* Match staying-card border width */
   border-radius: 8px;
   background: #f9fafb;
   margin: 0 20px 8px 20px; /* Horizontal margin for timeline indicator space (15px indicator + 5px gap) */
