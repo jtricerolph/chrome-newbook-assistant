@@ -46,7 +46,8 @@ const STATE = {
     staying: 0
   }, // Track scroll positions per tab/date
   restaurantBookings: {}, // Store restaurant bookings by date: { '2026-01-31': [{time, people, name, room}, ...] }
-  stayingDate: new Date().toISOString().split('T')[0] // Current date for staying tab
+  stayingDate: new Date().toISOString().split('T')[0], // Current date for staying tab
+  activeGroupFilter: null // Current group filter (null = show all, number = filter to specific group)
 };
 
 // Global API client (exposed for use by injected template content)
@@ -4010,6 +4011,9 @@ async function loadStayingTab(date = null, force_refresh = false) {
       // Initialize group hover functionality
       initializeGroupHover();
 
+      // Reset group filter when loading new date
+      STATE.activeGroupFilter = null;
+
       // Initialize card expand/collapse
       initializeStayingCards();
     } else if (data.success && (!data.html || data.html.trim() === '')) {
@@ -4024,6 +4028,64 @@ async function loadStayingTab(date = null, force_refresh = false) {
     showError('staying', error.message);
     STATE.loadedBookingIds.staying = null;
   }
+}
+
+/**
+ * Filter staying cards by group ID
+ * @param {number|null} groupId - Group ID to filter by, or null to show all
+ */
+function filterStayingByGroup(groupId) {
+  const cards = document.querySelectorAll('.staying-card');
+
+  if (groupId === null) {
+    // Show all cards
+    cards.forEach(card => {
+      card.style.display = '';
+    });
+    STATE.activeGroupFilter = null;
+  } else {
+    // Filter to specific group
+    cards.forEach(card => {
+      const cardGroupId = card.dataset.groupId;
+      if (cardGroupId === groupId.toString()) {
+        card.style.display = '';
+      } else {
+        card.style.display = 'none';
+      }
+    });
+    STATE.activeGroupFilter = groupId;
+  }
+
+  // Update badge UI to show active filter
+  updateGroupBadgeUI(groupId);
+}
+
+/**
+ * Update visual state of group badges based on active filter
+ * @param {number|null} activeGroupId - Currently active group filter
+ */
+function updateGroupBadgeUI(activeGroupId) {
+  const badges = document.querySelectorAll('.group-id-badge');
+
+  badges.forEach(badge => {
+    // Extract group ID from badge text (e.g., "G#123" -> 123)
+    const badgeGroupId = parseInt(badge.textContent.replace('G#', ''));
+
+    if (activeGroupId === null) {
+      // Reset all badges to default
+      badge.style.backgroundColor = '';
+      badge.style.color = '';
+      badge.style.opacity = '';
+    } else if (badgeGroupId === activeGroupId) {
+      // Highlight active filter badge
+      badge.style.backgroundColor = '#6366f1';
+      badge.style.color = 'white';
+      badge.style.opacity = '';
+    } else {
+      // Dim non-active badges
+      badge.style.opacity = '0.5';
+    }
+  });
 }
 
 /**
@@ -4117,6 +4179,26 @@ function initializeStayingCards() {
         const resosUrl = `https://app.resos.com/${restaurantId}/bookings/timetable/${date}/${resosId}`;
         console.log('Opening ResOS booking in new tab:', resosUrl);
         chrome.tabs.create({ url: resosUrl });
+      }
+    });
+  });
+
+  // Group badge click handlers - toggle group filter
+  stayingTab.querySelectorAll('.group-id-badge').forEach(badge => {
+    badge.addEventListener('click', function(e) {
+      e.stopPropagation(); // Prevent header expansion
+      e.preventDefault();
+
+      // Extract group ID from badge text (e.g., "G#123" -> 123)
+      const groupId = parseInt(this.textContent.replace('G#', ''));
+
+      // Toggle filter: if already filtering this group, clear filter
+      if (STATE.activeGroupFilter === groupId) {
+        console.log('Clearing group filter');
+        filterStayingByGroup(null);
+      } else {
+        console.log('Filtering to group:', groupId);
+        filterStayingByGroup(groupId);
       }
     });
   });
