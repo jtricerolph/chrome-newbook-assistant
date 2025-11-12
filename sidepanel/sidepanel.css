@@ -1502,6 +1502,7 @@ button[data-action].loading::after {
 .staying-list {
   padding: 0;
   margin: 0 -16px; /* Extend beyond .tab-data padding to reach sidepanel edges */
+  overflow-x: clip; /* Clip extending headers without creating scrollbar */
 }
 
 /* Vacant Room Line */
@@ -1596,6 +1597,15 @@ button[data-action].loading::after {
 
 .staying-card[data-status="departed"] .staying-header {
   border: 2px solid #a855f7; /* Purple */
+}
+
+/* Remove borders on extending sides */
+.staying-card[data-spans-previous="true"] .staying-header {
+  border-left: none !important;
+}
+
+.staying-card[data-spans-next="true"] .staying-header {
+  border-right: none !important;
 }
 
 .staying-main-info {
