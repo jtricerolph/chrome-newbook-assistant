@@ -46,8 +46,8 @@ const STATE = {
     staying: 0
   }, // Track scroll positions per tab/date
   restaurantBookings: {}, // Store restaurant bookings by date: { '2026-01-31': [{time, people, name, room}, ...] }
-  stayingDate: new Date().toISOString().split('T')[0], // Current date for staying tab
-  activeGroupFilter: null // Current group filter (null = show all, number = filter to specific group)
+  stayingDate: new Date().toISOString().split('T')[0] // Current date for staying tab
+  // activeGroupFilter moved to window.activeGroupFilter (managed by inline API template script)
 };
 
 // Global API client (exposed for use by injected template content)
@@ -4012,7 +4012,7 @@ async function loadStayingTab(date = null, force_refresh = false) {
       initializeGroupHover();
 
       // Reset group filter when loading new date
-      STATE.activeGroupFilter = null;
+      window.activeGroupFilter = null;
 
       // Initialize card expand/collapse
       initializeStayingCards();
@@ -4030,71 +4030,7 @@ async function loadStayingTab(date = null, force_refresh = false) {
   }
 }
 
-/**
- * Filter staying cards by group ID
- * @param {number|null} groupId - Group ID to filter by, or null to show all
- */
-function filterStayingByGroup(groupId) {
-  const cards = document.querySelectorAll('.staying-card');
-  const vacantRows = document.querySelectorAll('.vacant-room-line');
-
-  if (groupId === null) {
-    // Show all cards and vacant rows
-    cards.forEach(card => {
-      card.style.display = '';
-    });
-    vacantRows.forEach(row => {
-      row.style.display = '';
-    });
-    STATE.activeGroupFilter = null;
-  } else {
-    // Filter to specific group (hide vacant rows and non-matching cards)
-    cards.forEach(card => {
-      const cardGroupId = card.dataset.groupId;
-      if (cardGroupId === groupId.toString()) {
-        card.style.display = '';
-      } else {
-        card.style.display = 'none';
-      }
-    });
-    // Hide all vacant rows when filtering by group
-    vacantRows.forEach(row => {
-      row.style.display = 'none';
-    });
-    STATE.activeGroupFilter = groupId;
-  }
-
-  // Update badge UI to show active filter
-  updateGroupBadgeUI(groupId);
-}
-
-/**
- * Update visual state of group badges based on active filter
- * @param {number|null} activeGroupId - Currently active group filter
- */
-function updateGroupBadgeUI(activeGroupId) {
-  const badges = document.querySelectorAll('.group-id-badge');
-
-  badges.forEach(badge => {
-    // Extract group ID from badge text (e.g., "G#123" -> 123)
-    const badgeGroupId = parseInt(badge.textContent.replace('G#', ''));
-
-    if (activeGroupId === null) {
-      // Reset all badges to default
-      badge.style.backgroundColor = '';
-      badge.style.color = '';
-      badge.style.opacity = '';
-    } else if (badgeGroupId === activeGroupId) {
-      // Highlight active filter badge
-      badge.style.backgroundColor = '#6366f1';
-      badge.style.color = 'white';
-      badge.style.opacity = '';
-    } else {
-      // Dim non-active badges
-      badge.style.opacity = '0.5';
-    }
-  });
-}
+// Group filtering functions moved to API template inline JavaScript (chrome-staying-response.php)
 
 /**
  * Initialize expand/collapse functionality for staying cards
@@ -4103,13 +4039,7 @@ function initializeStayingCards() {
   const stayingTab = document.querySelector('[data-content="staying"] .tab-data');
   if (!stayingTab) return;
 
-  // Expand/collapse headers
-  document.querySelectorAll('.staying-card .staying-header').forEach(header => {
-    header.addEventListener('click', function() {
-      const card = this.closest('.staying-card');
-      card.classList.toggle('expanded');
-    });
-  });
+  // Expand/collapse now handled by inline onclick in API template
 
   // Open booking in NewBook buttons
   stayingTab.querySelectorAll('.open-booking-btn').forEach(button => {
@@ -4191,25 +4121,7 @@ function initializeStayingCards() {
     });
   });
 
-  // Group badge click handlers - toggle group filter
-  stayingTab.querySelectorAll('.group-id-badge').forEach(badge => {
-    badge.addEventListener('click', function(e) {
-      e.stopPropagation(); // Prevent header expansion
-      e.preventDefault();
-
-      // Extract group ID from badge text (e.g., "G#123" -> 123)
-      const groupId = parseInt(this.textContent.replace('G#', ''));
-
-      // Toggle filter: if already filtering this group, clear filter
-      if (STATE.activeGroupFilter === groupId) {
-        console.log('Clearing group filter');
-        filterStayingByGroup(null);
-      } else {
-        console.log('Filtering to group:', groupId);
-        filterStayingByGroup(groupId);
-      }
-    });
-  });
+  // Group badge click handlers moved to API template inline JavaScript
 }
 
 /**
