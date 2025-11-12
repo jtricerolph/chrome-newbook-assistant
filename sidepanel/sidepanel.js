@@ -3435,6 +3435,9 @@ async function loadSummaryTab(force_refresh = false) {
         STATE.loadedBookingIds.summary = true;
         STATE.lastSummaryUpdate = Date.now(); // Track update time only when data changes
         console.log(hasChanged ? 'Summary updated with new data' : 'Summary displayed (no change but manual load)');
+
+        // Initialize group hover functionality
+        initializeGroupHover();
       } else {
         // Only skip display during auto-refresh when nothing changed
         console.log('Summary unchanged during auto-refresh - showing no changes message');
@@ -4123,20 +4126,58 @@ function initializeStayingCards() {
  * Initialize group hover highlighting
  */
 function initializeGroupHover() {
+  // Handle staying tab cards
   document.querySelectorAll('.staying-card[data-group-id]').forEach(card => {
     const groupId = card.dataset.groupId;
+    const header = card.querySelector('.staying-header');
+
+    if (!header) return;
 
     card.addEventListener('mouseenter', function() {
-      // Highlight all cards in the same group
+      // Highlight headers of all cards in the same group
       document.querySelectorAll(`.staying-card[data-group-id="${groupId}"]`).forEach(groupCard => {
-        groupCard.classList.add('group-highlight');
+        const groupHeader = groupCard.querySelector('.staying-header');
+        if (groupHeader) {
+          groupHeader.classList.add('highlighted');
+        }
       });
     });
 
     card.addEventListener('mouseleave', function() {
-      // Remove highlight from all cards in the group
+      // Remove highlight from headers of all cards in the group
       document.querySelectorAll(`.staying-card[data-group-id="${groupId}"]`).forEach(groupCard => {
-        groupCard.classList.remove('group-highlight');
+        const groupHeader = groupCard.querySelector('.staying-header');
+        if (groupHeader) {
+          groupHeader.classList.remove('highlighted');
+        }
+      });
+    });
+  });
+
+  // Handle summary tab cards
+  document.querySelectorAll('.booking-card[data-group-id]').forEach(card => {
+    const groupId = card.dataset.groupId;
+    const header = card.querySelector('.booking-header');
+
+    if (!header) return;
+
+    card.addEventListener('mouseenter', function() {
+      // Highlight headers of all cards in the same group
+      document.querySelectorAll(`.booking-card[data-group-id="${groupId}"]`).forEach(groupCard => {
+        const groupHeader = groupCard.querySelector('.booking-header');
+        if (groupHeader) {
+          groupHeader.classList.add('highlighted');
+        }
+      });
+    });
+
+    card.addEventListener('mouseleave', function() {
+      // Remove highlight from headers of all cards in the group
+      document.querySelectorAll(`.booking-card[data-group-id="${groupId}"]`).forEach(groupCard => {
+        const groupHeader = groupCard.querySelector('.booking-header');
+        if (groupHeader) {
+          groupHeader.classList.remove('highlighted');
+        }
       });
     });
   });
