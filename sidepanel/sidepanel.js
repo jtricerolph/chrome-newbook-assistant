@@ -4209,6 +4209,93 @@ function initializeStayingCards() {
       }
     });
   });
+
+  // Stat filter click handlers - toggle stat filters
+  stayingTab.querySelectorAll('.stat-filter').forEach(filter => {
+    filter.addEventListener('click', function(e) {
+      e.stopPropagation();
+      e.preventDefault();
+
+      const filterType = this.dataset.filter;
+
+      if (window.activeStatFilter === filterType) {
+        console.log('Clearing stat filter');
+        filterStayingByStat(null);
+      } else {
+        console.log('Filtering by stat:', filterType);
+        filterStayingByStat(filterType);
+      }
+    });
+  });
+}
+
+/**
+ * Filter staying cards by stat type
+ * @param {string|null} filterType - Type of filter to apply ('arrivals', 'departs', 'stays', 'twins'), or null to clear
+ */
+function filterStayingByStat(filterType) {
+  const cards = document.querySelectorAll('.staying-card');
+  const vacantRows = document.querySelectorAll('.vacant-room-line');
+
+  if (filterType === null) {
+    // Show all
+    cards.forEach(card => card.style.display = '');
+    vacantRows.forEach(row => row.style.display = '');
+    window.activeStatFilter = null;
+  } else {
+    // Filter based on type
+    cards.forEach(card => {
+      let shouldShow = false;
+
+      switch(filterType) {
+        case 'arrivals':
+          shouldShow = card.dataset.isArriving === 'true';
+          break;
+        case 'departs':
+          shouldShow = card.dataset.isDeparting === 'true';
+          break;
+        case 'stays':
+          shouldShow = card.dataset.isStaying === 'true';
+          break;
+        case 'twins':
+          shouldShow = card.dataset.hasTwin === 'true';
+          break;
+      }
+
+      card.style.display = shouldShow ? '' : 'none';
+    });
+
+    // For 'stays' filter, hide all vacant rows; otherwise show them
+    if (filterType === 'stays') {
+      vacantRows.forEach(row => row.style.display = 'none');
+    } else {
+      vacantRows.forEach(row => row.style.display = '');
+    }
+
+    window.activeStatFilter = filterType;
+  }
+
+  updateStatFilterUI(filterType);
+}
+
+/**
+ * Update visual state of stat filters based on active filter
+ * @param {string|null} activeFilter - Currently active filter type
+ */
+function updateStatFilterUI(activeFilter) {
+  const filters = document.querySelectorAll('.stat-filter');
+
+  filters.forEach(filter => {
+    const filterType = filter.dataset.filter;
+
+    if (activeFilter === null) {
+      filter.classList.remove('active');
+    } else if (filterType === activeFilter) {
+      filter.classList.add('active');
+    } else {
+      filter.classList.remove('active');
+    }
+  });
 }
 
 /**
