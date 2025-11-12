@@ -4126,6 +4126,25 @@ function initializeStayingCards() {
     });
   });
 
+  // Clickable status links (Check Match/Check Update in header) - navigate to Restaurant tab
+  stayingTab.querySelectorAll('.clickable-status').forEach(link => {
+    link.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      const bookingId = this.dataset.bookingId;
+      const date = this.dataset.date;
+      const resosId = this.dataset.resosId;
+      console.log('Check Match/Update clicked - navigating to Restaurant tab:', { bookingId, date, resosId });
+
+      // Navigate to Restaurant tab with date and expand comparison row
+      if (date && resosId) {
+        navigateToRestaurantDate(date, parseInt(bookingId), resosId);
+      } else {
+        navigateToRestaurantDate(date, parseInt(bookingId));
+      }
+    });
+  });
+
   // Clickable issues - navigate to Restaurant tab with comparison row expansion
   stayingTab.querySelectorAll('.clickable-issue').forEach(issue => {
     issue.addEventListener('click', function(e) {
