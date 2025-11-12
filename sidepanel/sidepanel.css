@@ -1512,7 +1512,7 @@ button[data-action].loading::after {
   border: 2px solid #d1d5db; /* Match staying-card border width */
   border-radius: 8px;
   background: #f9fafb;
-  margin: 0 23px 3px 23px; /* Horizontal margin for timeline indicator space (15px indicator + 8px gap), vertical spacing reduced for tighter layout */
+  margin: 0 23px 5px 23px; /* Horizontal margin for timeline indicator space (15px indicator + 8px gap) */
   position: relative; /* For timeline indicator positioning */
   overflow: visible; /* Allow timeline indicators to extend beyond */
 }
@@ -1561,7 +1561,7 @@ button[data-action].loading::after {
 .staying-card {
   background: #fff;
   border-radius: 8px;
-  margin: 0 23px 3px 23px; /* Horizontal margin for timeline indicator space (15px indicator + 8px gap), vertical spacing reduced for tighter layout */
+  margin: 0 23px 5px 23px; /* Horizontal margin for timeline indicator space (15px indicator + 8px gap) */
   transition: all 0.2s;
   position: relative;
 }
