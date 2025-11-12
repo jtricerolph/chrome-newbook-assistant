@@ -1576,6 +1576,9 @@ button[data-action].loading::after {
   align-items: flex-start;
   gap: 8px;
   position: relative;
+  border-radius: 8px 8px 0 0; /* Default: rounded top corners only */
+  background: inherit; /* Inherit background from parent card */
+  overflow: visible; /* Allow timeline extensions to show beyond card bounds */
 }
 
 .staying-main-info {
