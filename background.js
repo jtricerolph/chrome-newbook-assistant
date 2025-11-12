@@ -128,6 +128,19 @@ async function handleTabUpdate(tabId, url) {
   }
 }
 
+// Toolbar icon click handler
+chrome.action.onClicked.addListener(async (tab) => {
+  console.log('Toolbar icon clicked for tab:', tab.id);
+
+  try {
+    // Open sidepanel for the current tab
+    await chrome.sidePanel.open({ tabId: tab.id });
+    console.log('Sidepanel opened via toolbar icon');
+  } catch (error) {
+    console.error('Failed to open sidepanel:', error);
+  }
+});
+
 // Message Listener
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'settingsUpdated') {
@@ -169,10 +182,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     chrome.sidePanel.open({ tabId: sender.tab.id })
       .then(() => {
         console.log('Sidepanel opened for tab:', sender.tab.id);
+        // Notify content script that sidepanel was opened
+        chrome.tabs.sendMessage(sender.tab.id, { action: 'sidepanelOpened' }).catch(() => {});
       })
       .catch((error) => {
         console.error('Failed to open sidepanel:', error);
       });
+  } else if (message.action === 'sidepanelClosed') {
+    // Sidepanel was closed, notify content script to show button
+    console.log('Sidepanel closed, notifying content script');
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0]) {
+        chrome.tabs.sendMessage(tabs[0].id, { action: 'showOpenButton' }).catch(() => {});
+      }
+    });
   }
 
   return true;

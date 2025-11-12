@@ -4714,5 +4714,13 @@ window.reloadRestaurantTab = function() {
   loadRestaurantTab();
 };
 
+// Notify background when sidepanel is closing
+window.addEventListener('pagehide', () => {
+  console.log('Sidepanel closing, notifying background');
+  chrome.runtime.sendMessage({ action: 'sidepanelClosed' }).catch(() => {
+    // Background might not be available during unload
+  });
+});
+
 // Start the app
 document.addEventListener('DOMContentLoaded', init);
