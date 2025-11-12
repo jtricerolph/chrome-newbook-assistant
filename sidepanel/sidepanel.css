@@ -95,6 +95,7 @@ body {
   flex: 1;
   overflow-y: auto;
   overflow-x: visible; /* Allow timeline indicators to show beyond edges */
+  scrollbar-gutter: stable; /* Reserve space for scrollbar to prevent width jumping */
 }
 
 .tab-content {
@@ -103,7 +104,14 @@ body {
 }
 
 .tab-content.active {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+/* Tab data area - grows to fill space, pushing last-updated to bottom */
+.tab-content.active .tab-data {
+  flex: 1;
 }
 
 /* Loading State */
@@ -1500,7 +1508,7 @@ button[data-action].loading::after {
 
 /* Staying List Container */
 .staying-list {
-  padding: 0;
+  padding: 0 0 100px 0; /* Bottom padding for dead space to prevent scrollbar appearing/disappearing */
   margin: 0 -16px; /* Extend beyond .tab-data padding to reach sidepanel edges */
   overflow-x: clip; /* Clip extending headers without creating scrollbar */
 }
