@@ -1510,8 +1510,8 @@ button[data-action].loading::after {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 12px;
-  font-size: 12px;
+  padding: 8px; /* Match staying-header padding */
+  font-size: 14px; /* Match booking font size */
   color: #9ca3af;
   border: 1px solid #d1d5db;
   border-radius: 8px;
@@ -1525,11 +1525,16 @@ button[data-action].loading::after {
   font-weight: 600;
   color: #6b7280;
   min-width: 40px;
+  background: #e5e7eb; /* Grey badge background */
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 13px;
 }
 
 .vacant-room-line .vacant-label {
   font-style: italic;
   color: #9ca3af;
+  font-size: 14px;
 }
 
 /* Vacant room spanning - remove borders on extending sides */
