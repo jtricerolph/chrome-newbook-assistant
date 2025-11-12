@@ -1500,7 +1500,8 @@ button[data-action].loading::after {
 
 /* Staying List Container */
 .staying-list {
-  padding: 0 35px; /* Add horizontal padding for timeline indicators (30px + 5px margin) */
+  padding: 0;
+  margin: 0 -16px; /* Extend beyond .tab-data padding to reach sidepanel edges */
 }
 
 /* Vacant Room Line */
@@ -1514,7 +1515,7 @@ button[data-action].loading::after {
   border: 1px solid #d1d5db;
   border-radius: 8px;
   background: #f9fafb;
-  margin-bottom: 8px;
+  margin: 0 35px 8px 35px; /* Horizontal margin for timeline indicator space */
 }
 
 .vacant-room-line .room-number {
@@ -1532,7 +1533,7 @@ button[data-action].loading::after {
 .staying-card {
   background: #fff;
   border-radius: 8px;
-  margin-bottom: 8px;
+  margin: 0 35px 8px 35px; /* Horizontal margin for timeline indicator space */
   transition: all 0.2s;
   position: relative;
 }
