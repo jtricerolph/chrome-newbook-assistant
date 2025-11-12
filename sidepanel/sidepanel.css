@@ -1627,6 +1627,32 @@ button[data-action].loading::after {
   border-right: none !important;
 }
 
+/* When expanded with vacant indicators - remove bottom corner radius to connect with details */
+.staying-card.expanded[data-previous-vacant="true"] .staying-header {
+  border-radius: 8px 8px 8px 0 !important; /* Remove bottom-left radius */
+}
+
+.staying-card.expanded[data-next-vacant="true"] .staying-header {
+  border-radius: 8px 8px 0 8px !important; /* Remove bottom-right radius */
+}
+
+.staying-card.expanded[data-previous-vacant="true"][data-next-vacant="true"] .staying-header {
+  border-radius: 8px 8px 0 0 !important; /* Remove both bottom corners */
+}
+
+/* Spanning bookings when expanded - connect bottom to expanded section */
+.staying-card.expanded[data-spans-previous="true"]:not([data-spans-next="true"]) .staying-header {
+  border-radius: 0 8px 0 0 !important; /* Left flat, only top-right rounded */
+}
+
+.staying-card.expanded[data-spans-next="true"]:not([data-spans-previous="true"]) .staying-header {
+  border-radius: 8px 0 0 0 !important; /* Right flat, only top-left rounded */
+}
+
+.staying-card.expanded[data-spans-previous="true"][data-spans-next="true"] .staying-header {
+  border-radius: 0 !important; /* All corners square when spanning both sides */
+}
+
 .staying-main-info {
   flex: 1;
   display: flex;
