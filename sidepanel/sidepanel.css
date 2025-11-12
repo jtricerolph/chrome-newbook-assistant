@@ -1517,6 +1517,8 @@ button[data-action].loading::after {
   border-radius: 8px;
   background: #f9fafb;
   margin: 0 20px 8px 20px; /* Horizontal margin for timeline indicator space (15px indicator + 5px gap) */
+  position: relative; /* For timeline indicator positioning */
+  overflow: visible; /* Allow timeline indicators to extend beyond */
 }
 
 .vacant-room-line .room-number {
@@ -1528,6 +1530,23 @@ button[data-action].loading::after {
 .vacant-room-line .vacant-label {
   font-style: italic;
   color: #9ca3af;
+}
+
+/* Vacant room spanning - remove borders on extending sides */
+.vacant-room-line[data-spans-previous="true"] {
+  border-left: none;
+  border-radius: 0 8px 8px 0;
+}
+
+.vacant-room-line[data-spans-next="true"] {
+  border-right: none;
+  border-radius: 8px 0 0 8px;
+}
+
+.vacant-room-line[data-spans-previous="true"][data-spans-next="true"] {
+  border-left: none;
+  border-right: none;
+  border-radius: 0;
 }
 
 /* Staying Booking Cards */
