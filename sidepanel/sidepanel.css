@@ -1627,7 +1627,9 @@ button[data-action].loading::after {
   border-right: none !important;
 }
 
-/* When expanded with vacant indicators - remove bottom corner radius to connect with details */
+/* When expanded with timeline indicators - remove bottom corner radius to connect with details */
+
+/* Grey vacant indicators */
 .staying-card.expanded[data-previous-vacant="true"] .staying-header {
   border-radius: 8px 8px 8px 0 !important; /* Remove bottom-left radius */
 }
@@ -1637,6 +1639,25 @@ button[data-action].loading::after {
 }
 
 .staying-card.expanded[data-previous-vacant="true"][data-next-vacant="true"] .staying-header {
+  border-radius: 8px 8px 0 0 !important; /* Remove both bottom corners */
+}
+
+/* Colored status indicators (different booking on adjacent night) */
+.staying-card.expanded[data-previous-status]:not([data-previous-status=""]) .staying-header {
+  border-radius: 8px 8px 8px 0 !important; /* Remove bottom-left radius */
+}
+
+.staying-card.expanded[data-next-status]:not([data-next-status=""]) .staying-header {
+  border-radius: 8px 8px 0 8px !important; /* Remove bottom-right radius */
+}
+
+.staying-card.expanded[data-previous-status]:not([data-previous-status=""])[data-next-status]:not([data-next-status=""]) .staying-header {
+  border-radius: 8px 8px 0 0 !important; /* Remove both bottom corners */
+}
+
+/* Mixed indicators - vacant on one side, status on other */
+.staying-card.expanded[data-previous-vacant="true"][data-next-status]:not([data-next-status=""]) .staying-header,
+.staying-card.expanded[data-previous-status]:not([data-previous-status=""])[data-next-vacant="true"] .staying-header {
   border-radius: 8px 8px 0 0 !important; /* Remove both bottom corners */
 }
 
