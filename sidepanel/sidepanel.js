@@ -4036,15 +4036,19 @@ async function loadStayingTab(date = null, force_refresh = false) {
  */
 function filterStayingByGroup(groupId) {
   const cards = document.querySelectorAll('.staying-card');
+  const vacantRows = document.querySelectorAll('.vacant-room-line');
 
   if (groupId === null) {
-    // Show all cards
+    // Show all cards and vacant rows
     cards.forEach(card => {
       card.style.display = '';
     });
+    vacantRows.forEach(row => {
+      row.style.display = '';
+    });
     STATE.activeGroupFilter = null;
   } else {
-    // Filter to specific group
+    // Filter to specific group (hide vacant rows and non-matching cards)
     cards.forEach(card => {
       const cardGroupId = card.dataset.groupId;
       if (cardGroupId === groupId.toString()) {
@@ -4052,6 +4056,10 @@ function filterStayingByGroup(groupId) {
       } else {
         card.style.display = 'none';
       }
+    });
+    // Hide all vacant rows when filtering by group
+    vacantRows.forEach(row => {
+      row.style.display = 'none';
     });
     STATE.activeGroupFilter = groupId;
   }
