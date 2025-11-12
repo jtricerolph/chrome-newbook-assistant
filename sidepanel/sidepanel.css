@@ -1507,11 +1507,7 @@ button[data-action].loading::after {
 
 /* Vacant Room Line */
 .vacant-room-line {
-  display: flex;
-  align-items: center;
-  gap: 6px;
   padding: 8px; /* Match staying-header padding */
-  font-size: 14px; /* Match booking font size */
   color: #9ca3af;
   border: 1px solid #d1d5db;
   border-radius: 8px;
@@ -1519,6 +1515,13 @@ button[data-action].loading::after {
   margin: 0 20px 8px 20px; /* Horizontal margin for timeline indicator space (15px indicator + 5px gap) */
   position: relative; /* For timeline indicator positioning */
   overflow: visible; /* Allow timeline indicators to extend beyond */
+}
+
+/* Vacant room content wrapper - matches staying-guest-line layout */
+.vacant-room-content {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .vacant-room-line .room-number {
