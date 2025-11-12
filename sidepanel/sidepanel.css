@@ -1515,7 +1515,7 @@ button[data-action].loading::after {
   border: 1px solid #d1d5db;
   border-radius: 8px;
   background: #f9fafb;
-  margin: 0 35px 8px 35px; /* Horizontal margin for timeline indicator space */
+  margin: 0 20px 8px 20px; /* Horizontal margin for timeline indicator space (15px indicator + 5px gap) */
 }
 
 .vacant-room-line .room-number {
@@ -1533,7 +1533,7 @@ button[data-action].loading::after {
 .staying-card {
   background: #fff;
   border-radius: 8px;
-  margin: 0 35px 8px 35px; /* Horizontal margin for timeline indicator space */
+  margin: 0 20px 8px 20px; /* Horizontal margin for timeline indicator space (15px indicator + 5px gap) */
   transition: all 0.2s;
   position: relative;
 }
