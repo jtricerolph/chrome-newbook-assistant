@@ -94,7 +94,7 @@ body {
 .tab-contents {
   flex: 1;
   overflow-y: auto;
-  overflow-x: hidden;
+  overflow-x: visible; /* Allow timeline indicators to show beyond edges */
 }
 
 .tab-content {
@@ -1500,7 +1500,7 @@ button[data-action].loading::after {
 
 /* Staying List Container */
 .staying-list {
-  padding: 0;
+  padding: 0 35px; /* Add horizontal padding for timeline indicators (30px + 5px margin) */
 }
 
 /* Vacant Room Line */
