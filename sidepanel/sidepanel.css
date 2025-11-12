@@ -1576,30 +1576,26 @@ button[data-action].loading::after {
   align-items: flex-start;
   gap: 8px;
   position: relative;
-  border-radius: 8px 8px 0 0; /* Default: rounded top corners only */
+  border-radius: 8px; /* Default: fully rounded */
   background: white;
   overflow: visible; /* Allow timeline extensions to show beyond card bounds */
 }
 
-/* Header borders matching status colors */
+/* Header borders matching status colors - fully wrapped */
 .staying-card[data-status="arrived"] .staying-header {
   border: 2px solid #3b82f6; /* Blue */
-  border-bottom: none;
 }
 
 .staying-card[data-status="confirmed"] .staying-header {
   border: 2px solid #10b981; /* Green */
-  border-bottom: none;
 }
 
 .staying-card[data-status="unconfirmed"] .staying-header {
   border: 2px solid #f59e0b; /* Amber */
-  border-bottom: none;
 }
 
 .staying-card[data-status="departed"] .staying-header {
   border: 2px solid #a855f7; /* Purple */
-  border-bottom: none;
 }
 
 .staying-main-info {
