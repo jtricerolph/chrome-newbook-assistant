@@ -1883,6 +1883,15 @@ function attachRestaurantEventListeners(container) {
 
         case 'manage-group':
           if (typeof window.openGroupManagementModal === 'function') {
+            console.log('BMA: Manage Group button clicked, data attributes:', {
+              resosBookingId: button.dataset.resosBookingId,
+              hotelBookingId: button.dataset.hotelBookingId,
+              date: button.dataset.date,
+              resosTime: button.dataset.resosTime,
+              resosGuest: button.dataset.resosGuest,
+              resosPeople: button.dataset.resosPeople,
+              groupExclude: button.dataset.groupExclude
+            });
             await window.openGroupManagementModal(
               button.dataset.resosBookingId,
               button.dataset.hotelBookingId,
@@ -4669,7 +4678,10 @@ async function openGroupManagementModal(resosBookingId, hotelBookingId, date, re
   GROUP_MODAL_STATE.hotelBookingId = hotelBookingId;
   GROUP_MODAL_STATE.date = date;
   GROUP_MODAL_STATE.resosBooking = { time: resosTime, guest_name: resosGuest, people: resosPeople };
+
+  console.log('BMA: openGroupManagementModal - groupExcludeField raw:', groupExcludeField);
   GROUP_MODAL_STATE.groupExcludeData = parseGroupExcludeField(groupExcludeField);
+  console.log('BMA: openGroupManagementModal - parsed groupExcludeData:', GROUP_MODAL_STATE.groupExcludeData);
 
   // Show modal
   modal.classList.remove('hidden');
@@ -4837,6 +4849,9 @@ function renderBookingsTable(bookings, isGroupSection) {
     // Group checkbox - pre-select if in GROUP/EXCLUDE field
     html += '<td>';
     const isInGroupField = groupExcludeData.groups.includes(String(booking.booking_id));
+    if (isInGroupField) {
+      console.log('BMA: Booking', booking.booking_id, 'is in GROUP/EXCLUDE field, should be pre-selected');
+    }
     const autoChecked = (isGroupSection && linkWhole) || isCurrentBooking || isInGroupField;
     const groupCheckedAttr = autoChecked ? ' checked' : '';
     html += `<input type="checkbox" value="${booking.booking_id}" class="group-checkbox"${groupCheckedAttr}>`;
