@@ -1563,18 +1563,15 @@ function showData(tabName, html) {
   dataElement.innerHTML = html;
   dataElement.classList.remove('hidden');
 
-  // Execute scripts manually (innerHTML doesn't execute them)
+  // Execute scripts using eval (now allowed by CSP with 'unsafe-eval')
   const scripts = dataElement.querySelectorAll('script');
-  scripts.forEach(oldScript => {
-    const newScript = document.createElement('script');
-    // Copy all attributes
-    Array.from(oldScript.attributes).forEach(attr => {
-      newScript.setAttribute(attr.name, attr.value);
-    });
-    // Copy script content
-    newScript.textContent = oldScript.textContent;
-    // Replace old script with new one to trigger execution
-    oldScript.parentNode.replaceChild(newScript, oldScript);
+  scripts.forEach(script => {
+    try {
+      // Use indirect eval to execute in global scope
+      (0, eval)(script.textContent);
+    } catch (error) {
+      console.error('Error executing template script:', error);
+    }
   });
 
   tabContent.querySelector('.tab-loading').classList.add('hidden');
