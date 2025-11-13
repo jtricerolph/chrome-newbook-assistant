@@ -1598,6 +1598,8 @@ function showData(tabName, html) {
   // Attach event listeners for Restaurant tab buttons
   if (tabName === 'restaurant') {
     attachRestaurantEventListeners(dataElement);
+    // Initialize GROUP modal event listeners after template loads
+    initializeGroupModal();
   }
 
   // Check for stale cache indicators and schedule auto-refresh if enabled
@@ -4941,15 +4943,22 @@ window.openGroupManagementModal = openGroupManagementModal;
 // Initialize group modal event listeners
 function initializeGroupModal() {
   const modal = document.getElementById('group-management-modal');
+  if (!modal) {
+    BMA_LOG.log('GROUP modal not found, skipping initialization');
+    return;
+  }
+
   const closeBtn = modal.querySelector('.group-modal-close');
   const cancelBtn = modal.querySelector('.group-modal-cancel');
   const saveBtn = modal.querySelector('.group-modal-save');
   const overlay = modal.querySelector('.group-modal-overlay');
 
-  closeBtn.addEventListener('click', closeGroupModal);
-  cancelBtn.addEventListener('click', closeGroupModal);
-  overlay.addEventListener('click', closeGroupModal);
-  saveBtn.addEventListener('click', saveGroupConfiguration);
+  if (closeBtn) closeBtn.addEventListener('click', closeGroupModal);
+  if (cancelBtn) cancelBtn.addEventListener('click', closeGroupModal);
+  if (overlay) overlay.addEventListener('click', closeGroupModal);
+  if (saveBtn) saveBtn.addEventListener('click', saveGroupConfiguration);
+
+  BMA_LOG.log('GROUP modal event listeners initialized');
 }
 
 // ============================================
