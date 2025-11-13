@@ -1660,6 +1660,20 @@ button[data-action].loading::after {
   font-size: 14px;
 }
 
+.group-modal-resos-info {
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  background: #f0f9ff;
+  border-left: 3px solid #3b82f6;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #1e40af;
+}
+
+.group-modal-resos-info strong {
+  color: #1e3a8a;
+}
+
 .group-link-toggle {
   margin-bottom: 20px;
   padding: 12px;
@@ -1730,7 +1744,7 @@ button[data-action].loading::after {
   font-size: 12px;
   font-weight: 600;
   color: #6b7280;
-  padding: 8px 4px;
+  padding: 6px 4px;
   border-bottom: 1px solid #e5e7eb;
 }
 
@@ -1747,8 +1761,14 @@ button[data-action].loading::after {
 }
 
 .group-bookings-table td {
-  padding: 8px 4px;
+  padding: 4px 4px;
   font-size: 13px;
+}
+
+.booking-info-compact {
+  font-size: 13px;
+  line-height: 1.4;
+  color: #374151;
 }
 
 .group-bookings-table input[type="radio"],
