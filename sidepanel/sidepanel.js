@@ -1854,6 +1854,19 @@ function attachRestaurantEventListeners(container) {
             button.dataset.isConfirmed === 'true'
           );
           break;
+
+        case 'manage-group':
+          if (typeof window.openGroupManagementModal === 'function') {
+            await window.openGroupManagementModal(
+              button.dataset.resosBookingId,
+              button.dataset.hotelBookingId,
+              button.dataset.date
+            );
+          } else {
+            console.error('openGroupManagementModal function not found');
+            showToast('Group management feature not available', 'error');
+          }
+          break;
       }
     } catch (error) {
       console.error('Error handling restaurant action:', error);
