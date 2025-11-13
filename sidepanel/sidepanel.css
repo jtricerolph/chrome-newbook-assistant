@@ -1652,14 +1652,6 @@ button[data-action].loading::after {
   flex: 1;
 }
 
-.group-modal-date {
-  margin-bottom: 16px;
-  padding: 12px;
-  background: #f9fafb;
-  border-radius: 4px;
-  font-size: 14px;
-}
-
 .group-modal-resos-info {
   margin-bottom: 16px;
   padding: 10px 12px;

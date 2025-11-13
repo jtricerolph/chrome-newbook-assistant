@@ -4667,7 +4667,6 @@ function getAPIConfig() {
 // Open group management modal
 async function openGroupManagementModal(resosBookingId, hotelBookingId, date, resosTime = '', resosGuest = '', resosPeople = '0', resosBookingRef = '', groupExcludeField = '') {
   const modal = document.getElementById('group-management-modal');
-  const dateValue = document.getElementById('group-modal-date-value');
   const resosInfo = document.getElementById('group-modal-resos-info');
   const groupSection = document.getElementById('group-section-container');
   const otherSection = document.getElementById('other-section-container');
@@ -4689,11 +4688,10 @@ async function openGroupManagementModal(resosBookingId, hotelBookingId, date, re
 
   // Show modal
   modal.classList.remove('hidden');
-  dateValue.textContent = date;
 
   // Show ResOS booking info
-  const time = resosTime || 'N/A';
-  const guestName = resosGuest || 'Unknown';
+  const time = (resosTime && resosTime.trim()) || 'N/A';
+  const guestName = (resosGuest && resosGuest.trim()) || 'Unknown';
   const people = resosPeople || '0';
   resosInfo.innerHTML = `<strong>ResOS Booking:</strong> ${time} - ${guestName} (${people} pax)`;
 
