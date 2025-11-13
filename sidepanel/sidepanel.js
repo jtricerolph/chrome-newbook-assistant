@@ -4218,12 +4218,30 @@ function initializeStayingCards() {
 
       const filterType = this.dataset.filter;
 
-      if (window.activeStatFilter === filterType) {
-        console.log('Clearing stat filter');
-        filterStayingByStat(null);
+      // Restaurant filter has 3 modes: off -> has-match (green/tick) -> no-match (red/plus) -> off
+      if (filterType === 'restaurant') {
+        if (!window.activeStatFilter) {
+          // Off -> Show with matches (green)
+          console.log('Filtering restaurant: has match');
+          filterStayingByStat('restaurant-has-match');
+        } else if (window.activeStatFilter === 'restaurant-has-match') {
+          // Has match -> Show without matches (red)
+          console.log('Filtering restaurant: no match');
+          filterStayingByStat('restaurant-no-match');
+        } else {
+          // No match -> Off
+          console.log('Clearing restaurant filter');
+          filterStayingByStat(null);
+        }
       } else {
-        console.log('Filtering by stat:', filterType);
-        filterStayingByStat(filterType);
+        // Normal toggle behavior for other filters
+        if (window.activeStatFilter === filterType) {
+          console.log('Clearing stat filter');
+          filterStayingByStat(null);
+        } else {
+          console.log('Filtering by stat:', filterType);
+          filterStayingByStat(filterType);
+        }
       }
     });
   });
@@ -4257,11 +4275,20 @@ function filterStayingByStat(filterType) {
         case 'stopovers':
           shouldShow = card.dataset.isStopover === 'true';
           break;
+        case 'in-house':
+          shouldShow = true; // Show all booked rooms (vacant excluded below)
+          break;
         case 'occupancy':
-          shouldShow = true; // Show all booked rooms
+          shouldShow = true; // Show all booked rooms (vacant excluded below)
           break;
         case 'twins':
           shouldShow = card.dataset.hasTwin === 'true';
+          break;
+        case 'restaurant-has-match':
+          shouldShow = card.dataset.hasRestaurantMatch === 'true';
+          break;
+        case 'restaurant-no-match':
+          shouldShow = card.dataset.hasRestaurantMatch === 'false';
           break;
       }
 
@@ -4287,12 +4314,32 @@ function updateStatFilterUI(activeFilter) {
   filters.forEach(filter => {
     const filterType = filter.dataset.filter;
 
+    // Remove all state classes
+    filter.classList.remove('active', 'restaurant-has-match', 'restaurant-no-match');
+
+    // Remove any existing corner icons
+    const existingIcon = filter.querySelector('.filter-corner-icon');
+    if (existingIcon) {
+      existingIcon.remove();
+    }
+
     if (activeFilter === null) {
-      filter.classList.remove('active');
+      // No filter active
+      return;
+    }
+
+    // Handle restaurant filter special states
+    if (filterType === 'restaurant' && (activeFilter === 'restaurant-has-match' || activeFilter === 'restaurant-no-match')) {
+      filter.classList.add(activeFilter);
+
+      // Add corner icon
+      const cornerIcon = document.createElement('span');
+      cornerIcon.className = 'material-symbols-outlined filter-corner-icon';
+      cornerIcon.textContent = activeFilter === 'restaurant-has-match' ? 'check' : 'add';
+      filter.appendChild(cornerIcon);
     } else if (filterType === activeFilter) {
+      // Normal active state for other filters
       filter.classList.add('active');
-    } else {
-      filter.classList.remove('active');
     }
   });
 }
