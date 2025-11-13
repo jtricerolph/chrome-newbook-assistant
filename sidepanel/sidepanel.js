@@ -2773,13 +2773,21 @@ function attachRestaurantEventListeners(container) {
         body: JSON.stringify({
           booking_id: bookingId,
           resos_booking_id: resosBookingId,
-          date: date
+          date: date,
+          context: 'chrome-sidepanel'
         })
       });
 
       const result = await response.json();
 
-      if (result.success && result.comparison) {
+      if (result.success && result.html) {
+        // Use server-generated HTML (includes Manage Group button!)
+        comparisonContainer.innerHTML = result.html;
+
+        // Add event listeners for visual feedback on checkbox changes
+        setupComparisonCheckboxListeners(comparisonContainer);
+      } else if (result.success && result.comparison) {
+        // Fallback to client-side HTML generation for backward compatibility
         const comparisonHTML = buildComparisonHTML(result.comparison, date, resosBookingId, isConfirmed, isMatchedElsewhere, hotelBookingId, guestName);
         comparisonContainer.innerHTML = comparisonHTML;
 
