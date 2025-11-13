@@ -50,6 +50,29 @@ const STATE = {
   // activeGroupFilter moved to window.activeGroupFilter (managed by inline API template script)
 };
 
+// Debug logging utility - respects enableDebugLogging setting
+const BMA_LOG = {
+  log: (...args) => {
+    if (STATE.settings?.enableDebugLogging) {
+      console.log(...args);
+    }
+  },
+  warn: (...args) => {
+    if (STATE.settings?.enableDebugLogging) {
+      console.warn(...args);
+    }
+  },
+  error: (...args) => {
+    // Always log errors
+    console.error(...args);
+  },
+  info: (...args) => {
+    if (STATE.settings?.enableDebugLogging) {
+      console.info(...args);
+    }
+  }
+};
+
 // Global API client (exposed for use by injected template content)
 window.apiClient = null;
 

@@ -10,7 +10,8 @@ const DEFAULT_SETTINGS = {
   highlightNewestMinutes: 60,
   inactivityTimeout: 60,
   pauseInactivityWhenFormOpen: true,
-  autoRefreshOnStaleCache: true
+  autoRefreshOnStaleCache: true,
+  enableDebugLogging: false
 };
 
 // DOM elements
@@ -26,6 +27,7 @@ const elements = {
   autoRefreshOnStaleCache: document.getElementById('autoRefreshOnStaleCache'),
   inactivityTimeout: document.getElementById('inactivityTimeout'),
   pauseInactivityWhenFormOpen: document.getElementById('pauseInactivityWhenFormOpen'),
+  enableDebugLogging: document.getElementById('enableDebugLogging'),
   testConnection: document.getElementById('testConnection'),
   saveSettings: document.getElementById('saveSettings'),
   status: document.getElementById('status')
@@ -48,6 +50,7 @@ async function loadSettings() {
     elements.autoRefreshOnStaleCache.checked = settings.autoRefreshOnStaleCache !== false;
     elements.inactivityTimeout.value = settings.inactivityTimeout || 60;
     elements.pauseInactivityWhenFormOpen.checked = settings.pauseInactivityWhenFormOpen !== false;
+    elements.enableDebugLogging.checked = settings.enableDebugLogging === true;
   } catch (error) {
     showStatus('Error loading settings: ' + error.message, 'error');
   }
@@ -129,7 +132,8 @@ async function saveSettings() {
       highlightNewestMinutes: highlightMinutes,
       autoRefreshOnStaleCache: elements.autoRefreshOnStaleCache.checked,
       inactivityTimeout: inactivityTimeout,
-      pauseInactivityWhenFormOpen: elements.pauseInactivityWhenFormOpen.checked
+      pauseInactivityWhenFormOpen: elements.pauseInactivityWhenFormOpen.checked,
+      enableDebugLogging: elements.enableDebugLogging.checked
     };
 
     await chrome.storage.sync.set({ settings });
