@@ -4268,12 +4268,8 @@ function filterStayingByStat(filterType) {
       card.style.display = shouldShow ? '' : 'none';
     });
 
-    // For 'stopovers' and 'occupancy' filters, hide all vacant rows; otherwise show them
-    if (filterType === 'stopovers' || filterType === 'occupancy') {
-      vacantRows.forEach(row => row.style.display = 'none');
-    } else {
-      vacantRows.forEach(row => row.style.display = '');
-    }
+    // All filters exclude vacant rooms
+    vacantRows.forEach(row => row.style.display = 'none');
 
     window.activeStatFilter = filterType;
   }
