@@ -1563,17 +1563,6 @@ function showData(tabName, html) {
   dataElement.innerHTML = html;
   dataElement.classList.remove('hidden');
 
-  // Execute scripts using eval (now allowed by CSP with 'unsafe-eval')
-  const scripts = dataElement.querySelectorAll('script');
-  scripts.forEach(script => {
-    try {
-      // Use indirect eval to execute in global scope
-      (0, eval)(script.textContent);
-    } catch (error) {
-      console.error('Error executing template script:', error);
-    }
-  });
-
   tabContent.querySelector('.tab-loading').classList.add('hidden');
   tabContent.querySelector('.tab-error').classList.add('hidden');
   tabContent.querySelector('.tab-empty')?.classList.add('hidden');
