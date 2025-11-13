@@ -4231,7 +4231,7 @@ function initializeStayingCards() {
 
 /**
  * Filter staying cards by stat type
- * @param {string|null} filterType - Type of filter to apply ('arrivals', 'departs', 'stays', 'twins'), or null to clear
+ * @param {string|null} filterType - Type of filter to apply ('arrivals', 'departs', 'stopovers', 'twins'), or null to clear
  */
 function filterStayingByStat(filterType) {
   const cards = document.querySelectorAll('.staying-card');
@@ -4254,8 +4254,8 @@ function filterStayingByStat(filterType) {
         case 'departs':
           shouldShow = card.dataset.isDeparting === 'true';
           break;
-        case 'stays':
-          shouldShow = card.dataset.isStaying === 'true';
+        case 'stopovers':
+          shouldShow = card.dataset.isStopover === 'true';
           break;
         case 'twins':
           shouldShow = card.dataset.hasTwin === 'true';
@@ -4265,8 +4265,8 @@ function filterStayingByStat(filterType) {
       card.style.display = shouldShow ? '' : 'none';
     });
 
-    // For 'stays' filter, hide all vacant rows; otherwise show them
-    if (filterType === 'stays') {
+    // For 'stopovers' filter, hide all vacant rows; otherwise show them
+    if (filterType === 'stopovers') {
       vacantRows.forEach(row => row.style.display = 'none');
     } else {
       vacantRows.forEach(row => row.style.display = '');
