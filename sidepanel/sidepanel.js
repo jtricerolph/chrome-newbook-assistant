@@ -4661,8 +4661,8 @@ async function openGroupManagementModal(resosBookingId, hotelBookingId, date) {
   error.classList.add('hidden');
 
   try {
-    // Fetch bookings for date
-    const bookingsData = await fetchBookingsForDate(date, hotelBookingId);
+    // Fetch bookings for date (include current booking in list)
+    const bookingsData = await fetchBookingsForDate(date);
 
     GROUP_MODAL_STATE.bookings = bookingsData.bookings;
     GROUP_MODAL_STATE.groups = bookingsData.groups;
@@ -4784,7 +4784,9 @@ function renderBookingsTable(bookings, isGroupSection) {
 
     // Lead radio
     html += '<td>';
-    html += `<input type="radio" name="lead-booking" value="${booking.booking_id}" class="lead-radio">`;
+    const isCurrentBooking = booking.booking_id == GROUP_MODAL_STATE.hotelBookingId;
+    const checkedAttr = isCurrentBooking ? ' checked' : '';
+    html += `<input type="radio" name="lead-booking" value="${booking.booking_id}" class="lead-radio"${checkedAttr}>`;
     html += '</td>';
 
     // Group/Exclude checkbox
