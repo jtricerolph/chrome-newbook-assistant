@@ -4694,7 +4694,7 @@ async function fetchBookingsForDate(date, excludeBookingId) {
 
   const response = await fetch(url, {
     headers: {
-      'Authorization': `Basic ${config.auth}`,
+      'Authorization': config.authHeader,
       'Content-Type': 'application/json'
     }
   });
