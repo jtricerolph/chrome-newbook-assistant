@@ -1886,7 +1886,11 @@ function attachRestaurantEventListeners(container) {
             await window.openGroupManagementModal(
               button.dataset.resosBookingId,
               button.dataset.hotelBookingId,
-              button.dataset.date
+              button.dataset.date,
+              button.dataset.resosTime || '',
+              button.dataset.resosGuest || '',
+              button.dataset.resosPeople || '0',
+              button.dataset.groupExclude || ''
             );
           } else {
             BMA_LOG.error('openGroupManagementModal function not found');
@@ -4650,7 +4654,7 @@ function getAPIConfig() {
 }
 
 // Open group management modal
-async function openGroupManagementModal(resosBookingId, hotelBookingId, date) {
+async function openGroupManagementModal(resosBookingId, hotelBookingId, date, resosTime = '', resosGuest = '', resosPeople = '0', groupExcludeField = '') {
   const modal = document.getElementById('group-management-modal');
   const dateValue = document.getElementById('group-modal-date-value');
   const resosInfo = document.getElementById('group-modal-resos-info');
@@ -4664,12 +4668,18 @@ async function openGroupManagementModal(resosBookingId, hotelBookingId, date) {
   GROUP_MODAL_STATE.resosBookingId = resosBookingId;
   GROUP_MODAL_STATE.hotelBookingId = hotelBookingId;
   GROUP_MODAL_STATE.date = date;
-  GROUP_MODAL_STATE.resosBooking = null;
-  GROUP_MODAL_STATE.groupExcludeData = null;
+  GROUP_MODAL_STATE.resosBooking = { time: resosTime, guest_name: resosGuest, people: resosPeople };
+  GROUP_MODAL_STATE.groupExcludeData = parseGroupExcludeField(groupExcludeField);
 
   // Show modal
   modal.classList.remove('hidden');
   dateValue.textContent = date;
+
+  // Show ResOS booking info
+  const time = resosTime || 'N/A';
+  const guestName = resosGuest || 'Unknown';
+  const people = resosPeople || '0';
+  resosInfo.innerHTML = `<strong>ResOS Booking:</strong> ${time} - ${guestName} (${people} pax)`;
 
   // Show loading
   loading.classList.remove('hidden');
@@ -4677,29 +4687,15 @@ async function openGroupManagementModal(resosBookingId, hotelBookingId, date) {
   error.classList.add('hidden');
 
   try {
-    // Fetch ResOS booking details and bookings for date in parallel
-    const [resosBookingData, bookingsData] = await Promise.all([
-      fetchResosBookingDetails(resosBookingId),
-      fetchBookingsForDate(date)
-    ]);
+    // Fetch bookings for date
+    const bookingsData = await fetchBookingsForDate(date);
 
-    GROUP_MODAL_STATE.resosBooking = resosBookingData;
     GROUP_MODAL_STATE.bookings = bookingsData.bookings;
     GROUP_MODAL_STATE.groups = bookingsData.groups;
-
-    // Parse GROUP/EXCLUDE field if present
-    const groupExcludeField = resosBookingData.group_exclude_field || '';
-    GROUP_MODAL_STATE.groupExcludeData = parseGroupExcludeField(groupExcludeField);
 
     // Find current booking's group
     const currentBooking = bookingsData.bookings.find(b => b.booking_id == hotelBookingId);
     GROUP_MODAL_STATE.currentGroupId = currentBooking?.bookings_group_id || null;
-
-    // Show ResOS booking info
-    const time = resosBookingData.time || 'N/A';
-    const guestName = resosBookingData.guest_name || 'Unknown';
-    const people = resosBookingData.people || 0;
-    resosInfo.innerHTML = `<strong>ResOS Booking:</strong> ${time} - ${guestName} (${people} pax)`;
 
     // Render bookings
     renderGroupModal();
@@ -4714,26 +4710,6 @@ async function openGroupManagementModal(resosBookingId, hotelBookingId, date) {
     error.classList.remove('hidden');
     error.querySelector('.error-message').textContent = err.message || 'Failed to load bookings';
   }
-}
-
-// Fetch ResOS booking details
-async function fetchResosBookingDetails(resosBookingId) {
-  const config = getAPIConfig();
-  const url = `${config.baseUrl}/resos/booking/${resosBookingId}`;
-
-  const response = await fetch(url, {
-    headers: {
-      'Authorization': config.authHeader,
-      'Content-Type': 'application/json'
-    }
-  });
-
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
-  }
-
-  const result = await response.json();
-  return result.booking || {};
 }
 
 // Parse GROUP/EXCLUDE field
