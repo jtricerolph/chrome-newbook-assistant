@@ -4623,6 +4623,17 @@ const GROUP_MODAL_STATE = {
   currentGroupId: null
 };
 
+// Get API configuration for GROUP modal functions
+function getAPIConfig() {
+  if (window.apiClient) {
+    return {
+      baseUrl: window.apiClient.baseUrl,
+      authHeader: window.apiClient.authHeader
+    };
+  }
+  throw new Error('API client not initialized');
+}
+
 // Open group management modal
 async function openGroupManagementModal(resosBookingId, hotelBookingId, date) {
   const modal = document.getElementById('group-management-modal');
