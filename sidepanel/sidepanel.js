@@ -4792,9 +4792,13 @@ function renderBookingsTable(bookings, isGroupSection) {
     // Group/Exclude checkbox
     html += '<td>';
     if (isGroupActive) {
-      html += `<input type="checkbox" value="${booking.booking_id}" class="exclude-checkbox">`;
+      // In exclude mode: disable checkbox for current booking (can't exclude the lead)
+      const disabledAttr = isCurrentBooking ? ' disabled' : '';
+      html += `<input type="checkbox" value="${booking.booking_id}" class="exclude-checkbox"${disabledAttr}>`;
     } else {
-      html += `<input type="checkbox" value="${booking.booking_id}" class="group-checkbox">`;
+      // In group mode: check checkbox for current booking (lead must be in group)
+      const groupCheckedAttr = isCurrentBooking ? ' checked' : '';
+      html += `<input type="checkbox" value="${booking.booking_id}" class="group-checkbox"${groupCheckedAttr}>`;
     }
     html += '</td>';
 
@@ -4827,13 +4831,38 @@ function attachGroupModalEventListeners() {
     renderGroupModal();
   });
 
-  // Lead radio auto-checks group checkbox
+  // Lead radio auto-checks group checkbox and manages exclude disable state
   document.querySelectorAll('.lead-radio').forEach(radio => {
     radio.addEventListener('change', (e) => {
-      const row = e.target.closest('tr');
-      const groupCheckbox = row.querySelector('.group-checkbox');
-      if (groupCheckbox && !groupCheckbox.checked) {
-        groupCheckbox.checked = true;
+      if (!e.target.checked) return;
+
+      const selectedLeadId = e.target.value;
+
+      // Update group checkboxes: lead must be checked
+      document.querySelectorAll('.group-checkbox').forEach(checkbox => {
+        if (checkbox.value === selectedLeadId) {
+          checkbox.checked = true;
+        }
+      });
+
+      // Update exclude checkboxes: lead must be disabled
+      document.querySelectorAll('.exclude-checkbox').forEach(checkbox => {
+        checkbox.disabled = (checkbox.value === selectedLeadId);
+        if (checkbox.disabled) {
+          checkbox.checked = false; // Can't exclude the lead
+        }
+      });
+    });
+  });
+
+  // Prevent unchecking the lead's group checkbox
+  document.querySelectorAll('.group-checkbox').forEach(checkbox => {
+    checkbox.addEventListener('click', (e) => {
+      const leadRadio = e.target.closest('tr').querySelector('.lead-radio');
+      if (leadRadio && leadRadio.checked && !e.target.checked) {
+        e.preventDefault();
+        e.target.checked = true; // Force it to stay checked
+        showToast('Lead booking must be part of the group', 'info');
       }
     });
   });
