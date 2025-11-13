@@ -3668,7 +3668,7 @@ function showNoChangesMessage() {
 }
 
 // Restaurant Tab
-async function loadRestaurantTab(force_refresh = false) {
+async function loadRestaurantTab(force_refresh = true) {
   if (!STATE.settings) {
     showError('restaurant', 'Please configure settings first');
     return;
@@ -3762,7 +3762,7 @@ async function loadRestaurantTab(force_refresh = false) {
 }
 
 // Checks Tab
-async function loadChecksTab(force_refresh = false) {
+async function loadChecksTab(force_refresh = true) {
   if (!STATE.settings) {
     showError('checks', 'Please configure settings first');
     return;
