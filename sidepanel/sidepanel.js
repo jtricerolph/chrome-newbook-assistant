@@ -1872,6 +1872,7 @@ function attachRestaurantEventListeners(container) {
           break;
 
         case 'submit-suggestions':
+          console.log('BMA: submit-suggestions action caught, calling submitSuggestions');
           await submitSuggestions(
             button.dataset.date,
             button.dataset.resosBookingId,
@@ -3139,12 +3140,18 @@ function attachRestaurantEventListeners(container) {
 
   // Submit selected suggestions from comparison checkboxes
   async function submitSuggestions(date, resosBookingId, hotelBookingId, isConfirmed) {
+    console.log('BMA: submitSuggestions called with:', { date, resosBookingId, hotelBookingId, isConfirmed });
+
     const containerId = 'comparison-' + date + '-' + resosBookingId;
     const container = document.getElementById(containerId);
-    if (!container) return;
+    if (!container) {
+      console.error('BMA: Container not found:', containerId);
+      return;
+    }
 
     // Find all checked suggestion checkboxes in this comparison container
     const checkboxes = container.querySelectorAll('.suggestion-checkbox:checked');
+    console.log('BMA: Found', checkboxes.length, 'checked suggestion checkboxes');
 
     if (checkboxes.length === 0) {
       showToast('Please select at least one suggestion to update', 'error');
@@ -3154,26 +3161,32 @@ function attachRestaurantEventListeners(container) {
     // Build updates object from checked checkboxes
     const updates = {};
     checkboxes.forEach(checkbox => {
-      const name = checkbox.name.replace('suggestion_', '');
+      const field = checkbox.dataset.field;
       let value = checkbox.value;
 
-      // Handle special mappings
-      if (name === 'name') {
-        updates.guest_name = value;
-      } else if (name === 'booking_ref') {
+      // Map fields correctly - use data-field attribute instead of name
+      if (field === 'name') {
+        updates.name = value;
+      } else if (field === 'email') {
+        updates.email = value;
+      } else if (field === 'phone') {
+        updates.phone = value;
+      } else if (field === 'booking_ref') {
         updates.booking_ref = value;
-      } else if (name === 'hotel_guest') {
+      } else if (field === 'hotel_guest') {
         updates.hotel_guest = value;
-      } else if (name === 'dbb') {
+      } else if (field === 'dbb') {
         updates.dbb = value; // Empty string means remove
-      } else if (name === 'people') {
+      } else if (field === 'people') {
         updates.people = parseInt(value);
-      } else if (name === 'status') {
+      } else if (field === 'status') {
         updates.status = value;
       } else {
-        updates[name] = value;
+        updates[field] = value;
       }
     });
+
+    console.log('BMA: Submitting updates:', { booking_id: resosBookingId, updates: updates });
 
     // Find the submit button to show loading state
     const submitBtn = container.querySelector('.btn-confirm-match');
