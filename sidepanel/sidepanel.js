@@ -4690,10 +4690,11 @@ async function openGroupManagementModal(resosBookingId, hotelBookingId, date, re
   modal.classList.remove('hidden');
 
   // Show ResOS booking info
+  console.log('BMA: ResOS data - time:', resosTime, 'guest:', resosGuest, 'people:', resosPeople);
   const time = (resosTime && resosTime.trim()) || 'N/A';
   const guestName = (resosGuest && resosGuest.trim()) || 'Unknown';
   const people = resosPeople || '0';
-  resosInfo.innerHTML = `<strong>ResOS Booking:</strong> ${time} - ${guestName} (${people} pax)`;
+  resosInfo.innerHTML = `${time} - ${guestName} (${people} pax)`;
 
   // Show loading
   loading.classList.remove('hidden');
