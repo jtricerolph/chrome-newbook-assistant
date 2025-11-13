@@ -4736,12 +4736,18 @@ function parseGroupExcludeField(fieldValue) {
   const parts = fieldValue.split(',').map(p => p.trim());
   parts.forEach(part => {
     if (part.startsWith('G-')) {
+      // New format: G-{booking_id}
       result.groups.push(part.substring(2));
     } else if (part.startsWith('N-')) {
+      // New format: N-{booking_id}
       result.excludes.push(part.substring(2));
+    } else if (part.startsWith('#')) {
+      // Legacy format: #{booking_id} (treat as group)
+      result.groups.push(part.substring(1));
     }
   });
 
+  console.log('BMA: parseGroupExcludeField - input:', fieldValue, 'output:', result);
   return result;
 }
 
