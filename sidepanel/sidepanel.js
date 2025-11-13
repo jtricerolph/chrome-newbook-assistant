@@ -1890,6 +1890,7 @@ function attachRestaurantEventListeners(container) {
               resosTime: button.dataset.resosTime,
               resosGuest: button.dataset.resosGuest,
               resosPeople: button.dataset.resosPeople,
+              resosBookingRef: button.dataset.resosBookingRef,
               groupExclude: button.dataset.groupExclude
             });
             await window.openGroupManagementModal(
@@ -1899,6 +1900,7 @@ function attachRestaurantEventListeners(container) {
               button.dataset.resosTime || '',
               button.dataset.resosGuest || '',
               button.dataset.resosPeople || '0',
+              button.dataset.resosBookingRef || '',
               button.dataset.groupExclude || ''
             );
           } else {
@@ -4663,7 +4665,7 @@ function getAPIConfig() {
 }
 
 // Open group management modal
-async function openGroupManagementModal(resosBookingId, hotelBookingId, date, resosTime = '', resosGuest = '', resosPeople = '0', groupExcludeField = '') {
+async function openGroupManagementModal(resosBookingId, hotelBookingId, date, resosTime = '', resosGuest = '', resosPeople = '0', resosBookingRef = '', groupExcludeField = '') {
   const modal = document.getElementById('group-management-modal');
   const dateValue = document.getElementById('group-modal-date-value');
   const resosInfo = document.getElementById('group-modal-resos-info');
@@ -4678,7 +4680,9 @@ async function openGroupManagementModal(resosBookingId, hotelBookingId, date, re
   GROUP_MODAL_STATE.hotelBookingId = hotelBookingId;
   GROUP_MODAL_STATE.date = date;
   GROUP_MODAL_STATE.resosBooking = { time: resosTime, guest_name: resosGuest, people: resosPeople };
+  GROUP_MODAL_STATE.leadBookingId = resosBookingRef; // The booking ID from ResOS "Booking #" field
 
+  console.log('BMA: openGroupManagementModal - resosBookingRef (lead):', resosBookingRef);
   console.log('BMA: openGroupManagementModal - groupExcludeField raw:', groupExcludeField);
   GROUP_MODAL_STATE.groupExcludeData = parseGroupExcludeField(groupExcludeField);
   console.log('BMA: openGroupManagementModal - parsed groupExcludeData:', GROUP_MODAL_STATE.groupExcludeData);
@@ -4803,20 +4807,23 @@ function renderBookingsTable(bookings) {
   bookings.forEach(booking => {
     html += '<tr>';
 
-    // Lead radio
+    // Lead radio - pre-select based on ResOS "Booking #" field
     html += '<td>';
-    const isCurrentBooking = booking.booking_id == GROUP_MODAL_STATE.hotelBookingId;
-    const checkedAttr = isCurrentBooking ? ' checked' : '';
+    const isLeadBooking = String(booking.booking_id) === String(GROUP_MODAL_STATE.leadBookingId);
+    const checkedAttr = isLeadBooking ? ' checked' : '';
+    if (isLeadBooking) {
+      console.log('BMA: Booking', booking.booking_id, 'matches ResOS Booking # field, pre-selected as lead');
+    }
     html += `<input type="radio" name="lead-booking" value="${booking.booking_id}" class="lead-radio"${checkedAttr}>`;
     html += '</td>';
 
-    // Group checkbox - pre-select if in GROUP/EXCLUDE field or is current booking
+    // Group checkbox - pre-select if in GROUP/EXCLUDE field or is lead booking
     html += '<td>';
     const isInGroupField = groupExcludeData.groups.includes(String(booking.booking_id));
     if (isInGroupField) {
       console.log('BMA: Booking', booking.booking_id, 'is in GROUP/EXCLUDE field, should be pre-selected');
     }
-    const autoChecked = isCurrentBooking || isInGroupField;
+    const autoChecked = isLeadBooking || isInGroupField;
     const groupCheckedAttr = autoChecked ? ' checked' : '';
     html += `<input type="checkbox" value="${booking.booking_id}" class="group-checkbox"${groupCheckedAttr}>`;
     html += '</td>';
