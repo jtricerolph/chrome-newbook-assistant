@@ -3,6 +3,29 @@
 // State
 let settings = null;
 
+// Debug logging utility - respects enableDebugLogging setting
+const BMA_LOG = {
+  log: (...args) => {
+    if (settings?.enableDebugLogging) {
+      console.log(...args);
+    }
+  },
+  warn: (...args) => {
+    if (settings?.enableDebugLogging) {
+      console.warn(...args);
+    }
+  },
+  error: (...args) => {
+    // Always log errors
+    console.error(...args);
+  },
+  info: (...args) => {
+    if (settings?.enableDebugLogging) {
+      console.info(...args);
+    }
+  }
+};
+
 // Load settings on startup
 async function loadSettings() {
   try {
@@ -10,14 +33,14 @@ async function loadSettings() {
     settings = result.settings || null;
     return settings;
   } catch (error) {
-    console.error('Error loading settings:', error);
+    BMA_LOG.error('Error loading settings:', error);
     return null;
   }
 }
 
 // Initialize on install/update
 chrome.runtime.onInstalled.addListener(async () => {
-  console.log('NewBook Assistant installed/updated');
+  BMA_LOG.log('NewBook Assistant installed/updated');
   await loadSettings();
 
   // Set up panel behavior for specific origin
@@ -26,9 +49,9 @@ chrome.runtime.onInstalled.addListener(async () => {
       path: 'sidepanel/sidepanel.html',
       enabled: false
     });
-    console.log('Sidepanel disabled globally');
+    BMA_LOG.log('Sidepanel disabled globally');
   } catch (error) {
-    console.error('Error setting global sidepanel options:', error);
+    BMA_LOG.error('Error setting global sidepanel options:', error);
   }
 });
 
@@ -95,7 +118,7 @@ async function handleTabUpdate(tabId, url) {
           });
         } catch (error) {
           // Sidepanel might not be open, that's okay
-          console.log('Sidepanel not open, booking ID stored for later');
+          BMA_LOG.log('Sidepanel not open, booking ID stored for later');
         }
       }
     } else {
@@ -113,7 +136,7 @@ async function handleTabUpdate(tabId, url) {
         }
       } catch (error) {
         // Sidepanel may not be open, that's fine
-        console.log('Could not close sidepanel:', error);
+        BMA_LOG.log('Could not close sidepanel:', error);
       }
 
       // Clear badge
@@ -124,20 +147,20 @@ async function handleTabUpdate(tabId, url) {
       });
     }
   } catch (error) {
-    console.error('Error handling tab update:', error);
+    BMA_LOG.error('Error handling tab update:', error);
   }
 }
 
 // Toolbar icon click handler
 chrome.action.onClicked.addListener(async (tab) => {
-  console.log('Toolbar icon clicked for tab:', tab.id);
+  BMA_LOG.log('Toolbar icon clicked for tab:', tab.id);
 
   try {
     // Open sidepanel for the current tab
     await chrome.sidePanel.open({ tabId: tab.id });
-    console.log('Sidepanel opened via toolbar icon');
+    BMA_LOG.log('Sidepanel opened via toolbar icon');
   } catch (error) {
-    console.error('Failed to open sidepanel:', error);
+    BMA_LOG.error('Failed to open sidepanel:', error);
   }
 });
 
@@ -146,7 +169,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'settingsUpdated') {
     // Settings were updated, reload them
     settings = message.settings;
-    console.log('Settings updated:', settings);
+    BMA_LOG.log('Settings updated:', settings);
 
     // Update all NewBook tabs
     chrome.tabs.query({ url: 'https://appeu.newbook.cloud/*' }, (tabs) => {
@@ -161,19 +184,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     });
   } else if (message.action === 'bookingDetected') {
     // Forward booking detection to sidepanel (from popup/content script)
-    console.log('Forwarding bookingDetected from content script:', message.bookingId, 'source:', message.source);
+    BMA_LOG.log('Forwarding bookingDetected from content script:', message.bookingId, 'source:', message.source);
     chrome.runtime.sendMessage(message).catch(() => {
       // Sidepanel might not be open
     });
   } else if (message.action === 'plannerClick') {
     // Forward planner click to sidepanel
-    console.log('Forwarding plannerClick from content script:', message.bookingId);
+    BMA_LOG.log('Forwarding plannerClick from content script:', message.bookingId);
     chrome.runtime.sendMessage(message).catch(() => {
       // Sidepanel might not be open
     });
   } else if (message.action === 'sessionLockChanged') {
     // Forward session lock status to sidepanel
-    console.log('Session lock status changed:', message.isLocked ? 'LOCKED' : 'UNLOCKED');
+    BMA_LOG.log('Session lock status changed:', message.isLocked ? 'LOCKED' : 'UNLOCKED');
     chrome.runtime.sendMessage(message).catch(() => {
       // Sidepanel might not be open
     });
@@ -181,16 +204,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // Open sidepanel for specific tab (has user gesture from content script)
     chrome.sidePanel.open({ tabId: sender.tab.id })
       .then(() => {
-        console.log('Sidepanel opened for tab:', sender.tab.id);
+        BMA_LOG.log('Sidepanel opened for tab:', sender.tab.id);
         // Notify content script that sidepanel was opened
         chrome.tabs.sendMessage(sender.tab.id, { action: 'sidepanelOpened' }).catch(() => {});
       })
       .catch((error) => {
-        console.error('Failed to open sidepanel:', error);
+        BMA_LOG.error('Failed to open sidepanel:', error);
       });
   } else if (message.action === 'sidepanelClosed') {
     // Sidepanel was closed, notify content script to show button
-    console.log('Sidepanel closed, notifying content script');
+    BMA_LOG.log('Sidepanel closed, notifying content script');
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs[0]) {
         chrome.tabs.sendMessage(tabs[0].id, { action: 'showOpenButton' }).catch(() => {});
@@ -204,4 +227,4 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 // Initialize
 loadSettings();
 
-console.log('NewBook Assistant background service worker running');
+BMA_LOG.log('NewBook Assistant background service worker running');
