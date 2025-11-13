@@ -3613,7 +3613,8 @@ async function loadRestaurantTab(force_refresh = false) {
   const isSameBooking = STATE.loadedBookingIds.restaurant === STATE.currentBookingId;
   const hasExistingData = STATE.cache.restaurant && STATE.cache.restaurant.html;
 
-  if (!force_refresh && isRestaurantTabActive && isSameBooking && hasExistingData) {
+  // TEMP: Disable cache for testing GROUP button
+  if (false && !force_refresh && isRestaurantTabActive && isSameBooking && hasExistingData) {
     console.log('Smart refresh: Same booking already loaded, checking for changes...');
 
     try {
