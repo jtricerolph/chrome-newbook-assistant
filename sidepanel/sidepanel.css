@@ -148,11 +148,16 @@ body {
 
 /* Data Content */
 .tab-data {
-  padding: 0 16px 16px 16px; /* Remove top padding to bump content closer to top */
+  padding: 16px;
 }
 
 .tab-data.hidden {
   display: none;
+}
+
+/* Remove top padding only for staying tab */
+[data-content="staying"] .tab-data {
+  padding: 0 16px 16px 16px;
 }
 
 /* Add bottom padding to restaurant tab to allow last night to scroll to top */
