@@ -148,7 +148,7 @@ body {
 
 /* Data Content */
 .tab-data {
-  padding: 16px;
+  padding: 0 16px 16px 16px; /* Remove top padding to bump content closer to top */
 }
 
 .tab-data.hidden {
@@ -1458,7 +1458,7 @@ button[data-action].loading::after {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 16px;
+  padding: 6px 16px; /* Reduced vertical padding from 12px to 6px */
   background: #f9fafb;
   border-bottom: 1px solid #e5e7eb;
   position: sticky;
