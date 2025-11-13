@@ -1563,6 +1563,20 @@ function showData(tabName, html) {
   dataElement.innerHTML = html;
   dataElement.classList.remove('hidden');
 
+  // Execute scripts manually (innerHTML doesn't execute them)
+  const scripts = dataElement.querySelectorAll('script');
+  scripts.forEach(oldScript => {
+    const newScript = document.createElement('script');
+    // Copy all attributes
+    Array.from(oldScript.attributes).forEach(attr => {
+      newScript.setAttribute(attr.name, attr.value);
+    });
+    // Copy script content
+    newScript.textContent = oldScript.textContent;
+    // Replace old script with new one to trigger execution
+    oldScript.parentNode.replaceChild(newScript, oldScript);
+  });
+
   tabContent.querySelector('.tab-loading').classList.add('hidden');
   tabContent.querySelector('.tab-error').classList.add('hidden');
   tabContent.querySelector('.tab-empty')?.classList.add('hidden');
