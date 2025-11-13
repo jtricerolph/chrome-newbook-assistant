@@ -4761,21 +4761,18 @@ function renderGroupModal() {
 // Render bookings table
 function renderBookingsTable(bookings, isGroupSection) {
   const linkWhole = document.getElementById('group-link-whole-group').checked;
-  const isGroupActive = isGroupSection && linkWhole;
 
   let html = '';
 
   if (isGroupSection) {
-    html += `<div class="group-section-header ${isGroupActive ? 'exclude-mode' : ''}">`;
-    html += isGroupActive ? 'Exclude from Group' : `Bookings in Group #${GROUP_MODAL_STATE.currentGroupId}`;
-    html += '</div>';
+    html += `<div class="group-section-header">Bookings in Group #${GROUP_MODAL_STATE.currentGroupId}</div>`;
   } else {
     html += '<div class="other-section-header">Other Bookings</div>';
   }
 
   html += '<table class="group-bookings-table"><thead><tr>';
   html += '<th>Lead</th>';
-  html += `<th>${isGroupActive ? 'Exclude' : 'Group'}</th>`;
+  html += '<th>Group</th>';
   html += '<th>Booking</th>';
   html += '</tr></thead><tbody>';
 
@@ -4789,17 +4786,12 @@ function renderBookingsTable(bookings, isGroupSection) {
     html += `<input type="radio" name="lead-booking" value="${booking.booking_id}" class="lead-radio"${checkedAttr}>`;
     html += '</td>';
 
-    // Group/Exclude checkbox
+    // Group checkbox
     html += '<td>';
-    if (isGroupActive) {
-      // In exclude mode: disable checkbox for current booking (can't exclude the lead)
-      const disabledAttr = isCurrentBooking ? ' disabled' : '';
-      html += `<input type="checkbox" value="${booking.booking_id}" class="exclude-checkbox"${disabledAttr}>`;
-    } else {
-      // In group mode: check checkbox for current booking (lead must be in group)
-      const groupCheckedAttr = isCurrentBooking ? ' checked' : '';
-      html += `<input type="checkbox" value="${booking.booking_id}" class="group-checkbox"${groupCheckedAttr}>`;
-    }
+    // Auto-check all if "Link whole group" is checked, or just check the lead
+    const autoChecked = (isGroupSection && linkWhole) || isCurrentBooking;
+    const groupCheckedAttr = autoChecked ? ' checked' : '';
+    html += `<input type="checkbox" value="${booking.booking_id}" class="group-checkbox"${groupCheckedAttr}>`;
     html += '</td>';
 
     // Booking info
@@ -4831,7 +4823,7 @@ function attachGroupModalEventListeners() {
     renderGroupModal();
   });
 
-  // Lead radio auto-checks group checkbox and manages exclude disable state
+  // Lead radio auto-checks group checkbox
   document.querySelectorAll('.lead-radio').forEach(radio => {
     radio.addEventListener('change', (e) => {
       if (!e.target.checked) return;
@@ -4842,14 +4834,6 @@ function attachGroupModalEventListeners() {
       document.querySelectorAll('.group-checkbox').forEach(checkbox => {
         if (checkbox.value === selectedLeadId) {
           checkbox.checked = true;
-        }
-      });
-
-      // Update exclude checkboxes: lead must be disabled
-      document.querySelectorAll('.exclude-checkbox').forEach(checkbox => {
-        checkbox.disabled = (checkbox.value === selectedLeadId);
-        if (checkbox.disabled) {
-          checkbox.checked = false; // Can't exclude the lead
         }
       });
     });
@@ -4873,7 +4857,6 @@ async function saveGroupConfiguration() {
   const groupLinkCheckbox = document.getElementById('group-link-whole-group');
   const leadRadios = document.querySelectorAll('.lead-radio');
   const groupCheckboxes = document.querySelectorAll('.group-checkbox');
-  const excludeCheckboxes = document.querySelectorAll('.exclude-checkbox');
 
   // Get lead booking ID
   let leadBookingId = null;
@@ -4883,23 +4866,20 @@ async function saveGroupConfiguration() {
     }
   });
 
+  if (!leadBookingId) {
+    showToast('Please select a lead booking', 'error');
+    return;
+  }
+
   // Get group configuration
   let groupId = null;
   const individualIds = [];
-  const excludeIds = [];
 
   if (groupLinkCheckbox.checked && GROUP_MODAL_STATE.currentGroupId) {
-    // Use group ID
+    // Use group ID - link whole NewBook group
     groupId = GROUP_MODAL_STATE.currentGroupId;
-
-    // Get excluded IDs
-    excludeCheckboxes.forEach(checkbox => {
-      if (checkbox.checked) {
-        excludeIds.push(checkbox.value);
-      }
-    });
   } else {
-    // Use individual IDs
+    // Use individual IDs - only checked bookings
     groupCheckboxes.forEach(checkbox => {
       if (checkbox.checked) {
         individualIds.push(checkbox.value);
@@ -4913,15 +4893,14 @@ async function saveGroupConfiguration() {
     const response = await fetch(`${config.baseUrl}/bookings/group`, {
       method: 'POST',
       headers: {
-        'Authorization': `Basic ${config.auth}`,
+        'Authorization': config.authHeader,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         resos_booking_id: GROUP_MODAL_STATE.resosBookingId,
         lead_booking_id: leadBookingId,
         group_id: groupId,
-        individual_ids: individualIds,
-        exclude_ids: excludeIds
+        individual_ids: individualIds
       })
     });
 
