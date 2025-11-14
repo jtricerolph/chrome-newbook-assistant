@@ -4284,16 +4284,25 @@ function initializeStayingCards() {
 
               BMA_LOG.log('Scrolling to lead booking - offset:', offset, 'datePickerHeight:', datePickerHeight, 'scrollTop:', scrollTop);
 
+              // Perform scroll
               scrollContainer.scrollTop = scrollTop;
-              scrollContainer.scrollTo(0, scrollTop);
+              scrollContainer.scrollTo({ top: scrollTop, behavior: 'smooth' });
 
-              // Fallback to scrollIntoView
+              // Verify scroll happened
               setTimeout(() => {
-                if (scrollContainer.scrollTop === 0 && scrollTop > 0) {
-                  BMA_LOG.warn('Scroll failed, using scrollIntoView fallback');
+                const actualScrollTop = scrollContainer.scrollTop;
+                BMA_LOG.log('Scroll verification - expected:', scrollTop, 'actual:', actualScrollTop);
+
+                // If scroll didn't happen at all (still at/near 0), try alternative method
+                if (actualScrollTop < 10 && scrollTop > 20) {
+                  BMA_LOG.warn('Scroll failed, trying scrollIntoView with offset');
+                  // Scroll element into view, then adjust for sticky header
                   leadCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  setTimeout(() => {
+                    scrollContainer.scrollTop -= offset;
+                  }, 300);
                 }
-              }, 100);
+              }, 200);
             }, 50);
           });
         } else {
