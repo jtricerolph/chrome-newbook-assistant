@@ -1612,6 +1612,8 @@ function showData(tabName, html) {
 }
 
 function showSummaryData(placedHtml, cancelledHtml, placedCount, cancelledCount) {
+  BMA_LOG.log('[Split-Pane] showSummaryData called:', { placedCount, cancelledCount });
+
   const tabContent = document.querySelector('[data-content="summary"]');
   const dataElement = tabContent.querySelector('.tab-data');
 
@@ -1621,10 +1623,19 @@ function showSummaryData(placedHtml, cancelledHtml, placedCount, cancelledCount)
   const placedCountBadge = dataElement.querySelector('.summary-placed-pane .pane-count');
   const cancelledCountBadge = dataElement.querySelector('.summary-cancelled-pane .pane-count');
 
+  BMA_LOG.log('[Split-Pane] Found elements:', {
+    placedContent: !!placedContent,
+    cancelledContent: !!cancelledContent,
+    placedCountBadge: !!placedCountBadge,
+    cancelledCountBadge: !!cancelledCountBadge
+  });
+
   if (placedContent) placedContent.innerHTML = placedHtml || '<div class="bma-summary-empty"><p>No recent bookings</p></div>';
   if (cancelledContent) cancelledContent.innerHTML = cancelledHtml || '<div class="bma-summary-empty"><p>No cancelled bookings</p></div>';
   if (placedCountBadge) placedCountBadge.textContent = placedCount || '0';
   if (cancelledCountBadge) cancelledCountBadge.textContent = cancelledCount || '0';
+
+  BMA_LOG.log('[Split-Pane] Content injected successfully');
 
   // Show data container
   dataElement.classList.remove('hidden');
