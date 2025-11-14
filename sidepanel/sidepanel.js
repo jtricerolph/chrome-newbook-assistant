@@ -3312,24 +3312,26 @@ function updateTimeSincePlaced(container) {
   const highlightThreshold = STATE.settings.highlightNewestMinutes || 60;
 
   bookingCards.forEach(card => {
-    const placedTime = card.dataset.bookingPlaced;
-    if (!placedTime) return;
-
     const timeSinceElement = card.querySelector('.time-since-placed');
     if (!timeSinceElement) return;
 
+    // For cancelled bookings, use the timestamp from the element's data attribute
+    const isCancelled = card.classList.contains('cancelled-booking');
+    const timestamp = timeSinceElement.dataset.placedTime || card.dataset.bookingPlaced;
+    if (!timestamp) return;
+
     // Calculate time difference
-    const placed = new Date(placedTime);
+    const eventTime = new Date(timestamp);
     const now = new Date();
-    const diffMs = now - placed;
+    const diffMs = now - eventTime;
     const diffMinutes = Math.floor(diffMs / 60000);
 
-    // Format time since placed
-    const timeString = formatTimeSince(diffMinutes);
+    // Format time since placed/cancelled
+    const timeString = formatTimeSince(diffMinutes, isCancelled);
     timeSinceElement.textContent = timeString;
 
-    // Apply highlighting if within threshold
-    if (diffMinutes <= highlightThreshold) {
+    // Apply highlighting if within threshold (only for placed bookings)
+    if (!isCancelled && diffMinutes <= highlightThreshold) {
       card.classList.add('new-booking');
     } else {
       card.classList.remove('new-booking');
@@ -3337,25 +3339,27 @@ function updateTimeSincePlaced(container) {
   });
 }
 
-function formatTimeSince(minutes) {
+function formatTimeSince(minutes, isCancelled = false) {
+  const prefix = isCancelled ? 'cancelled ' : '';
+
   if (minutes < 1) {
-    return 'Just now';
+    return prefix + 'just now';
   } else if (minutes < 60) {
-    return `${minutes}m ago`;
+    return prefix + `${minutes}m ago`;
   } else if (minutes < 1440) {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
     if (mins === 0) {
-      return `${hours}h ago`;
+      return prefix + `${hours}h ago`;
     }
-    return `${hours}h ${mins}m ago`;
+    return prefix + `${hours}h ${mins}m ago`;
   } else {
     const days = Math.floor(minutes / 1440);
     const hours = Math.floor((minutes % 1440) / 60);
     if (hours === 0) {
-      return `${days}d ago`;
+      return prefix + `${days}d ago`;
     }
-    return `${days}d ${hours}h ago`;
+    return prefix + `${days}d ${hours}h ago`;
   }
 }
 
