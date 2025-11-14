@@ -4260,6 +4260,12 @@ function initializeStayingCards() {
           const scrollContainer = stayingTab;
           requestAnimationFrame(() => {
             setTimeout(() => {
+              // Verify leadCard still exists in DOM
+              if (!leadCard || !leadCard.isConnected) {
+                BMA_LOG.warn('Lead card no longer in DOM, cannot scroll');
+                return;
+              }
+
               // Get the sticky date picker height dynamically
               const datePicker = document.querySelector('.staying-date-picker');
               const datePickerHeight = datePicker ? datePicker.offsetHeight : 45;
@@ -4267,19 +4273,16 @@ function initializeStayingCards() {
               const containerRect = scrollContainer.getBoundingClientRect();
               const elementRect = leadCard.getBoundingClientRect();
 
+              if (!elementRect || !containerRect) {
+                BMA_LOG.warn('Could not get bounding rects for scroll');
+                return;
+              }
+
               // Account for sticky date picker + small visual spacing (10px)
               const offset = datePickerHeight + 10;
               const scrollTop = scrollContainer.scrollTop + (elementRect.top - containerRect.top) - offset;
 
-              BMA_LOG.log('Scrolling to lead booking:', {
-                scrollTop,
-                currentScrollTop: scrollContainer.scrollTop,
-                offset,
-                datePickerHeight,
-                elementTop: elementRect.top,
-                containerTop: containerRect.top,
-                relativeTop: elementRect.top - containerRect.top
-              });
+              BMA_LOG.log('Scrolling to lead booking - offset:', offset, 'datePickerHeight:', datePickerHeight, 'scrollTop:', scrollTop);
 
               scrollContainer.scrollTop = scrollTop;
               scrollContainer.scrollTo(0, scrollTop);
