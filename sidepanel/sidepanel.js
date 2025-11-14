@@ -3561,7 +3561,7 @@ function showSummaryCountdown() {
         if (idleMinutes >= maxIdleMinutes) {
           // User has been idle too long - assume they've left, resume refresh
           BMA_LOG.log(`Auto-refresh resuming - user idle for ${idleMinutes.toFixed(1)} minutes`);
-          loadSummaryTab(true); // Pass true to indicate auto-refresh
+          loadSummaryTab(false); // Use cached matching data, fresh bookings list
         } else {
           // Don't refresh while user is reading - reset countdown
           BMA_LOG.log('Auto-refresh paused - user has expanded booking cards');
@@ -3573,7 +3573,7 @@ function showSummaryCountdown() {
           }, 2000);
         }
       } else {
-        loadSummaryTab(true); // Pass true to indicate auto-refresh
+        loadSummaryTab(false); // Use cached matching data, fresh bookings list
       }
     }
   }, 1000);
@@ -3668,7 +3668,7 @@ function showNoChangesMessage() {
 }
 
 // Restaurant Tab
-async function loadRestaurantTab(force_refresh = true) {
+async function loadRestaurantTab(force_refresh = false) {
   if (!STATE.settings) {
     showError('restaurant', 'Please configure settings first');
     return;
@@ -3762,7 +3762,7 @@ async function loadRestaurantTab(force_refresh = true) {
 }
 
 // Checks Tab
-async function loadChecksTab(force_refresh = true) {
+async function loadChecksTab(force_refresh = false) {
   if (!STATE.settings) {
     showError('checks', 'Please configure settings first');
     return;
