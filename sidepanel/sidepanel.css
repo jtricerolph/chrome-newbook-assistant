@@ -166,6 +166,10 @@ body {
 }
 
 /* Summary Tab Split-Pane Layout */
+[data-content="summary"] {
+  height: 100%;
+}
+
 [data-content="summary"] .tab-data {
   padding: 0;
   height: 100%;
@@ -178,6 +182,7 @@ body {
   flex-direction: column;
   height: 100%;
   overflow: hidden;
+  flex: 1;
 }
 
 .summary-pane {

@@ -3340,26 +3340,24 @@ function updateTimeSincePlaced(container) {
 }
 
 function formatTimeSince(minutes, isCancelled = false) {
-  const prefix = isCancelled ? 'cancelled ' : '';
-
   if (minutes < 1) {
-    return prefix + 'just now';
+    return 'just now';
   } else if (minutes < 60) {
-    return prefix + `${minutes}m ago`;
+    return `${minutes}m ago`;
   } else if (minutes < 1440) {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
     if (mins === 0) {
-      return prefix + `${hours}h ago`;
+      return `${hours}h ago`;
     }
-    return prefix + `${hours}h ${mins}m ago`;
+    return `${hours}h ${mins}m ago`;
   } else {
     const days = Math.floor(minutes / 1440);
     const hours = Math.floor((minutes % 1440) / 60);
     if (hours === 0) {
-      return prefix + `${days}d ago`;
+      return `${days}d ago`;
     }
-    return prefix + `${days}d ${hours}h ago`;
+    return `${days}d ${hours}h ago`;
   }
 }
 
