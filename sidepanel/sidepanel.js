@@ -4260,16 +4260,27 @@ function initializeStayingCards() {
           const scrollContainer = stayingTab;
           requestAnimationFrame(() => {
             setTimeout(() => {
+              // Get the sticky date picker height dynamically
+              const datePicker = document.querySelector('.staying-date-picker');
+              const datePickerHeight = datePicker ? datePicker.offsetHeight : 45;
+
               const containerRect = scrollContainer.getBoundingClientRect();
               const elementRect = leadCard.getBoundingClientRect();
 
-              // Account for sticky date picker (~45px) + stats row (if any) + small visual spacing
-              // Date picker: 6px padding top + 32px button + 6px padding bottom + 1px border = 45px
-              // Add 10px extra for stats row and visual spacing
-              const offset = 55;
+              // Account for sticky date picker + small visual spacing (10px)
+              const offset = datePickerHeight + 10;
               const scrollTop = scrollContainer.scrollTop + (elementRect.top - containerRect.top) - offset;
 
-              BMA_LOG.log('Scrolling to lead booking:', { scrollTop, currentScrollTop: scrollContainer.scrollTop, offset });
+              BMA_LOG.log('Scrolling to lead booking:', {
+                scrollTop,
+                currentScrollTop: scrollContainer.scrollTop,
+                offset,
+                datePickerHeight,
+                elementTop: elementRect.top,
+                containerTop: containerRect.top,
+                relativeTop: elementRect.top - containerRect.top
+              });
+
               scrollContainer.scrollTop = scrollTop;
               scrollContainer.scrollTo(0, scrollTop);
 
