@@ -185,11 +185,13 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 0; /* Critical for flex scrolling */
+  overflow: hidden; /* Prevent content from expanding pane */
 }
 
 .summary-placed-pane {
   flex: 0 0 75%; /* Default 75% */
   min-height: 100px; /* Minimum size */
+  max-height: 75%; /* Prevent overflow */
 }
 
 .summary-cancelled-pane {
