@@ -184,16 +184,17 @@ body {
 .summary-pane {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  min-height: 100px;
+  min-height: 0; /* Critical for flex scrolling */
 }
 
 .summary-placed-pane {
   flex: 0 0 75%; /* Default 75% */
+  min-height: 100px; /* Minimum size */
 }
 
 .summary-cancelled-pane {
   flex: 1 1 auto; /* Takes remaining space */
+  min-height: 100px; /* Minimum size */
 }
 
 .summary-pane-header {
