@@ -4257,7 +4257,13 @@ function initializeStayingCards() {
           leadCard.classList.add('expanded');
 
           // Scroll to lead card
-          const scrollContainer = stayingTab;
+          // Get the actual scroll container (.tab-contents), not .tab-data
+          const scrollContainer = document.querySelector('.tab-contents');
+          if (!scrollContainer) {
+            BMA_LOG.warn('Scroll container not found');
+            return;
+          }
+
           requestAnimationFrame(() => {
             setTimeout(() => {
               // Verify leadCard still exists in DOM
