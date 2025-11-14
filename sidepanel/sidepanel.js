@@ -4478,6 +4478,27 @@ function initializeGroupHover() {
       });
     });
   });
+
+  // Handle restaurant-status group member hover (ResOS group highlighting)
+  document.querySelectorAll('.restaurant-status[data-resos-id]').forEach(statusElement => {
+    const resosId = statusElement.dataset.resosId;
+
+    if (!resosId) return;
+
+    statusElement.addEventListener('mouseenter', function() {
+      // Highlight all restaurant-status blocks with the same resos-id
+      document.querySelectorAll(`.restaurant-status[data-resos-id="${resosId}"]`).forEach(relatedStatus => {
+        relatedStatus.classList.add('group-highlight');
+      });
+    });
+
+    statusElement.addEventListener('mouseleave', function() {
+      // Remove highlight from all restaurant-status blocks
+      document.querySelectorAll('.restaurant-status.group-highlight').forEach(highlightedStatus => {
+        highlightedStatus.classList.remove('group-highlight');
+      });
+    });
+  });
 }
 
 /**
