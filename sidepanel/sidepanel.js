@@ -4160,10 +4160,20 @@ function initializeStayingCards() {
   const stayingTab = document.querySelector('[data-content="staying"] .tab-data');
   if (!stayingTab) return;
 
-  // Expand/collapse headers
+  // Expand/collapse headers (with accordion behavior)
   stayingTab.querySelectorAll('.staying-header').forEach(header => {
     header.addEventListener('click', function(e) {
       const card = this.closest('.staying-card');
+      const isExpanded = card.classList.contains('expanded');
+
+      // Accordion behavior: close all other cards first
+      stayingTab.querySelectorAll('.staying-card.expanded').forEach(expandedCard => {
+        if (expandedCard !== card) {
+          expandedCard.classList.remove('expanded');
+        }
+      });
+
+      // Toggle current card
       card.classList.toggle('expanded');
     });
   });
@@ -4220,22 +4230,72 @@ function initializeStayingCards() {
     });
   });
 
-  // Clickable issues - navigate to Restaurant tab with comparison row expansion
+  // Clickable issues - navigate to Restaurant tab with comparison row expansion OR navigate to lead booking
   stayingTab.querySelectorAll('.clickable-issue').forEach(issue => {
     issue.addEventListener('click', function(e) {
       e.stopPropagation();
-      const bookingId = this.dataset.bookingId;
-      const date = this.dataset.date;
-      const resosId = this.dataset.resosId;
-      BMA_LOG.log('Suggested match clicked - navigating to Restaurant tab:', { bookingId, date, resosId });
+      const leadRoom = this.dataset.leadRoom;
 
-      // Navigate to Restaurant tab with date and expand comparison row
-      if (date && resosId) {
-        navigateToRestaurantDate(date, parseInt(bookingId), resosId);
+      // Check if this is a group member (has data-lead-room)
+      if (leadRoom) {
+        BMA_LOG.log('Group member clicked - navigating to lead booking:', leadRoom);
+
+        // Find the lead booking card by room number
+        const leadCard = Array.from(stayingTab.querySelectorAll('.staying-card')).find(card => {
+          const roomNumberElement = card.querySelector('.room-number');
+          return roomNumberElement && roomNumberElement.textContent.trim() === leadRoom;
+        });
+
+        if (leadCard) {
+          // Close current card if expanded
+          const currentCard = this.closest('.staying-card');
+          if (currentCard && currentCard.classList.contains('expanded')) {
+            currentCard.classList.remove('expanded');
+          }
+
+          // Expand the lead card
+          leadCard.classList.add('expanded');
+
+          // Scroll to lead card
+          const scrollContainer = stayingTab;
+          requestAnimationFrame(() => {
+            setTimeout(() => {
+              const containerRect = scrollContainer.getBoundingClientRect();
+              const elementRect = leadCard.getBoundingClientRect();
+              const offset = 5;
+              const scrollTop = scrollContainer.scrollTop + (elementRect.top - containerRect.top) - offset;
+
+              BMA_LOG.log('Scrolling to lead booking:', { scrollTop, currentScrollTop: scrollContainer.scrollTop });
+              scrollContainer.scrollTop = scrollTop;
+              scrollContainer.scrollTo(0, scrollTop);
+
+              // Fallback to scrollIntoView
+              setTimeout(() => {
+                if (scrollContainer.scrollTop === 0 && scrollTop > 0) {
+                  BMA_LOG.warn('Scroll failed, using scrollIntoView fallback');
+                  leadCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+              }, 100);
+            }, 50);
+          });
+        } else {
+          BMA_LOG.warn('Lead booking card not found for room:', leadRoom);
+        }
       } else {
-        // Fallback if data attributes not available (shouldn't happen with updated templates)
-        STATE.currentBookingId = bookingId;
-        switchTab('restaurant');
+        // Regular clickable-issue behavior (navigate to Restaurant tab)
+        const bookingId = this.dataset.bookingId;
+        const date = this.dataset.date;
+        const resosId = this.dataset.resosId;
+        BMA_LOG.log('Suggested match clicked - navigating to Restaurant tab:', { bookingId, date, resosId });
+
+        // Navigate to Restaurant tab with date and expand comparison row
+        if (date && resosId) {
+          navigateToRestaurantDate(date, parseInt(bookingId), resosId);
+        } else {
+          // Fallback if data attributes not available (shouldn't happen with updated templates)
+          STATE.currentBookingId = bookingId;
+          switchTab('restaurant');
+        }
       }
     });
   });
