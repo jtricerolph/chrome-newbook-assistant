@@ -41,7 +41,29 @@
           <div class="spinner"></div>
           <p>Loading summary...</p>
         </div>
-        <div class="tab-data hidden"></div>
+        <div class="tab-data hidden">
+          <div class="summary-split-container">
+            <div class="summary-pane summary-placed-pane">
+              <div class="summary-pane-header">
+                <h3>Recently Placed</h3>
+                <span class="pane-count"></span>
+              </div>
+              <div class="summary-pane-content"></div>
+            </div>
+
+            <div class="summary-divider">
+              <div class="summary-divider-handle"></div>
+            </div>
+
+            <div class="summary-pane summary-cancelled-pane">
+              <div class="summary-pane-header">
+                <h3>Recently Cancelled</h3>
+                <span class="pane-count"></span>
+              </div>
+              <div class="summary-pane-content"></div>
+            </div>
+          </div>
+        </div>
         <div class="tab-error hidden">
           <span class="material-symbols-outlined">error</span>
           <p class="error-message"></p>

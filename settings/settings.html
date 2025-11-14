@@ -105,6 +105,24 @@
           </label>
           <small>Automatically refresh the tab after 10 seconds when outdated cached data is shown (indicated by sync_problem icon)</small>
         </div>
+
+        <div class="form-group">
+          <label for="cancelledHours">Show cancelled bookings from last</label>
+          <select id="cancelledHours">
+            <option value="24">24 hours</option>
+            <option value="48">48 hours</option>
+            <option value="72">72 hours</option>
+          </select>
+          <small>Display cancelled bookings from the last X hours in the Summary tab</small>
+        </div>
+
+        <div class="form-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="includeFlaggedCancelled" checked>
+            <span>Include older cancelled bookings with flags</span>
+          </label>
+          <small>Show cancelled bookings older than the time window if they have critical flags (e.g., orphaned ResOS bookings)</small>
+        </div>
       </section>
 
       <section class="settings-section">

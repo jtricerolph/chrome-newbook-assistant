@@ -1509,12 +1509,17 @@ class APIClient {
 
   async fetchSummary(force_refresh = false) {
     const limit = this.settings.recentBookingsCount || 10;
+    const cancelledHours = this.settings.cancelledHours || 24;
+    const includeFlaggedCancelled = this.settings.includeFlaggedCancelled !== false;
+
     BMA_LOG.log('fetchSummary - settings:', this.settings);
     BMA_LOG.log('fetchSummary - recentBookingsCount:', this.settings.recentBookingsCount);
     BMA_LOG.log('fetchSummary - limit:', limit);
+    BMA_LOG.log('fetchSummary - cancelledHours:', cancelledHours);
+    BMA_LOG.log('fetchSummary - includeFlaggedCancelled:', includeFlaggedCancelled);
     BMA_LOG.log('fetchSummary - force_refresh:', force_refresh);
 
-    const url = `${this.baseUrl}/summary?context=chrome-summary&limit=${limit}&force_refresh=${force_refresh}`;
+    const url = `${this.baseUrl}/summary?context=chrome-summary&limit=${limit}&force_refresh=${force_refresh}&cancelled_hours=${cancelledHours}&include_flagged_cancelled=${includeFlaggedCancelled}`;
     BMA_LOG.log('fetchSummary - URL:', url);
 
     const response = await fetch(url, {
@@ -1604,6 +1609,36 @@ function showData(tabName, html) {
 
   // Check for stale cache indicators and schedule auto-refresh if enabled
   checkForStaleDataAndScheduleRefresh(tabName, dataElement);
+}
+
+function showSummaryData(placedHtml, cancelledHtml, placedCount, cancelledCount) {
+  const tabContent = document.querySelector('[data-content="summary"]');
+  const dataElement = tabContent.querySelector('.tab-data');
+
+  // Inject HTML into split panes
+  const placedContent = dataElement.querySelector('.summary-placed-pane .summary-pane-content');
+  const cancelledContent = dataElement.querySelector('.summary-cancelled-pane .summary-pane-content');
+  const placedCountBadge = dataElement.querySelector('.summary-placed-pane .pane-count');
+  const cancelledCountBadge = dataElement.querySelector('.summary-cancelled-pane .pane-count');
+
+  if (placedContent) placedContent.innerHTML = placedHtml || '<div class="bma-summary-empty"><p>No recent bookings</p></div>';
+  if (cancelledContent) cancelledContent.innerHTML = cancelledHtml || '<div class="bma-summary-empty"><p>No cancelled bookings</p></div>';
+  if (placedCountBadge) placedCountBadge.textContent = placedCount || '0';
+  if (cancelledCountBadge) cancelledCountBadge.textContent = cancelledCount || '0';
+
+  // Show data container
+  dataElement.classList.remove('hidden');
+  tabContent.querySelector('.tab-loading').classList.add('hidden');
+  tabContent.querySelector('.tab-error').classList.add('hidden');
+
+  // Attach event listeners for Summary tab accordion
+  attachSummaryEventListeners(dataElement);
+
+  // Check for stale cache indicators and schedule auto-refresh if enabled
+  checkForStaleDataAndScheduleRefresh('summary', dataElement);
+
+  // Initialize resizable divider
+  initializeResizableSummary();
 }
 
 // Check for stale cache indicators and schedule auto-refresh
@@ -3449,7 +3484,7 @@ async function loadSummaryTab(force_refresh = false) {
   // Smart refresh: Check if we're already showing Summary tab content
   // Skip smart refresh if force_refresh is true
   const isSummaryTabActive = STATE.currentTab === 'summary';
-  const hasExistingData = STATE.loadedBookingIds.summary && STATE.cache.summary && STATE.cache.summary.html;
+  const hasExistingData = STATE.loadedBookingIds.summary && STATE.cache.summary && STATE.cache.summary.html_placed;
 
   if (!force_refresh && !isAutoRefresh && isSummaryTabActive && hasExistingData) {
     BMA_LOG.log('Smart refresh: Summary already loaded, checking for changes...');
@@ -3459,12 +3494,14 @@ async function loadSummaryTab(force_refresh = false) {
       const api = new APIClient(STATE.settings);
       const newData = await api.fetchSummary(force_refresh);
 
-      if (newData.success && newData.html) {
+      if (newData.success && newData.html_placed) {
         // Compare HTML content
-        const currentHtml = STATE.cache.summary.html;
-        const newHtml = newData.html;
+        const currentPlacedHtml = STATE.cache.summary.html_placed;
+        const currentCancelledHtml = STATE.cache.summary.html_cancelled;
+        const newPlacedHtml = newData.html_placed;
+        const newCancelledHtml = newData.html_cancelled;
 
-        if (currentHtml === newHtml) {
+        if (currentPlacedHtml === newPlacedHtml && currentCancelledHtml === newCancelledHtml) {
           // No changes detected
           BMA_LOG.log('Smart refresh: No changes detected in Summary, keeping current view');
           updateBadge('summary', newData.critical_count || 0, newData.warning_count || 0);
@@ -3489,11 +3526,11 @@ async function loadSummaryTab(force_refresh = false) {
     const api = new APIClient(STATE.settings);
     const data = await api.fetchSummary(force_refresh);
 
-    if (data.success && data.html) {
+    if (data.success && data.html_placed) {
       // Check if data has changed (compare counts instead of HTML to avoid false positives)
-      const dataSignature = `${data.bookings_count}-${data.critical_count}-${data.warning_count}`;
+      const dataSignature = `${data.placed_count}-${data.cancelled_count}-${data.critical_count}-${data.warning_count}`;
       const cachedSignature = STATE.cache.summary
-        ? `${STATE.cache.summary.bookings_count}-${STATE.cache.summary.critical_count}-${STATE.cache.summary.warning_count}`
+        ? `${STATE.cache.summary.placed_count}-${STATE.cache.summary.cancelled_count}-${STATE.cache.summary.critical_count}-${STATE.cache.summary.warning_count}`
         : null;
 
       const hasChanged = !STATE.cache.summary || cachedSignature !== dataSignature;
@@ -3504,7 +3541,7 @@ async function loadSummaryTab(force_refresh = false) {
       // 1. Data has changed, OR
       // 2. This is NOT an auto-refresh (manual tab switch or first load)
       if (hasChanged || !isAutoRefresh) {
-        showData('summary', data.html);
+        showSummaryData(data.html_placed, data.html_cancelled, data.placed_count, data.cancelled_count);
         updateBadge('summary', data.critical_count || 0, data.warning_count || 0);
         STATE.cache.summary = data;
         STATE.loadedBookingIds.summary = true;
@@ -5093,6 +5130,79 @@ function initializeGroupModal() {
   if (saveBtn) saveBtn.addEventListener('click', saveGroupConfiguration);
 
   BMA_LOG.log('GROUP modal event listeners initialized');
+}
+
+function initializeResizableSummary() {
+  const divider = document.querySelector('.summary-divider');
+  const container = document.querySelector('.summary-split-container');
+  const placedPane = document.querySelector('.summary-placed-pane');
+  const cancelledPane = document.querySelector('.summary-cancelled-pane');
+
+  if (!divider || !container || !placedPane || !cancelledPane) {
+    BMA_LOG.log('Summary split-pane elements not found, skipping resize initialization');
+    return;
+  }
+
+  // Load saved split ratio from chrome storage
+  chrome.storage.sync.get(['summarySplitRatio'], (result) => {
+    if (result.summarySplitRatio) {
+      const ratio = parseFloat(result.summarySplitRatio);
+      if (ratio >= 20 && ratio <= 80) {
+        placedPane.style.flexBasis = `${ratio}%`;
+        BMA_LOG.log(`Summary split ratio restored: ${ratio}%`);
+      }
+    }
+  });
+
+  let isDragging = false;
+  let startY = 0;
+  let startPlacedHeight = 0;
+  let containerHeight = 0;
+
+  const onMouseDown = (e) => {
+    isDragging = true;
+    startY = e.clientY;
+    containerHeight = container.offsetHeight;
+    startPlacedHeight = placedPane.offsetHeight;
+
+    document.body.style.cursor = 'row-resize';
+    document.body.style.userSelect = 'none';
+
+    BMA_LOG.log('Summary resize started');
+  };
+
+  const onMouseMove = (e) => {
+    if (!isDragging) return;
+
+    const deltaY = e.clientY - startY;
+    const newPlacedHeight = startPlacedHeight + deltaY;
+    const newRatio = (newPlacedHeight / containerHeight) * 100;
+
+    // Constrain between 20% and 80%
+    if (newRatio >= 20 && newRatio <= 80) {
+      placedPane.style.flexBasis = `${newRatio}%`;
+    }
+  };
+
+  const onMouseUp = () => {
+    if (!isDragging) return;
+
+    isDragging = false;
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+
+    // Save the new ratio
+    const finalRatio = (placedPane.offsetHeight / container.offsetHeight) * 100;
+    chrome.storage.sync.set({ summarySplitRatio: finalRatio.toFixed(2) }, () => {
+      BMA_LOG.log(`Summary split ratio saved: ${finalRatio.toFixed(2)}%`);
+    });
+  };
+
+  divider.addEventListener('mousedown', onMouseDown);
+  document.addEventListener('mousemove', onMouseMove);
+  document.addEventListener('mouseup', onMouseUp);
+
+  BMA_LOG.log('Summary resizable divider initialized');
 }
 
 // ============================================

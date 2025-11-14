@@ -11,6 +11,8 @@ const DEFAULT_SETTINGS = {
   inactivityTimeout: 60,
   pauseInactivityWhenFormOpen: true,
   autoRefreshOnStaleCache: true,
+  cancelledHours: 24,
+  includeFlaggedCancelled: true,
   enableDebugLogging: false
 };
 
@@ -25,6 +27,8 @@ const elements = {
   enablePlannerClickUpdate: document.getElementById('enablePlannerClickUpdate'),
   highlightNewestMinutes: document.getElementById('highlightNewestMinutes'),
   autoRefreshOnStaleCache: document.getElementById('autoRefreshOnStaleCache'),
+  cancelledHours: document.getElementById('cancelledHours'),
+  includeFlaggedCancelled: document.getElementById('includeFlaggedCancelled'),
   inactivityTimeout: document.getElementById('inactivityTimeout'),
   pauseInactivityWhenFormOpen: document.getElementById('pauseInactivityWhenFormOpen'),
   enableDebugLogging: document.getElementById('enableDebugLogging'),
@@ -48,6 +52,8 @@ async function loadSettings() {
     elements.enablePlannerClickUpdate.checked = settings.enablePlannerClickUpdate !== false;
     elements.highlightNewestMinutes.value = settings.highlightNewestMinutes || 60;
     elements.autoRefreshOnStaleCache.checked = settings.autoRefreshOnStaleCache !== false;
+    elements.cancelledHours.value = settings.cancelledHours || 24;
+    elements.includeFlaggedCancelled.checked = settings.includeFlaggedCancelled !== false;
     elements.inactivityTimeout.value = settings.inactivityTimeout || 60;
     elements.pauseInactivityWhenFormOpen.checked = settings.pauseInactivityWhenFormOpen !== false;
     elements.enableDebugLogging.checked = settings.enableDebugLogging === true;
@@ -131,6 +137,8 @@ async function saveSettings() {
       enablePlannerClickUpdate: elements.enablePlannerClickUpdate.checked,
       highlightNewestMinutes: highlightMinutes,
       autoRefreshOnStaleCache: elements.autoRefreshOnStaleCache.checked,
+      cancelledHours: parseInt(elements.cancelledHours.value),
+      includeFlaggedCancelled: elements.includeFlaggedCancelled.checked,
       inactivityTimeout: inactivityTimeout,
       pauseInactivityWhenFormOpen: elements.pauseInactivityWhenFormOpen.checked,
       enableDebugLogging: elements.enableDebugLogging.checked
