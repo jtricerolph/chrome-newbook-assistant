@@ -166,23 +166,19 @@ body {
 }
 
 /* Summary Tab Split-Pane Layout */
-[data-content="summary"] {
-  height: 100%;
-}
-
 [data-content="summary"] .tab-data {
   padding: 0;
-  height: 100%;
+  flex: 1;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .summary-split-container {
   display: flex;
   flex-direction: column;
-  height: 100%;
-  overflow: hidden;
   flex: 1;
+  overflow: hidden;
 }
 
 .summary-pane {
@@ -333,19 +329,17 @@ body {
 
 /* Summary Countdown */
 .summary-countdown {
-  position: sticky;
-  bottom: 0;
+  flex-shrink: 0;
   background-color: #f3f4f6;
   border-top: 1px solid #e5e7eb;
   padding: 8px 16px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 4px;
+  justify-content: space-between;
+  gap: 8px;
   font-size: 13px;
   color: #6b7280;
   z-index: 50;
-  flex-wrap: wrap;
 }
 
 .summary-countdown.hidden {
@@ -356,6 +350,12 @@ body {
   font-size: 18px;
 }
 
+.countdown-text {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .countdown-text strong {
   color: #3b82f6;
   font-weight: 600;
@@ -364,7 +364,7 @@ body {
 .last-updated-text {
   font-size: 11px;
   color: #9ca3af;
-  width: 100%;
+  flex: 1;
   text-align: center;
 }
 
