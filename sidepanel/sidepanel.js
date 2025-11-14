@@ -4262,10 +4262,14 @@ function initializeStayingCards() {
             setTimeout(() => {
               const containerRect = scrollContainer.getBoundingClientRect();
               const elementRect = leadCard.getBoundingClientRect();
-              const offset = 5;
+
+              // Account for sticky date picker (~45px) + stats row (if any) + small visual spacing
+              // Date picker: 6px padding top + 32px button + 6px padding bottom + 1px border = 45px
+              // Add 10px extra for stats row and visual spacing
+              const offset = 55;
               const scrollTop = scrollContainer.scrollTop + (elementRect.top - containerRect.top) - offset;
 
-              BMA_LOG.log('Scrolling to lead booking:', { scrollTop, currentScrollTop: scrollContainer.scrollTop });
+              BMA_LOG.log('Scrolling to lead booking:', { scrollTop, currentScrollTop: scrollContainer.scrollTop, offset });
               scrollContainer.scrollTop = scrollTop;
               scrollContainer.scrollTo(0, scrollTop);
 
