@@ -46,8 +46,31 @@ const STATE = {
     staying: 0
   }, // Track scroll positions per tab/date
   restaurantBookings: {}, // Store restaurant bookings by date: { '2026-01-31': [{time, people, name, room}, ...] }
-  stayingDate: new Date().toISOString().split('T')[0], // Current date for staying tab
-  activeGroupFilter: null // Current group filter (null = show all, number = filter to specific group)
+  stayingDate: new Date().toISOString().split('T')[0] // Current date for staying tab
+  // activeGroupFilter moved to window.activeGroupFilter (managed by inline API template script)
+};
+
+// Debug logging utility - respects enableDebugLogging setting
+const BMA_LOG = {
+  log: (...args) => {
+    if (STATE.settings?.enableDebugLogging) {
+      console.log(...args);
+    }
+  },
+  warn: (...args) => {
+    if (STATE.settings?.enableDebugLogging) {
+      console.warn(...args);
+    }
+  },
+  error: (...args) => {
+    // Always log errors
+    console.error(...args);
+  },
+  info: (...args) => {
+    if (STATE.settings?.enableDebugLogging) {
+      console.info(...args);
+    }
+  }
 };
 
 // Global API client (exposed for use by injected template content)
@@ -63,7 +86,7 @@ window.apiClient = null;
  * @param {number|null} bookingId - Optional booking ID to set as current
  */
 function navigateToRestaurantDate(date, bookingId = null, resosBookingId = null) {
-  console.log('Navigating to Restaurant tab for date:', date, 'bookingId:', bookingId, 'resosBookingId:', resosBookingId);
+  BMA_LOG.log('Navigating to Restaurant tab for date:', date, 'bookingId:', bookingId, 'resosBookingId:', resosBookingId);
 
   // Save current scroll position
   const currentContent = document.querySelector(`[data-content="${STATE.currentTab}"]`);
@@ -96,7 +119,7 @@ function navigateToRestaurantDate(date, bookingId = null, resosBookingId = null)
  * @param {number} bookingId - Booking ID to show checks for
  */
 function navigateToChecksTab(bookingId) {
-  console.log('Navigating to Checks tab for bookingId:', bookingId);
+  BMA_LOG.log('Navigating to Checks tab for bookingId:', bookingId);
 
   // Save current scroll position
   const currentContent = document.querySelector(`[data-content="${STATE.currentTab}"]`);
@@ -117,11 +140,11 @@ function navigateToChecksTab(bookingId) {
  */
 function returnToPreviousContext() {
   if (!STATE.navigationContext || !STATE.navigationContext.returnTab) {
-    console.log('No previous context to return to');
+    BMA_LOG.log('No previous context to return to');
     return;
   }
 
-  console.log('Returning to previous context:', STATE.navigationContext.returnTab);
+  BMA_LOG.log('Returning to previous context:', STATE.navigationContext.returnTab);
 
   const returnTab = STATE.navigationContext.returnTab;
   const returnBookingId = STATE.navigationContext.returnBookingId;
@@ -159,7 +182,7 @@ async function processNavigationContext(retryCount = 0) {
 
   const { targetDate, expandCreateForm, expandComparisonRow, scrollAfterLoad } = STATE.navigationContext;
 
-  console.log('Processing navigation context:', STATE.navigationContext, 'retry:', retryCount);
+  BMA_LOG.log('Processing navigation context:', STATE.navigationContext, 'retry:', retryCount);
 
   // Find the date section
   const dateSection = document.getElementById(`date-section-${targetDate}`);
@@ -167,13 +190,13 @@ async function processNavigationContext(retryCount = 0) {
   if (!dateSection) {
     // Retry up to 3 times with increasing delays if DOM isn't ready yet
     if (retryCount < 3) {
-      console.warn(`Target date section not found: ${targetDate}, retrying in ${100 * (retryCount + 1)}ms...`);
+      BMA_LOG.warn(`Target date section not found: ${targetDate}, retrying in ${100 * (retryCount + 1)}ms...`);
       setTimeout(() => {
         processNavigationContext(retryCount + 1);
       }, 100 * (retryCount + 1));
       return;
     } else {
-      console.error('Target date section not found after 3 retries:', targetDate);
+      BMA_LOG.error('Target date section not found after 3 retries:', targetDate);
       // Clear navigation context to prevent infinite retries
       STATE.navigationContext = null;
       return;
@@ -183,7 +206,7 @@ async function processNavigationContext(retryCount = 0) {
   // Expand comparison row if requested (for suggested matches)
   if (expandComparisonRow && typeof window.loadComparisonView === 'function') {
     const { resosBookingId, date } = expandComparisonRow;
-    console.log('Expanding comparison row for resosBookingId:', resosBookingId, 'date:', date);
+    BMA_LOG.log('Expanding comparison row for resosBookingId:', resosBookingId, 'date:', date);
 
     // Call the loadComparisonView function to expand the comparison row
     // Note: We need to create a fake event object since loadComparisonView expects it
@@ -196,7 +219,7 @@ async function processNavigationContext(retryCount = 0) {
     try {
       await window.loadComparisonView(date, STATE.currentBookingId, resosBookingId, null);
     } catch (error) {
-      console.error('Error loading comparison view:', error);
+      BMA_LOG.error('Error loading comparison view:', error);
     }
   }
 
@@ -215,19 +238,19 @@ async function processNavigationContext(retryCount = 0) {
 
       // Initialize form if not already initialized
       if (!createForm.dataset.initialized && typeof window.initializeCreateFormForDate === 'function') {
-        console.log('Manually initializing form for date:', targetDate);
+        BMA_LOG.log('Manually initializing form for date:', targetDate);
         createForm.dataset.initialized = 'true';
         await window.initializeCreateFormForDate(targetDate, createForm);
-        console.log('Form initialization complete');
+        BMA_LOG.log('Form initialization complete');
       } else {
-        console.log('Form already initialized or function not available');
+        BMA_LOG.log('Form already initialized or function not available');
       }
     }
   }
 
   // Scroll to the bma-night section within the date section (or comparison row if expanded)
   if (scrollAfterLoad) {
-    console.log('Autoscroll: scrollAfterLoad=true, attempting to scroll');
+    BMA_LOG.log('Autoscroll: scrollAfterLoad=true, attempting to scroll');
     // Use requestAnimationFrame to ensure DOM is fully rendered
     requestAnimationFrame(() => {
       setTimeout(() => {
@@ -245,13 +268,13 @@ async function processNavigationContext(retryCount = 0) {
           targetElement = nightSection || dateSection;
         }
 
-        console.log('Autoscroll: targetElement found?', !!targetElement);
+        BMA_LOG.log('Autoscroll: targetElement found?', !!targetElement);
 
         if (targetElement) {
           // Get the scrolling container (tab-content)
           const scrollContainer = targetElement.closest('.tab-content');
-          console.log('Autoscroll: scrollContainer found?', !!scrollContainer);
-          console.log('Autoscroll: scrollContainer height:', scrollContainer?.clientHeight, 'scrollHeight:', scrollContainer?.scrollHeight);
+          BMA_LOG.log('Autoscroll: scrollContainer found?', !!scrollContainer);
+          BMA_LOG.log('Autoscroll: scrollContainer height:', scrollContainer?.clientHeight, 'scrollHeight:', scrollContainer?.scrollHeight);
 
           if (scrollContainer) {
             // Force layout recalculation
@@ -262,7 +285,7 @@ async function processNavigationContext(retryCount = 0) {
             const elementRect = targetElement.getBoundingClientRect();
             const offset = 5; // Additional pixels below the tab title bar for visual spacing
             const scrollTop = scrollContainer.scrollTop + (elementRect.top - containerRect.top) - offset;
-            console.log('Autoscroll: scrolling to', scrollTop, '(current scrollTop:', scrollContainer.scrollTop, 'element relative top:', elementRect.top - containerRect.top, 'offset:', offset, ')');
+            BMA_LOG.log('Autoscroll: scrolling to', scrollTop, '(current scrollTop:', scrollContainer.scrollTop, 'element relative top:', elementRect.top - containerRect.top, 'offset:', offset, ')');
 
             // Try both methods - direct assignment and scrollTo
             scrollContainer.scrollTop = scrollTop;
@@ -270,24 +293,24 @@ async function processNavigationContext(retryCount = 0) {
 
             // Verify scroll happened
             setTimeout(() => {
-              console.log('Autoscroll: After scroll - current scrollTop:', scrollContainer.scrollTop);
+              BMA_LOG.log('Autoscroll: After scroll - current scrollTop:', scrollContainer.scrollTop);
               if (scrollContainer.scrollTop === 0 && scrollTop > 0) {
-                console.warn('Autoscroll FAILED: scrollTop is still 0, trying scrollIntoView fallback');
+                BMA_LOG.warn('Autoscroll FAILED: scrollTop is still 0, trying scrollIntoView fallback');
                 targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
               }
             }, 100);
           } else {
             // Fallback to standard scrollIntoView
-            console.log('Autoscroll: using fallback scrollIntoView');
+            BMA_LOG.log('Autoscroll: using fallback scrollIntoView');
             targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
           }
         } else {
-          console.log('Autoscroll: targetElement not found, skipping scroll');
+          BMA_LOG.log('Autoscroll: targetElement not found, skipping scroll');
         }
       }, 150);
     });
   } else {
-    console.log('Autoscroll: scrollAfterLoad=false, skipping scroll');
+    BMA_LOG.log('Autoscroll: scrollAfterLoad=false, skipping scroll');
   }
 
   // Clear navigation context after processing to prevent re-triggering
@@ -307,13 +330,13 @@ async function processNavigationContext(retryCount = 0) {
 function scrollGanttToTime(chartId, time, smooth = true) {
   const chart = document.getElementById(chartId);
   if (!chart) {
-    console.warn('Gantt chart not found:', chartId);
+    BMA_LOG.warn('Gantt chart not found:', chartId);
     return;
   }
 
   const viewport = chart.querySelector('.gantt-viewport-container');
   if (!viewport) {
-    console.warn('Gantt viewport not found in chart:', chartId);
+    BMA_LOG.warn('Gantt viewport not found in chart:', chartId);
     return;
   }
 
@@ -341,13 +364,13 @@ function scrollGanttToTime(chartId, time, smooth = true) {
 function scrollGanttViewport(chartId, direction) {
   const chart = document.getElementById(chartId);
   if (!chart) {
-    console.warn('Gantt chart not found:', chartId);
+    BMA_LOG.warn('Gantt chart not found:', chartId);
     return;
   }
 
   const viewport = chart.querySelector('.gantt-viewport-container');
   if (!viewport) {
-    console.warn('Gantt viewport not found in chart:', chartId);
+    BMA_LOG.warn('Gantt viewport not found in chart:', chartId);
     return;
   }
 
@@ -364,7 +387,7 @@ function scrollGanttViewport(chartId, direction) {
 function showGanttSightLine(chartId, time = null) {
   const chart = document.getElementById(chartId);
   if (!chart) {
-    console.warn('Gantt chart not found:', chartId);
+    BMA_LOG.warn('Gantt chart not found:', chartId);
     return;
   }
 
@@ -386,7 +409,7 @@ function showGanttSightLine(chartId, time = null) {
   // Get the sight line element (it's already in the chart HTML)
   const sightLine = document.getElementById('gantt-sight-line-' + chartId);
   if (!sightLine) {
-    console.warn('Sight line element not found for chart:', chartId);
+    BMA_LOG.warn('Sight line element not found for chart:', chartId);
     return;
   }
 
@@ -399,7 +422,7 @@ function showGanttSightLine(chartId, time = null) {
   const totalMinutes = parseInt(chartContainer.dataset.totalMinutes);
 
   if (isNaN(startHour) || isNaN(totalMinutes)) {
-    console.warn('Chart time range data not found');
+    BMA_LOG.warn('Chart time range data not found');
     return;
   }
   const targetHour = Math.floor(targetTime / 100);
@@ -466,7 +489,7 @@ function unlockGanttSightLine(chartId) {
 function scrollGanttToTime(chartId, time, smooth = true) {
   const chart = document.getElementById(chartId);
   if (!chart) {
-    console.warn('Gantt chart not found:', chartId);
+    BMA_LOG.warn('Gantt chart not found:', chartId);
     return;
   }
 
@@ -493,7 +516,7 @@ function scrollGanttToTime(chartId, time, smooth = true) {
   const totalMinutes = parseInt(chartContainer.dataset.totalMinutes);
 
   if (isNaN(startHour) || isNaN(totalMinutes)) {
-    console.warn('Chart time range data not found for auto-scroll');
+    BMA_LOG.warn('Chart time range data not found for auto-scroll');
     return;
   }
   const targetHour = Math.floor(targetTime / 100);
@@ -682,7 +705,7 @@ function buildGanttChart(openingHours, specialEvents = [], availableTimes = [], 
 
   // Position bookings using grid algorithm
   const positionedBookings = positionBookingsOnGrid(bookings, startHour, totalMinutes, bookingDuration, config.gridRowHeight);
-  console.log('DEBUG buildGanttChart: Received', bookings.length, 'bookings, positioned', positionedBookings.length, 'bookings');
+  BMA_LOG.log('DEBUG buildGanttChart: Received', bookings.length, 'bookings, positioned', positionedBookings.length, 'bookings');
 
   // Calculate total height with proper spacing for time labels
   const topMargin = 20; // Space for time labels
@@ -979,13 +1002,13 @@ function attachGanttTooltips() {
       const name = bar.getAttribute('data-name') || 'Guest';
       const isResident = bar.getAttribute('data-is-resident') === 'true';
 
-      console.log('Gantt tooltip - name:', name, 'isResident:', isResident, 'data-is-resident attr:', bar.getAttribute('data-is-resident'));
+      BMA_LOG.log('Gantt tooltip - name:', name, 'isResident:', isResident, 'data-is-resident attr:', bar.getAttribute('data-is-resident'));
 
       // Format: "{people} pax {name} [hotel icon]" (Material Symbols hotel icon if resident)
       let tooltipHTML = `${people} pax ${name}`;
       if (isResident) {
         tooltipHTML += ' <span class="material-symbols-outlined" style="font-size: 14px; vertical-align: middle;">hotel</span>';
-        console.log('Adding hotel icon to tooltip');
+        BMA_LOG.log('Adding hotel icon to tooltip');
       }
 
       tooltip.innerHTML = tooltipHTML;
@@ -1015,7 +1038,7 @@ function attachGanttTooltips() {
 async function togglePeriodSection(date, periodIndex) {
   const sectionsContainer = document.getElementById('service-period-sections-' + date);
   if (!sectionsContainer) {
-    console.warn('Sections container not found for date:', date);
+    BMA_LOG.warn('Sections container not found for date:', date);
     return;
   }
 
@@ -1025,7 +1048,7 @@ async function togglePeriodSection(date, periodIndex) {
   const clickedTimes = sectionsContainer.querySelector(`.period-times[data-period-index="${periodIndex}"]`);
 
   if (!clickedHeader || !clickedTimes) {
-    console.warn('Period section not found for index:', periodIndex);
+    BMA_LOG.warn('Period section not found for index:', periodIndex);
     return;
   }
 
@@ -1062,7 +1085,7 @@ async function togglePeriodSection(date, periodIndex) {
       const form = document.getElementById('create-form-' + date);
       const people = form ? parseInt(form.querySelector('.form-people').value) || 2 : 2;
 
-      console.log('Lazy loading times for period index:', periodIndex);
+      BMA_LOG.log('Lazy loading times for period index:', periodIndex);
 
       // Call the loadAvailableTimesForPeriod function if it exists
       if (typeof loadAvailableTimesForPeriod !== 'undefined') {
@@ -1071,7 +1094,7 @@ async function togglePeriodSection(date, periodIndex) {
     }
   }
 
-  console.log('Toggled period section:', periodIndex, 'expanded:', !isCurrentlyExpanded);
+  BMA_LOG.log('Toggled period section:', periodIndex, 'expanded:', !isCurrentlyExpanded);
 }
 
 // Expose to window for onclick handlers
@@ -1089,7 +1112,7 @@ window.togglePeriodSection = togglePeriodSection;
 function toggleFormSection(sectionId, toggleButton) {
   const section = document.getElementById(sectionId);
   if (!section) {
-    console.warn('Form section not found:', sectionId);
+    BMA_LOG.warn('Form section not found:', sectionId);
     return;
   }
 
@@ -1113,7 +1136,7 @@ function toggleFormSection(sectionId, toggleButton) {
 function validateBookingForm(formId) {
   const form = document.getElementById(formId);
   if (!form) {
-    console.warn('Form not found:', formId);
+    BMA_LOG.warn('Form not found:', formId);
     return false;
   }
 
@@ -1197,7 +1220,7 @@ async function fetchOpeningHours(date = null) {
 
     return await response.json();
   } catch (error) {
-    console.error('Error fetching opening hours:', error);
+    BMA_LOG.error('Error fetching opening hours:', error);
     throw error;
   }
 }
@@ -1236,7 +1259,7 @@ async function fetchAvailableTimes(date, people, openingHourId = null) {
 
     return await response.json();
   } catch (error) {
-    console.error('Error fetching available times:', error);
+    BMA_LOG.error('Error fetching available times:', error);
     throw error;
   }
 }
@@ -1261,7 +1284,7 @@ async function fetchDietaryChoices() {
 
     return await response.json();
   } catch (error) {
-    console.error('Error fetching dietary choices:', error);
+    BMA_LOG.error('Error fetching dietary choices:', error);
     throw error;
   }
 }
@@ -1287,7 +1310,7 @@ async function fetchSpecialEvents(date) {
 
     return await response.json();
   } catch (error) {
-    console.error('Error fetching special events:', error);
+    BMA_LOG.error('Error fetching special events:', error);
     throw error;
   }
 }
@@ -1300,7 +1323,7 @@ async function fetchSpecialEvents(date) {
 async function fetchAllBookingsForDate(date) {
   try {
     const url = `${window.apiClient.baseUrl}/all-bookings-for-date?date=${date}`;
-    console.log('fetchAllBookingsForDate - URL:', url);
+    BMA_LOG.log('fetchAllBookingsForDate - URL:', url);
 
     const response = await fetch(url, {
       method: 'GET',
@@ -1310,26 +1333,26 @@ async function fetchAllBookingsForDate(date) {
       }
     });
 
-    console.log('fetchAllBookingsForDate - Response status:', response.status, response.statusText);
+    BMA_LOG.log('fetchAllBookingsForDate - Response status:', response.status, response.statusText);
 
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
     const data = await response.json();
-    console.log('fetchAllBookingsForDate - Response data:', data);
-    console.log('fetchAllBookingsForDate - Bookings count:', data.bookings ? data.bookings.length : 0);
+    BMA_LOG.log('fetchAllBookingsForDate - Response data:', data);
+    BMA_LOG.log('fetchAllBookingsForDate - Bookings count:', data.bookings ? data.bookings.length : 0);
 
     // Debug: Log each booking's is_resident value
     if (data.bookings && data.bookings.length > 0) {
       data.bookings.forEach((booking, i) => {
-        console.log(`Booking ${i}: name="${booking.name}", is_resident=${booking.is_resident}`);
+        BMA_LOG.log(`Booking ${i}: name="${booking.name}", is_resident=${booking.is_resident}`);
       });
     }
 
     return data;
   } catch (error) {
-    console.error('Error fetching all bookings for date:', error);
+    BMA_LOG.error('Error fetching all bookings for date:', error);
     throw error;
   }
 }
@@ -1351,7 +1374,7 @@ const AuthManager = {
         allCookies = allCookies.concat(cookies);
       }
 
-      console.log('NewBook cookies found:', allCookies.length);
+      BMA_LOG.log('NewBook cookies found:', allCookies.length);
 
       // Check if there's a valid session cookie
       // NewBook typically uses PHPSESSID or similar
@@ -1363,11 +1386,11 @@ const AuthManager = {
 
       const isAuthenticated = !!sessionCookie && !this.isCookieExpired(sessionCookie);
 
-      console.log('NewBook authentication status:', isAuthenticated ? 'Authenticated' : 'Not authenticated');
+      BMA_LOG.log('NewBook authentication status:', isAuthenticated ? 'Authenticated' : 'Not authenticated');
 
       return isAuthenticated;
     } catch (error) {
-      console.error('Error checking NewBook auth:', error);
+      BMA_LOG.error('Error checking NewBook auth:', error);
       return false;
     }
   },
@@ -1445,7 +1468,7 @@ const AuthManager = {
 
   // Handle session lock status from content script
   handleSessionLock(isLocked) {
-    console.log('Session lock status updated:', isLocked ? 'LOCKED' : 'UNLOCKED');
+    BMA_LOG.log('Session lock status updated:', isLocked ? 'LOCKED' : 'UNLOCKED');
     STATE.sessionLocked = isLocked;
 
     // Update lock screen visibility
@@ -1462,7 +1485,7 @@ const AuthManager = {
     chrome.cookies.onChanged.addListener((changeInfo) => {
       // Check if the changed cookie is from NewBook domain
       if (changeInfo.cookie.domain.includes('newbook.cloud')) {
-        console.log('NewBook cookie changed:', changeInfo);
+        BMA_LOG.log('NewBook cookie changed:', changeInfo);
 
         // Debounce auth check to avoid too many checks
         clearTimeout(this._cookieCheckTimeout);
@@ -1472,7 +1495,7 @@ const AuthManager = {
       }
     });
 
-    console.log('Cookie monitoring started');
+    BMA_LOG.log('Cookie monitoring started');
   }
 };
 
@@ -1486,13 +1509,13 @@ class APIClient {
 
   async fetchSummary(force_refresh = false) {
     const limit = this.settings.recentBookingsCount || 10;
-    console.log('fetchSummary - settings:', this.settings);
-    console.log('fetchSummary - recentBookingsCount:', this.settings.recentBookingsCount);
-    console.log('fetchSummary - limit:', limit);
-    console.log('fetchSummary - force_refresh:', force_refresh);
+    BMA_LOG.log('fetchSummary - settings:', this.settings);
+    BMA_LOG.log('fetchSummary - recentBookingsCount:', this.settings.recentBookingsCount);
+    BMA_LOG.log('fetchSummary - limit:', limit);
+    BMA_LOG.log('fetchSummary - force_refresh:', force_refresh);
 
     const url = `${this.baseUrl}/summary?context=chrome-summary&limit=${limit}&force_refresh=${force_refresh}`;
-    console.log('fetchSummary - URL:', url);
+    BMA_LOG.log('fetchSummary - URL:', url);
 
     const response = await fetch(url, {
       method: 'GET',
@@ -1575,6 +1598,8 @@ function showData(tabName, html) {
   // Attach event listeners for Restaurant tab buttons
   if (tabName === 'restaurant') {
     attachRestaurantEventListeners(dataElement);
+    // Initialize GROUP modal event listeners after template loads
+    initializeGroupModal();
   }
 
   // Check for stale cache indicators and schedule auto-refresh if enabled
@@ -1587,17 +1612,17 @@ function checkForStaleDataAndScheduleRefresh(tabName, dataElement) {
   const staleIndicators = dataElement.querySelectorAll('.stale-indicator, .bma-stale-badge');
 
   if (staleIndicators.length === 0) {
-    console.log(`[Stale Refresh] No stale indicators found in ${tabName} tab`);
+    BMA_LOG.log(`[Stale Refresh] No stale indicators found in ${tabName} tab`);
     return;
   }
 
-  console.log(`[Stale Refresh] Found ${staleIndicators.length} stale indicator(s) in ${tabName} tab`);
+  BMA_LOG.log(`[Stale Refresh] Found ${staleIndicators.length} stale indicator(s) in ${tabName} tab`);
 
   // Get the autoRefreshOnStaleCache setting (default: true)
   const autoRefreshEnabled = STATE.settings?.autoRefreshOnStaleCache !== false;
 
   if (!autoRefreshEnabled) {
-    console.log(`[Stale Refresh] Auto-refresh is disabled in settings`);
+    BMA_LOG.log(`[Stale Refresh] Auto-refresh is disabled in settings`);
     return;
   }
 
@@ -1608,9 +1633,9 @@ function checkForStaleDataAndScheduleRefresh(tabName, dataElement) {
   }
 
   // Schedule refresh after 10 seconds
-  console.log(`[Stale Refresh] Scheduling auto-refresh for ${tabName} tab in 10 seconds...`);
+  BMA_LOG.log(`[Stale Refresh] Scheduling auto-refresh for ${tabName} tab in 10 seconds...`);
   STATE.timers.staleRefresh = setTimeout(() => {
-    console.log(`[Stale Refresh] Auto-refreshing ${tabName} tab due to stale cache`);
+    BMA_LOG.log(`[Stale Refresh] Auto-refreshing ${tabName} tab due to stale cache`);
 
     // Trigger refresh based on tab type
     if (tabName === 'summary') {
@@ -1672,7 +1697,7 @@ function attachSummaryEventListeners(container) {
       const bookingId = this.dataset.bookingId;
       const date = this.dataset.date;
       const resosId = this.dataset.resosId;
-      console.log('Suggested match clicked - navigating to Restaurant tab:', { bookingId, date, resosId });
+      BMA_LOG.log('Suggested match clicked - navigating to Restaurant tab:', { bookingId, date, resosId });
 
       // Navigate to Restaurant tab with date and expand comparison row
       if (date && resosId) {
@@ -1696,7 +1721,7 @@ function attachSummaryEventListeners(container) {
 
       if (resosId && restaurantId && date) {
         const resosUrl = `https://app.resos.com/${restaurantId}/bookings/timetable/${date}/${resosId}`;
-        console.log('Opening ResOS booking in new tab:', resosUrl);
+        BMA_LOG.log('Opening ResOS booking in new tab:', resosUrl);
         chrome.tabs.create({ url: resosUrl });
       }
     });
@@ -1722,7 +1747,7 @@ function attachSummaryEventListeners(container) {
       const date = this.dataset.date;
       const bookingId = this.dataset.bookingId;
 
-      console.log('Create booking link clicked - date:', date, 'bookingId:', bookingId);
+      BMA_LOG.log('Create booking link clicked - date:', date, 'bookingId:', bookingId);
       navigateToRestaurantDate(date, parseInt(bookingId));
     });
   });
@@ -1736,7 +1761,7 @@ function attachSummaryEventListeners(container) {
 
       const bookingId = this.dataset.bookingId;
 
-      console.log('Restaurant header clicked - bookingId:', bookingId);
+      BMA_LOG.log('Restaurant header clicked - bookingId:', bookingId);
       navigateToRestaurantDate(null, parseInt(bookingId));
     });
   });
@@ -1750,7 +1775,7 @@ function attachSummaryEventListeners(container) {
 
       const bookingId = this.dataset.bookingId;
 
-      console.log('Checks header clicked - bookingId:', bookingId);
+      BMA_LOG.log('Checks header clicked - bookingId:', bookingId);
       navigateToChecksTab(parseInt(bookingId));
     });
   });
@@ -1763,11 +1788,11 @@ function attachSummaryEventListeners(container) {
 function attachRestaurantEventListeners(container) {
   // Check if listeners are already attached to prevent duplicates
   if (container.dataset.listenersAttached === 'true') {
-    console.log('Restaurant event listeners already attached, skipping');
+    BMA_LOG.log('Restaurant event listeners already attached, skipping');
     return;
   }
 
-  console.log('Attaching restaurant event listeners');
+  BMA_LOG.log('Attaching restaurant event listeners');
   container.dataset.listenersAttached = 'true';
 
   // Reset inactivity timer on ANY interaction (clicks, scrolling, typing, etc.)
@@ -1805,7 +1830,7 @@ function attachRestaurantEventListeners(container) {
     event.preventDefault();
 
     const action = button.dataset.action;
-    console.log('Restaurant button clicked:', action);
+    BMA_LOG.log('Restaurant button clicked:', action);
 
     try {
       switch(action) {
@@ -1847,6 +1872,7 @@ function attachRestaurantEventListeners(container) {
           break;
 
         case 'submit-suggestions':
+          console.log('BMA: submit-suggestions action caught, calling submitSuggestions');
           await submitSuggestions(
             button.dataset.date,
             button.dataset.resosBookingId,
@@ -1854,9 +1880,37 @@ function attachRestaurantEventListeners(container) {
             button.dataset.isConfirmed === 'true'
           );
           break;
+
+        case 'manage-group':
+          if (typeof window.openGroupManagementModal === 'function') {
+            console.log('BMA: Manage Group button clicked, data attributes:', {
+              resosBookingId: button.dataset.resosBookingId,
+              hotelBookingId: button.dataset.hotelBookingId,
+              date: button.dataset.date,
+              resosTime: button.dataset.resosTime,
+              resosGuest: button.dataset.resosGuest,
+              resosPeople: button.dataset.resosPeople,
+              resosBookingRef: button.dataset.resosBookingRef,
+              groupExclude: button.dataset.groupExclude
+            });
+            await window.openGroupManagementModal(
+              button.dataset.resosBookingId,
+              button.dataset.hotelBookingId,
+              button.dataset.date,
+              button.dataset.resosTime || '',
+              button.dataset.resosGuest || '',
+              button.dataset.resosPeople || '0',
+              button.dataset.resosBookingRef || '',
+              button.dataset.groupExclude || ''
+            );
+          } else {
+            BMA_LOG.error('openGroupManagementModal function not found');
+            showToast('Group management feature not available', 'error');
+          }
+          break;
       }
     } catch (error) {
-      console.error('Error handling restaurant action:', error);
+      BMA_LOG.error('Error handling restaurant action:', error);
       showToast(`Error: ${error.message}`, 'error');
     }
   });
@@ -1880,18 +1934,18 @@ function attachRestaurantEventListeners(container) {
 
       // Scroll to the bma-night section for better context
       const dateSection = document.getElementById(`date-section-${date}`);
-      console.log('Autoscroll (create form): dateSection found?', !!dateSection);
+      BMA_LOG.log('Autoscroll (create form): dateSection found?', !!dateSection);
       if (dateSection) {
         // Use requestAnimationFrame to ensure DOM is fully rendered
         requestAnimationFrame(() => {
           setTimeout(() => {
             const nightSection = dateSection.querySelector('.bma-night');
-            console.log('Autoscroll (create form): nightSection found?', !!nightSection);
+            BMA_LOG.log('Autoscroll (create form): nightSection found?', !!nightSection);
             if (nightSection) {
               // Get the scrolling container and apply offset
               const scrollContainer = nightSection.closest('.tab-content');
-              console.log('Autoscroll (create form): scrollContainer found?', !!scrollContainer);
-              console.log('Autoscroll (create form): scrollContainer height:', scrollContainer?.clientHeight, 'scrollHeight:', scrollContainer?.scrollHeight);
+              BMA_LOG.log('Autoscroll (create form): scrollContainer found?', !!scrollContainer);
+              BMA_LOG.log('Autoscroll (create form): scrollContainer height:', scrollContainer?.clientHeight, 'scrollHeight:', scrollContainer?.scrollHeight);
               if (scrollContainer) {
                 // Force layout recalculation
                 scrollContainer.offsetHeight;
@@ -1901,7 +1955,7 @@ function attachRestaurantEventListeners(container) {
                 const elementRect = nightSection.getBoundingClientRect();
                 const offset = 5; // Additional pixels below the tab title bar for visual spacing
                 const scrollTop = scrollContainer.scrollTop + (elementRect.top - containerRect.top) - offset;
-                console.log('Autoscroll (create form): scrolling to', scrollTop, '(current scrollTop:', scrollContainer.scrollTop, 'element relative top:', elementRect.top - containerRect.top, 'offset:', offset, ')');
+                BMA_LOG.log('Autoscroll (create form): scrolling to', scrollTop, '(current scrollTop:', scrollContainer.scrollTop, 'element relative top:', elementRect.top - containerRect.top, 'offset:', offset, ')');
 
                 // Try both methods - direct assignment and scrollTo
                 scrollContainer.scrollTop = scrollTop;
@@ -1909,24 +1963,24 @@ function attachRestaurantEventListeners(container) {
 
                 // Verify scroll happened
                 setTimeout(() => {
-                  console.log('Autoscroll (create form): After scroll - current scrollTop:', scrollContainer.scrollTop);
+                  BMA_LOG.log('Autoscroll (create form): After scroll - current scrollTop:', scrollContainer.scrollTop);
                   if (scrollContainer.scrollTop === 0 && scrollTop > 0) {
-                    console.warn('Autoscroll (create form) FAILED: scrollTop is still 0, trying scrollIntoView fallback');
+                    BMA_LOG.warn('Autoscroll (create form) FAILED: scrollTop is still 0, trying scrollIntoView fallback');
                     nightSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
                   }
                 }, 100);
               } else {
-                console.log('Autoscroll (create form): using fallback scrollIntoView on nightSection');
+                BMA_LOG.log('Autoscroll (create form): using fallback scrollIntoView on nightSection');
                 nightSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
               }
             } else {
-              console.log('Autoscroll (create form): nightSection not found, scrolling form into view');
+              BMA_LOG.log('Autoscroll (create form): nightSection not found, scrolling form into view');
               form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }
           }, 150);
         });
       } else {
-        console.log('Autoscroll (create form): dateSection not found, scrolling form into view');
+        BMA_LOG.log('Autoscroll (create form): dateSection not found, scrolling form into view');
         form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
 
@@ -1944,24 +1998,24 @@ function attachRestaurantEventListeners(container) {
   }
 
   async function initializeCreateFormForDate(date, form) {
-    console.log('Initializing create form for date:', date);
+    BMA_LOG.log('Initializing create form for date:', date);
 
     // Fetch and populate opening hours
     try {
       const openingHoursData = await fetchOpeningHours(date);
-      console.log('Opening hours response:', openingHoursData);
+      BMA_LOG.log('Opening hours response:', openingHoursData);
 
       const sectionsContainer = document.getElementById('service-period-sections-' + date);
-      console.log('Sections container found:', !!sectionsContainer);
+      BMA_LOG.log('Sections container found:', !!sectionsContainer);
 
       if (!sectionsContainer) {
-        console.error('Sections container not found for date:', date);
+        BMA_LOG.error('Sections container not found for date:', date);
         return;
       }
 
       if (openingHoursData.success && openingHoursData.data && openingHoursData.data.length > 0) {
         const periods = openingHoursData.data;
-        console.log('Generating collapsible sections for', periods.length, 'periods');
+        BMA_LOG.log('Generating collapsible sections for', periods.length, 'periods');
 
         // Generate collapsible sections (accordion style - vertical)
         let sectionsHtml = '';
@@ -2004,20 +2058,20 @@ function attachRestaurantEventListeners(container) {
             // Fetch ALL restaurant bookings for this date
             try {
               const allBookingsData = await fetchAllBookingsForDate(date);
-              console.log('DEBUG: All bookings from API:', allBookingsData);
+              BMA_LOG.log('DEBUG: All bookings from API:', allBookingsData);
 
               // Get matched bookings for this date from STATE
               const matchedBookings = STATE.restaurantBookings[date] || [];
-              console.log('DEBUG: Matched bookings from STATE:', matchedBookings);
+              BMA_LOG.log('DEBUG: Matched bookings from STATE:', matchedBookings);
 
               // Use all bookings from API for comprehensive view
               const bookingsForDate = allBookingsData.success ? allBookingsData.bookings : [];
-              console.log('DEBUG: Total bookings for Gantt chart:', bookingsForDate.length);
+              BMA_LOG.log('DEBUG: Total bookings for Gantt chart:', bookingsForDate.length);
 
               // Extract special events and online booking status from API response
               const specialEvents = allBookingsData.specialEvents || [];
               const onlineBookingAvailable = allBookingsData.onlineBookingAvailable;
-              console.log('DEBUG: Special events:', specialEvents, 'Online booking available:', onlineBookingAvailable);
+              BMA_LOG.log('DEBUG: Special events:', specialEvents, 'Online booking available:', onlineBookingAvailable);
 
               // Build alert banner HTML
               const alertsHtml = buildSpecialEventsAlert(specialEvents, onlineBookingAvailable);
@@ -2057,13 +2111,13 @@ function attachRestaurantEventListeners(container) {
               if (chartContainer) {
                 const chartHeight = parseInt(chartContainer.style.height) || 120;
                 ganttViewport.style.height = chartHeight + 'px';
-                console.log('Updated Gantt viewport height to:', chartHeight + 'px');
+                BMA_LOG.log('Updated Gantt viewport height to:', chartHeight + 'px');
               }
 
               attachGanttTooltips();
-              console.log('Gantt chart generated for date:', date, 'with', bookingsForDate.length, 'bookings');
+              BMA_LOG.log('Gantt chart generated for date:', date, 'with', bookingsForDate.length, 'bookings');
             } catch (error) {
-              console.error('Error fetching all bookings for Gantt chart:', error);
+              BMA_LOG.error('Error fetching all bookings for Gantt chart:', error);
               // Fallback to matched bookings only if API fails
               const bookingsForDate = STATE.restaurantBookings[date] || [];
               const ganttHtml = buildGanttChart(
@@ -2081,7 +2135,7 @@ function attachRestaurantEventListeners(container) {
               if (chartContainer) {
                 const chartHeight = parseInt(chartContainer.style.height) || 120;
                 ganttViewport.style.height = chartHeight + 'px';
-                console.log('Updated Gantt viewport height to:', chartHeight + 'px (fallback)');
+                BMA_LOG.log('Updated Gantt viewport height to:', chartHeight + 'px (fallback)');
               }
 
               attachGanttTooltips();
@@ -2095,13 +2149,13 @@ function attachRestaurantEventListeners(container) {
         const people = parseInt(form.querySelector('.form-people').value) || 2;
         await loadAvailableTimesForPeriod(date, people, defaultPeriod._id, defaultPeriodIndex, true, defaultPeriod);  // Auto-scroll Gantt to first booking
 
-        console.log('Opening hours loaded, default period:', defaultPeriod.name);
+        BMA_LOG.log('Opening hours loaded, default period:', defaultPeriod.name);
       } else {
-        console.warn('Opening hours response has no data:', openingHoursData);
+        BMA_LOG.warn('Opening hours response has no data:', openingHoursData);
         sectionsContainer.innerHTML = '<p style="color: #ef4444;">No service periods available</p>';
       }
     } catch (error) {
-      console.error('Error loading opening hours:', error);
+      BMA_LOG.error('Error loading opening hours:', error);
       const sectionsContainer = document.getElementById('service-period-sections-' + date);
       if (sectionsContainer) {
         sectionsContainer.innerHTML = '<p style="color: #ef4444;">Error loading service periods</p>';
@@ -2111,16 +2165,16 @@ function attachRestaurantEventListeners(container) {
     // Fetch and populate dietary choices
     try {
       const dietaryData = await fetchDietaryChoices();
-      console.log('Dietary choices response:', dietaryData);
+      BMA_LOG.log('Dietary choices response:', dietaryData);
 
       const container = document.getElementById('dietary-checkboxes-' + date);
-      console.log('Dietary checkboxes container found:', !!container);
+      BMA_LOG.log('Dietary checkboxes container found:', !!container);
 
       if (dietaryData.success && dietaryData.html) {
-        console.log('Using HTML response for dietary choices');
+        BMA_LOG.log('Using HTML response for dietary choices');
         container.innerHTML = dietaryData.html;
       } else if (dietaryData.success && dietaryData.choices) {
-        console.log('Using choices array for dietary:', dietaryData.choices.length, 'choices');
+        BMA_LOG.log('Using choices array for dietary:', dietaryData.choices.length, 'choices');
         container.innerHTML = '';
         dietaryData.choices.forEach(choice => {
           const div = document.createElement('div');
@@ -2131,10 +2185,10 @@ function attachRestaurantEventListeners(container) {
           container.appendChild(div);
         });
       } else {
-        console.warn('Dietary response has no html or choices:', dietaryData);
+        BMA_LOG.warn('Dietary response has no html or choices:', dietaryData);
       }
     } catch (error) {
-      console.error('Error loading dietary choices:', error);
+      BMA_LOG.error('Error loading dietary choices:', error);
       const container = document.getElementById('dietary-checkboxes-' + date);
       if (container) {
         container.innerHTML = '<p style="color: #ef4444;">Error loading dietary options</p>';
@@ -2216,15 +2270,15 @@ function attachRestaurantEventListeners(container) {
   }
 
   async function loadAvailableTimesForPeriod(date, people, periodId, periodIndex, autoScrollGantt = false, periodData = null) {
-    console.log('DEBUG loadAvailableTimesForPeriod called:', {date, people, periodId, periodIndex, autoScrollGantt, periodData});
+    BMA_LOG.log('DEBUG loadAvailableTimesForPeriod called:', {date, people, periodId, periodIndex, autoScrollGantt, periodData});
     try {
       const timesData = await fetchAvailableTimes(date, people, periodId);
-      console.log('DEBUG fetchAvailableTimes result:', {success: timesData.success, hasHtml: !!timesData.html, htmlLength: timesData.html?.length});
+      BMA_LOG.log('DEBUG fetchAvailableTimes result:', {success: timesData.success, hasHtml: !!timesData.html, htmlLength: timesData.html?.length});
       const sectionsContainer = document.getElementById('service-period-sections-' + date);
       const periodTimes = sectionsContainer ? sectionsContainer.querySelector(`.period-times[data-period-index="${periodIndex}"]`) : null;
 
       if (!periodTimes) {
-        console.warn('Period times container not found for index:', periodIndex, 'sectionsContainer:', sectionsContainer);
+        BMA_LOG.warn('Period times container not found for index:', periodIndex, 'sectionsContainer:', sectionsContainer);
         return;
       }
 
@@ -2332,7 +2386,7 @@ function attachRestaurantEventListeners(container) {
             }
 
             if (firstBookingTime) {
-              console.log('Auto-scrolling Gantt to first booking time:', firstBookingTime, 'within period:', periodOpen, '-', periodClose);
+              BMA_LOG.log('Auto-scrolling Gantt to first booking time:', firstBookingTime, 'within period:', periodOpen, '-', periodClose);
 
               // Scroll to the booking time
               scrollGanttToTime(ganttChartId, firstBookingTime, true);
@@ -2343,7 +2397,7 @@ function attachRestaurantEventListeners(container) {
               }
             } else {
               // No bookings found - fall back to first available time slot in period
-              console.log('No bookings found within period, falling back to first available time');
+              BMA_LOG.log('No bookings found within period, falling back to first available time');
 
               // Find first available (non-unavailable) time button in this period
               const timeButtons = periodTimes.querySelectorAll('.time-slot-btn:not(.time-slot-unavailable)');
@@ -2352,31 +2406,31 @@ function attachRestaurantEventListeners(container) {
                 const firstAvailableTime = firstAvailableBtn.dataset.time || firstAvailableBtn.textContent.trim();
                 const timeHHMM = firstAvailableTime.replace(':', '');
 
-                console.log('Auto-scrolling Gantt to first available time:', timeHHMM);
+                BMA_LOG.log('Auto-scrolling Gantt to first available time:', timeHHMM);
                 scrollGanttToTime(ganttChartId, timeHHMM, true);
 
                 if (typeof showGanttSightLine === 'function') {
                   showGanttSightLine(ganttChartId, timeHHMM);
                 }
               } else {
-                console.log('No available time slots found in period for auto-scroll');
+                BMA_LOG.log('No available time slots found in period for auto-scroll');
               }
             }
           }
         }
 
-        console.log('Loaded available times for period index:', periodIndex);
+        BMA_LOG.log('Loaded available times for period index:', periodIndex);
       } else {
         periodTimes.innerHTML = '<p style="padding: 10px; text-align: center; color: #666;">No available times</p>';
       }
     } catch (error) {
-      console.error('Error loading available times:', error);
+      BMA_LOG.error('Error loading available times:', error);
       const sectionsContainer = document.getElementById('service-period-sections-' + date);
       const periodTimes = sectionsContainer ? sectionsContainer.querySelector(`.period-times[data-period-index="${periodIndex}"]`) : null;
       if (periodTimes) {
         periodTimes.innerHTML = '<p style="color: #ef4444;">Error loading times</p>';
       } else {
-        console.warn('Could not find period-times container to show error message');
+        BMA_LOG.warn('Could not find period-times container to show error message');
       }
     }
   }
@@ -2420,7 +2474,7 @@ function attachRestaurantEventListeners(container) {
   async function submitCreateBooking(date) {
     // Prevent multiple simultaneous operations
     if (createProcessing) {
-      console.log('Create operation already in progress, ignoring');
+      BMA_LOG.log('Create operation already in progress, ignoring');
       return;
     }
 
@@ -2439,7 +2493,7 @@ function attachRestaurantEventListeners(container) {
 
     // Validate form before submission
     if (!validateBookingForm(formId)) {
-      console.log('Form validation failed');
+      BMA_LOG.log('Form validation failed');
       createProcessing = false;
       return;
     }
@@ -2535,7 +2589,7 @@ function attachRestaurantEventListeners(container) {
       formData.booking_ref = bookingRef;
     }
 
-    console.log('Starting create booking operation with data:', formData);
+    BMA_LOG.log('Starting create booking operation with data:', formData);
 
     // Disable button and update UI
     if (submitBtn) {
@@ -2588,14 +2642,14 @@ function attachRestaurantEventListeners(container) {
       }
     } finally {
       createProcessing = false;
-      console.log('Create booking operation completed');
+      BMA_LOG.log('Create booking operation completed');
     }
   }
 
   async function submitUpdateBooking(date, resosBookingId) {
     // Prevent multiple simultaneous operations
     if (updateProcessing) {
-      console.log('Update operation already in progress, ignoring');
+      BMA_LOG.log('Update operation already in progress, ignoring');
       return;
     }
 
@@ -2632,7 +2686,7 @@ function attachRestaurantEventListeners(container) {
       return;
     }
 
-    console.log('Starting update booking operation');
+    BMA_LOG.log('Starting update booking operation');
 
     // Disable button and update UI
     if (submitBtn) {
@@ -2681,7 +2735,7 @@ function attachRestaurantEventListeners(container) {
       }
     } finally {
       updateProcessing = false;
-      console.log('Update booking operation completed');
+      BMA_LOG.log('Update booking operation completed');
     }
   }
 
@@ -2691,7 +2745,7 @@ function attachRestaurantEventListeners(container) {
   async function confirmExcludeMatch(resosBookingId, hotelBookingId, guestName) {
     // Prevent multiple simultaneous operations
     if (excludeProcessing) {
-      console.log('Exclude operation already in progress, ignoring');
+      BMA_LOG.log('Exclude operation already in progress, ignoring');
       return;
     }
 
@@ -2710,7 +2764,7 @@ function attachRestaurantEventListeners(container) {
       return;
     }
 
-    console.log('Starting exclude operation for booking:', hotelBookingId);
+    BMA_LOG.log('Starting exclude operation for booking:', hotelBookingId);
 
     try {
       const response = await fetch(`${window.apiClient.baseUrl}/bookings/exclude`, {
@@ -2737,7 +2791,7 @@ function attachRestaurantEventListeners(container) {
       showToast(`Error: ${error.message}`, 'error');
     } finally {
       excludeProcessing = false;
-      console.log('Exclude operation completed');
+      BMA_LOG.log('Exclude operation completed');
     }
   }
 
@@ -2773,13 +2827,21 @@ function attachRestaurantEventListeners(container) {
         body: JSON.stringify({
           booking_id: bookingId,
           resos_booking_id: resosBookingId,
-          date: date
+          date: date,
+          context: 'chrome-sidepanel'
         })
       });
 
       const result = await response.json();
 
-      if (result.success && result.comparison) {
+      if (result.success && result.html) {
+        // Use server-generated HTML (includes Manage Group button!)
+        comparisonContainer.innerHTML = result.html;
+
+        // Add event listeners for visual feedback on checkbox changes
+        setupComparisonCheckboxListeners(comparisonContainer);
+      } else if (result.success && result.comparison) {
+        // Fallback to client-side HTML generation for backward compatibility
         const comparisonHTML = buildComparisonHTML(result.comparison, date, resosBookingId, isConfirmed, isMatchedElsewhere, hotelBookingId, guestName);
         comparisonContainer.innerHTML = comparisonHTML;
 
@@ -3093,12 +3155,18 @@ function attachRestaurantEventListeners(container) {
 
   // Submit selected suggestions from comparison checkboxes
   async function submitSuggestions(date, resosBookingId, hotelBookingId, isConfirmed) {
+    console.log('BMA: submitSuggestions called with:', { date, resosBookingId, hotelBookingId, isConfirmed });
+
     const containerId = 'comparison-' + date + '-' + resosBookingId;
     const container = document.getElementById(containerId);
-    if (!container) return;
+    if (!container) {
+      console.error('BMA: Container not found:', containerId);
+      return;
+    }
 
     // Find all checked suggestion checkboxes in this comparison container
     const checkboxes = container.querySelectorAll('.suggestion-checkbox:checked');
+    console.log('BMA: Found', checkboxes.length, 'checked suggestion checkboxes');
 
     if (checkboxes.length === 0) {
       showToast('Please select at least one suggestion to update', 'error');
@@ -3108,26 +3176,32 @@ function attachRestaurantEventListeners(container) {
     // Build updates object from checked checkboxes
     const updates = {};
     checkboxes.forEach(checkbox => {
-      const name = checkbox.name.replace('suggestion_', '');
+      const field = checkbox.dataset.field;
       let value = checkbox.value;
 
-      // Handle special mappings
-      if (name === 'name') {
-        updates.guest_name = value;
-      } else if (name === 'booking_ref') {
+      // Map fields correctly - use data-field attribute instead of name
+      if (field === 'name') {
+        updates.name = value;
+      } else if (field === 'email') {
+        updates.email = value;
+      } else if (field === 'phone') {
+        updates.phone = value;
+      } else if (field === 'booking_ref') {
         updates.booking_ref = value;
-      } else if (name === 'hotel_guest') {
+      } else if (field === 'hotel_guest') {
         updates.hotel_guest = value;
-      } else if (name === 'dbb') {
+      } else if (field === 'dbb') {
         updates.dbb = value; // Empty string means remove
-      } else if (name === 'people') {
+      } else if (field === 'people') {
         updates.people = parseInt(value);
-      } else if (name === 'status') {
+      } else if (field === 'status') {
         updates.status = value;
       } else {
-        updates[name] = value;
+        updates[field] = value;
       }
     });
+
+    console.log('BMA: Submitting updates:', { booking_id: resosBookingId, updates: updates });
 
     // Find the submit button to show loading state
     const submitBtn = container.querySelector('.btn-confirm-match');
@@ -3275,12 +3349,12 @@ function showEmpty(tabName) {
 }
 
 function updateBadge(tabName, criticalCount, warningCount) {
-  console.log(`Updating badge for ${tabName}: critical=${criticalCount}, warning=${warningCount}`);
+  BMA_LOG.log(`Updating badge for ${tabName}: critical=${criticalCount}, warning=${warningCount}`);
   STATE.badges[tabName] = { critical: criticalCount, warning: warningCount };
   const badgeElement = document.querySelector(`[data-badge="${tabName}"]`);
 
   if (!badgeElement) {
-    console.error(`Badge element not found for ${tabName}`);
+    BMA_LOG.error(`Badge element not found for ${tabName}`);
     return;
   }
 
@@ -3295,18 +3369,18 @@ function updateBadge(tabName, criticalCount, warningCount) {
     if (criticalCount > 0) {
       badgeElement.classList.remove('warning');
       badgeElement.classList.add('critical');
-      console.log(`Badge for ${tabName} showing ${totalCount} total issues (${criticalCount} critical, ${warningCount} warning) - RED`);
+      BMA_LOG.log(`Badge for ${tabName} showing ${totalCount} total issues (${criticalCount} critical, ${warningCount} warning) - RED`);
     } else {
       badgeElement.classList.remove('critical');
       badgeElement.classList.add('warning');
-      console.log(`Badge for ${tabName} showing ${totalCount} total issues (${warningCount} warning) - AMBER`);
+      BMA_LOG.log(`Badge for ${tabName} showing ${totalCount} total issues (${warningCount} warning) - AMBER`);
     }
   }
   // No issues - hide badge
   else {
     badgeElement.classList.add('hidden');
     badgeElement.classList.remove('critical', 'warning');
-    console.log(`Badge for ${tabName} hidden (no issues)`);
+    BMA_LOG.log(`Badge for ${tabName} hidden (no issues)`);
   }
 }
 
@@ -3378,7 +3452,7 @@ async function loadSummaryTab(force_refresh = false) {
   const hasExistingData = STATE.loadedBookingIds.summary && STATE.cache.summary && STATE.cache.summary.html;
 
   if (!force_refresh && !isAutoRefresh && isSummaryTabActive && hasExistingData) {
-    console.log('Smart refresh: Summary already loaded, checking for changes...');
+    BMA_LOG.log('Smart refresh: Summary already loaded, checking for changes...');
 
     try {
       // Fetch data silently in background
@@ -3392,16 +3466,16 @@ async function loadSummaryTab(force_refresh = false) {
 
         if (currentHtml === newHtml) {
           // No changes detected
-          console.log('Smart refresh: No changes detected in Summary, keeping current view');
+          BMA_LOG.log('Smart refresh: No changes detected in Summary, keeping current view');
           updateBadge('summary', newData.critical_count || 0, newData.warning_count || 0);
           return; // Don't reload
         } else {
           // Changes detected, proceed with refresh
-          console.log('Smart refresh: Changes detected in Summary, refreshing content');
+          BMA_LOG.log('Smart refresh: Changes detected in Summary, refreshing content');
         }
       }
     } catch (error) {
-      console.error('Smart refresh check failed for Summary, proceeding with normal load:', error);
+      BMA_LOG.error('Smart refresh check failed for Summary, proceeding with normal load:', error);
       // Fall through to normal load on error
     }
   }
@@ -3424,7 +3498,7 @@ async function loadSummaryTab(force_refresh = false) {
 
       const hasChanged = !STATE.cache.summary || cachedSignature !== dataSignature;
 
-      console.log(`Summary check: cached="${cachedSignature}", new="${dataSignature}", changed=${hasChanged}, isAutoRefresh=${isAutoRefresh}`);
+      BMA_LOG.log(`Summary check: cached="${cachedSignature}", new="${dataSignature}", changed=${hasChanged}, isAutoRefresh=${isAutoRefresh}`);
 
       // Always show data if:
       // 1. Data has changed, OR
@@ -3435,13 +3509,13 @@ async function loadSummaryTab(force_refresh = false) {
         STATE.cache.summary = data;
         STATE.loadedBookingIds.summary = true;
         STATE.lastSummaryUpdate = Date.now(); // Track update time only when data changes
-        console.log(hasChanged ? 'Summary updated with new data' : 'Summary displayed (no change but manual load)');
+        BMA_LOG.log(hasChanged ? 'Summary updated with new data' : 'Summary displayed (no change but manual load)');
 
         // Initialize group hover functionality
         initializeGroupHover();
       } else {
         // Only skip display during auto-refresh when nothing changed
-        console.log('Summary unchanged during auto-refresh - showing no changes message');
+        BMA_LOG.log('Summary unchanged during auto-refresh - showing no changes message');
         updateBadge('summary', data.critical_count || 0, data.warning_count || 0);
         // Don't update lastSummaryUpdate - keep the original timestamp
         showNoChangesMessage();
@@ -3453,7 +3527,7 @@ async function loadSummaryTab(force_refresh = false) {
       showError('summary', 'Invalid response from API');
     }
   } catch (error) {
-    console.error('Error loading summary:', error);
+    BMA_LOG.error('Error loading summary:', error);
     showError('summary', error.message);
   }
 }
@@ -3486,11 +3560,11 @@ function showSummaryCountdown() {
 
         if (idleMinutes >= maxIdleMinutes) {
           // User has been idle too long - assume they've left, resume refresh
-          console.log(`Auto-refresh resuming - user idle for ${idleMinutes.toFixed(1)} minutes`);
+          BMA_LOG.log(`Auto-refresh resuming - user idle for ${idleMinutes.toFixed(1)} minutes`);
           loadSummaryTab(true); // Pass true to indicate auto-refresh
         } else {
           // Don't refresh while user is reading - reset countdown
-          console.log('Auto-refresh paused - user has expanded booking cards');
+          BMA_LOG.log('Auto-refresh paused - user has expanded booking cards');
           const idleSecondsRemaining = Math.ceil((maxIdleMinutes - idleMinutes) * 60);
           countdownText.innerHTML = `<strong style="color: #f59e0b;">⏸ Auto-refresh paused (booking expanded)</strong><br><span style="font-size: 11px; color: #6b7280;">Resumes after ${Math.ceil(idleSecondsRemaining / 60)}min idle</span>`;
           setTimeout(() => {
@@ -3594,7 +3668,7 @@ function showNoChangesMessage() {
 }
 
 // Restaurant Tab
-async function loadRestaurantTab(force_refresh = false) {
+async function loadRestaurantTab(force_refresh = true) {
   if (!STATE.settings) {
     showError('restaurant', 'Please configure settings first');
     return;
@@ -3613,8 +3687,9 @@ async function loadRestaurantTab(force_refresh = false) {
   const isSameBooking = STATE.loadedBookingIds.restaurant === STATE.currentBookingId;
   const hasExistingData = STATE.cache.restaurant && STATE.cache.restaurant.html;
 
-  if (!force_refresh && isRestaurantTabActive && isSameBooking && hasExistingData) {
-    console.log('Smart refresh: Same booking already loaded, checking for changes...');
+  // TEMP: Disable cache for testing GROUP button
+  if (false && !force_refresh && isRestaurantTabActive && isSameBooking && hasExistingData) {
+    BMA_LOG.log('Smart refresh: Same booking already loaded, checking for changes...');
 
     try {
       // Fetch data silently in background
@@ -3628,17 +3703,17 @@ async function loadRestaurantTab(force_refresh = false) {
 
         if (currentHtml === newHtml) {
           // No changes detected
-          console.log('Smart refresh: No changes detected, keeping current view');
+          BMA_LOG.log('Smart refresh: No changes detected, keeping current view');
           // Update badge in case counts changed (though HTML is same)
           updateBadge('restaurant', newData.critical_count || 0, newData.warning_count || 0);
           return; // Don't reload
         } else {
           // Changes detected, proceed with refresh
-          console.log('Smart refresh: Changes detected, refreshing content');
+          BMA_LOG.log('Smart refresh: Changes detected, refreshing content');
         }
       }
     } catch (error) {
-      console.error('Smart refresh check failed, proceeding with normal load:', error);
+      BMA_LOG.error('Smart refresh check failed, proceeding with normal load:', error);
       // Fall through to normal load on error
     }
   }
@@ -3661,7 +3736,7 @@ async function loadRestaurantTab(force_refresh = false) {
       // Store restaurant bookings by date for Gantt chart
       if (data.bookings_by_date) {
         STATE.restaurantBookings = data.bookings_by_date;
-        console.log('DEBUG: Stored restaurant bookings:', STATE.restaurantBookings);
+        BMA_LOG.log('DEBUG: Stored restaurant bookings:', STATE.restaurantBookings);
       }
 
       // Process navigation context after content is loaded
@@ -3680,14 +3755,14 @@ async function loadRestaurantTab(force_refresh = false) {
       STATE.loadedBookingIds.restaurant = null;
     }
   } catch (error) {
-    console.error('Error loading restaurant tab:', error);
+    BMA_LOG.error('Error loading restaurant tab:', error);
     showError('restaurant', error.message);
     STATE.loadedBookingIds.restaurant = null;
   }
 }
 
 // Checks Tab
-async function loadChecksTab(force_refresh = false) {
+async function loadChecksTab(force_refresh = true) {
   if (!STATE.settings) {
     showError('checks', 'Please configure settings first');
     return;
@@ -3707,7 +3782,7 @@ async function loadChecksTab(force_refresh = false) {
   const hasExistingData = STATE.cache.checks && STATE.cache.checks.html;
 
   if (!force_refresh && isChecksTabActive && isSameBooking && hasExistingData) {
-    console.log('Smart refresh: Same booking already loaded in Checks, checking for changes...');
+    BMA_LOG.log('Smart refresh: Same booking already loaded in Checks, checking for changes...');
 
     try {
       // Fetch data silently in background
@@ -3721,16 +3796,16 @@ async function loadChecksTab(force_refresh = false) {
 
         if (currentHtml === newHtml) {
           // No changes detected
-          console.log('Smart refresh: No changes detected in Checks, keeping current view');
+          BMA_LOG.log('Smart refresh: No changes detected in Checks, keeping current view');
           updateBadge('checks', newData.critical_count || 0, newData.warning_count || 0);
           return; // Don't reload
         } else {
           // Changes detected, proceed with refresh
-          console.log('Smart refresh: Changes detected in Checks, refreshing content');
+          BMA_LOG.log('Smart refresh: Changes detected in Checks, refreshing content');
         }
       }
     } catch (error) {
-      console.error('Smart refresh check failed for Checks, proceeding with normal load:', error);
+      BMA_LOG.error('Smart refresh check failed for Checks, proceeding with normal load:', error);
       // Fall through to normal load on error
     }
   }
@@ -3772,7 +3847,7 @@ async function loadChecksTab(force_refresh = false) {
       STATE.loadedBookingIds.checks = null;
     }
   } catch (error) {
-    console.error('Error loading checks tab:', error);
+    BMA_LOG.error('Error loading checks tab:', error);
     showError('checks', error.message);
     STATE.loadedBookingIds.checks = null;
   }
@@ -3791,14 +3866,14 @@ function startInactivityTimer() {
     const pauseWhenFormOpen = STATE.settings?.pauseInactivityWhenFormOpen !== false; // Default to true
 
     if (pauseWhenFormOpen && STATE.createFormOpen) {
-      console.log('Inactivity timer paused - create form is open');
+      BMA_LOG.log('Inactivity timer paused - create form is open');
       // Restart the timer - it will check again after the timeout
       startInactivityTimer();
       return;
     }
 
     if (STATE.currentTab !== 'summary') {
-      console.log(`Inactivity timeout (${timeoutSeconds}s) - returning to summary`);
+      BMA_LOG.log(`Inactivity timeout (${timeoutSeconds}s) - returning to summary`);
       switchTab('summary');
     }
   }, timeoutMs);
@@ -3813,11 +3888,11 @@ function resetInactivityTimer() {
 
 // Booking Detection Handler
 function handleBookingDetected(bookingId) {
-  console.log('Booking detected, updating sidepanel for booking:', bookingId);
+  BMA_LOG.log('Booking detected, updating sidepanel for booking:', bookingId);
 
   // Clear loadedBookingIds only if switching to a different booking
   if (STATE.currentBookingId !== bookingId) {
-    console.log('Booking changed from', STATE.currentBookingId, 'to', bookingId, '- clearing loaded tracking');
+    BMA_LOG.log('Booking changed from', STATE.currentBookingId, 'to', bookingId, '- clearing loaded tracking');
     STATE.loadedBookingIds.restaurant = null;
     STATE.loadedBookingIds.checks = null;
   }
@@ -3835,7 +3910,7 @@ function handleBookingDetected(bookingId) {
     const checksCritical = checksData?.critical_count || 0;
     const checksWarning = checksData?.warning_count || 0;
 
-    console.log('Badge counts - Restaurant: critical=' + restaurantCritical + ', warning=' + restaurantWarning +
+    BMA_LOG.log('Badge counts - Restaurant: critical=' + restaurantCritical + ', warning=' + restaurantWarning +
                 ', Checks: critical=' + checksCritical + ', warning=' + checksWarning);
 
     // Priority logic:
@@ -3845,24 +3920,24 @@ function handleBookingDetected(bookingId) {
     // 4. Checks tab if it has warnings
     // 5. Restaurant tab as fallback (always show restaurant when booking detected)
     if (restaurantCritical > 0) {
-      console.log('Switching to restaurant tab (has critical issues)');
+      BMA_LOG.log('Switching to restaurant tab (has critical issues)');
       switchTab('restaurant');
     } else if (checksCritical > 0) {
-      console.log('Switching to checks tab (has critical issues)');
+      BMA_LOG.log('Switching to checks tab (has critical issues)');
       switchTab('checks');
     } else if (restaurantWarning > 0) {
-      console.log('Switching to restaurant tab (has warnings)');
+      BMA_LOG.log('Switching to restaurant tab (has warnings)');
       switchTab('restaurant');
     } else if (checksWarning > 0) {
-      console.log('Switching to checks tab (has warnings)');
+      BMA_LOG.log('Switching to checks tab (has warnings)');
       switchTab('checks');
     } else {
       // Fallback to restaurant tab even without issues
-      console.log('Switching to restaurant tab (fallback, no issues)');
+      BMA_LOG.log('Switching to restaurant tab (fallback, no issues)');
       switchTab('restaurant');
     }
   }).catch(error => {
-    console.error('Error loading booking data:', error);
+    BMA_LOG.error('Error loading booking data:', error);
   });
 }
 
@@ -3870,20 +3945,20 @@ async function loadRestaurantTabSilently() {
   try {
     const api = new APIClient(STATE.settings);
     const data = await api.fetchRestaurantMatch(STATE.currentBookingId);
-    console.log('Restaurant data loaded, critical:', data.critical_count, 'warning:', data.warning_count);
-    console.log('Full restaurant API response:', JSON.stringify(data, null, 2));
+    BMA_LOG.log('Restaurant data loaded, critical:', data.critical_count, 'warning:', data.warning_count);
+    BMA_LOG.log('Full restaurant API response:', JSON.stringify(data, null, 2));
     updateBadge('restaurant', data.critical_count || 0, data.warning_count || 0);
     STATE.cache.restaurant = data;
 
     // Store restaurant bookings by date for Gantt chart
     if (data.bookings_by_date) {
       STATE.restaurantBookings = data.bookings_by_date;
-      console.log('DEBUG: Stored restaurant bookings:', STATE.restaurantBookings);
+      BMA_LOG.log('DEBUG: Stored restaurant bookings:', STATE.restaurantBookings);
     }
 
     return data;
   } catch (error) {
-    console.error('Error loading restaurant data:', error);
+    BMA_LOG.error('Error loading restaurant data:', error);
     return null;
   }
 }
@@ -3892,13 +3967,13 @@ async function loadChecksTabSilently() {
   try {
     const api = new APIClient(STATE.settings);
     const data = await api.fetchChecks(STATE.currentBookingId);
-    console.log('Checks data loaded, critical:', data.critical_count, 'warning:', data.warning_count);
-    console.log('Full checks API response:', JSON.stringify(data, null, 2));
+    BMA_LOG.log('Checks data loaded, critical:', data.critical_count, 'warning:', data.warning_count);
+    BMA_LOG.log('Full checks API response:', JSON.stringify(data, null, 2));
     updateBadge('checks', data.critical_count || 0, data.warning_count || 0);
     STATE.cache.checks = data;
     return data;
   } catch (error) {
-    console.error('Error loading checks data:', error);
+    BMA_LOG.error('Error loading checks data:', error);
     return null;
   }
 }
@@ -3914,13 +3989,13 @@ async function loadStayingTabSilently(date = null) {
     });
 
     const data = await response.json();
-    console.log('Staying data loaded silently for date:', targetDate, 'critical:', data.critical_count, 'warning:', data.warning_count);
+    BMA_LOG.log('Staying data loaded silently for date:', targetDate, 'critical:', data.critical_count, 'warning:', data.warning_count);
     updateBadge('staying', data.critical_count || 0, data.warning_count || 0);
     STATE.cache.staying = data;
     STATE.loadedBookingIds.staying = targetDate;
     return data;
   } catch (error) {
-    console.error('Error loading staying data silently:', error);
+    BMA_LOG.error('Error loading staying data silently:', error);
     return null;
   }
 }
@@ -3934,7 +4009,7 @@ async function loadStayingTabSilently(date = null) {
  * @param {string} date - Date in YYYY-MM-DD format (optional, defaults to STATE.stayingDate)
  */
 async function loadStayingTab(date = null, force_refresh = false) {
-  console.log('Loading staying tab for date:', date, 'force_refresh:', force_refresh);
+  BMA_LOG.log('Loading staying tab for date:', date, 'force_refresh:', force_refresh);
 
   const targetDate = date || STATE.stayingDate;
   STATE.stayingDate = targetDate;
@@ -3952,7 +4027,7 @@ async function loadStayingTab(date = null, force_refresh = false) {
   const hasExistingData = STATE.cache.staying && STATE.cache.staying.html;
 
   if (!force_refresh && isStayingTabActive && isSameDate && hasExistingData) {
-    console.log('Smart refresh: Same date already loaded in Staying, checking for changes...');
+    BMA_LOG.log('Smart refresh: Same date already loaded in Staying, checking for changes...');
 
     try {
       // Fetch data silently in background
@@ -3972,16 +4047,16 @@ async function loadStayingTab(date = null, force_refresh = false) {
 
         if (currentHtml === newHtml) {
           // No changes detected
-          console.log('Smart refresh: No changes detected in Staying, keeping current view');
+          BMA_LOG.log('Smart refresh: No changes detected in Staying, keeping current view');
           updateBadge('staying', newData.critical_count || 0, newData.warning_count || 0);
           return; // Don't reload
         } else {
           // Changes detected, proceed with refresh
-          console.log('Smart refresh: Changes detected in Staying, refreshing content');
+          BMA_LOG.log('Smart refresh: Changes detected in Staying, refreshing content');
         }
       }
     } catch (error) {
-      console.error('Smart refresh check failed for Staying, proceeding with normal load:', error);
+      BMA_LOG.error('Smart refresh check failed for Staying, proceeding with normal load:', error);
       // Fall through to normal load on error
     }
   }
@@ -4012,7 +4087,7 @@ async function loadStayingTab(date = null, force_refresh = false) {
       initializeGroupHover();
 
       // Reset group filter when loading new date
-      STATE.activeGroupFilter = null;
+      window.activeGroupFilter = null;
 
       // Initialize card expand/collapse
       initializeStayingCards();
@@ -4024,7 +4099,7 @@ async function loadStayingTab(date = null, force_refresh = false) {
       STATE.loadedBookingIds.staying = null;
     }
   } catch (error) {
-    console.error('Error loading staying tab:', error);
+    BMA_LOG.error('Error loading staying tab:', error);
     showError('staying', error.message);
     STATE.loadedBookingIds.staying = null;
   }
@@ -4039,32 +4114,18 @@ function filterStayingByGroup(groupId) {
   const vacantRows = document.querySelectorAll('.vacant-room-line');
 
   if (groupId === null) {
-    // Show all cards and vacant rows
-    cards.forEach(card => {
-      card.style.display = '';
-    });
-    vacantRows.forEach(row => {
-      row.style.display = '';
-    });
-    STATE.activeGroupFilter = null;
+    cards.forEach(card => card.style.display = '');
+    vacantRows.forEach(row => row.style.display = '');
+    window.activeGroupFilter = null;
   } else {
-    // Filter to specific group (hide vacant rows and non-matching cards)
     cards.forEach(card => {
       const cardGroupId = card.dataset.groupId;
-      if (cardGroupId === groupId.toString()) {
-        card.style.display = '';
-      } else {
-        card.style.display = 'none';
-      }
+      card.style.display = (cardGroupId === groupId.toString()) ? '' : 'none';
     });
-    // Hide all vacant rows when filtering by group
-    vacantRows.forEach(row => {
-      row.style.display = 'none';
-    });
-    STATE.activeGroupFilter = groupId;
+    vacantRows.forEach(row => row.style.display = 'none');
+    window.activeGroupFilter = groupId;
   }
 
-  // Update badge UI to show active filter
   updateGroupBadgeUI(groupId);
 }
 
@@ -4076,21 +4137,17 @@ function updateGroupBadgeUI(activeGroupId) {
   const badges = document.querySelectorAll('.group-id-badge');
 
   badges.forEach(badge => {
-    // Extract group ID from badge text (e.g., "G#123" -> 123)
     const badgeGroupId = parseInt(badge.textContent.replace('G#', ''));
 
     if (activeGroupId === null) {
-      // Reset all badges to default
       badge.style.backgroundColor = '';
       badge.style.color = '';
       badge.style.opacity = '';
     } else if (badgeGroupId === activeGroupId) {
-      // Highlight active filter badge
       badge.style.backgroundColor = '#6366f1';
       badge.style.color = 'white';
       badge.style.opacity = '';
     } else {
-      // Dim non-active badges
       badge.style.opacity = '0.5';
     }
   });
@@ -4104,8 +4161,8 @@ function initializeStayingCards() {
   if (!stayingTab) return;
 
   // Expand/collapse headers
-  document.querySelectorAll('.staying-card .staying-header').forEach(header => {
-    header.addEventListener('click', function() {
+  stayingTab.querySelectorAll('.staying-header').forEach(header => {
+    header.addEventListener('click', function(e) {
       const card = this.closest('.staying-card');
       card.classList.toggle('expanded');
     });
@@ -4127,7 +4184,7 @@ function initializeStayingCards() {
       e.preventDefault();
       e.stopPropagation();
       const bookingId = this.dataset.bookingId;
-      console.log('Restaurant header clicked - bookingId:', bookingId);
+      BMA_LOG.log('Restaurant header clicked - bookingId:', bookingId);
       navigateToRestaurantDate(null, parseInt(bookingId));
     });
   });
@@ -4139,8 +4196,27 @@ function initializeStayingCards() {
       e.stopPropagation();
       const date = this.dataset.date;
       const bookingId = this.dataset.bookingId;
-      console.log('Create booking link clicked - date:', date, 'bookingId:', bookingId);
+      BMA_LOG.log('Create booking link clicked - date:', date, 'bookingId:', bookingId);
       navigateToRestaurantDate(date, parseInt(bookingId));
+    });
+  });
+
+  // Clickable status links (Check Match/Check Update in header) - navigate to Restaurant tab
+  stayingTab.querySelectorAll('.clickable-status').forEach(link => {
+    link.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      const bookingId = this.dataset.bookingId;
+      const date = this.dataset.date;
+      const resosId = this.dataset.resosId;
+      BMA_LOG.log('Check Match/Update clicked - navigating to Restaurant tab:', { bookingId, date, resosId });
+
+      // Navigate to Restaurant tab with date and expand comparison row
+      if (date && resosId) {
+        navigateToRestaurantDate(date, parseInt(bookingId), resosId);
+      } else {
+        navigateToRestaurantDate(date, parseInt(bookingId));
+      }
     });
   });
 
@@ -4151,7 +4227,7 @@ function initializeStayingCards() {
       const bookingId = this.dataset.bookingId;
       const date = this.dataset.date;
       const resosId = this.dataset.resosId;
-      console.log('Suggested match clicked - navigating to Restaurant tab:', { bookingId, date, resosId });
+      BMA_LOG.log('Suggested match clicked - navigating to Restaurant tab:', { bookingId, date, resosId });
 
       // Navigate to Restaurant tab with date and expand comparison row
       if (date && resosId) {
@@ -4170,7 +4246,7 @@ function initializeStayingCards() {
       e.preventDefault();
       e.stopPropagation();
       const bookingId = this.dataset.bookingId;
-      console.log('Checks header clicked - bookingId:', bookingId);
+      BMA_LOG.log('Checks header clicked - bookingId:', bookingId);
       navigateToChecksTab(parseInt(bookingId));
     });
   });
@@ -4185,7 +4261,7 @@ function initializeStayingCards() {
 
       if (resosId && restaurantId && date) {
         const resosUrl = `https://app.resos.com/${restaurantId}/bookings/timetable/${date}/${resosId}`;
-        console.log('Opening ResOS booking in new tab:', resosUrl);
+        BMA_LOG.log('Opening ResOS booking in new tab:', resosUrl);
         chrome.tabs.create({ url: resosUrl });
       }
     });
@@ -4194,21 +4270,152 @@ function initializeStayingCards() {
   // Group badge click handlers - toggle group filter
   stayingTab.querySelectorAll('.group-id-badge').forEach(badge => {
     badge.addEventListener('click', function(e) {
-      e.stopPropagation(); // Prevent header expansion
+      e.stopPropagation();
       e.preventDefault();
 
-      // Extract group ID from badge text (e.g., "G#123" -> 123)
       const groupId = parseInt(this.textContent.replace('G#', ''));
 
-      // Toggle filter: if already filtering this group, clear filter
-      if (STATE.activeGroupFilter === groupId) {
-        console.log('Clearing group filter');
+      if (window.activeGroupFilter === groupId) {
+        BMA_LOG.log('Clearing group filter');
         filterStayingByGroup(null);
       } else {
-        console.log('Filtering to group:', groupId);
+        BMA_LOG.log('Filtering to group:', groupId);
         filterStayingByGroup(groupId);
       }
     });
+  });
+
+  // Stat filter click handlers - toggle stat filters
+  stayingTab.querySelectorAll('.stat-filter').forEach(filter => {
+    filter.addEventListener('click', function(e) {
+      e.stopPropagation();
+      e.preventDefault();
+
+      const filterType = this.dataset.filter;
+
+      // Restaurant filter has 3 modes: off -> has-match (green/tick) -> no-match (red/plus) -> off
+      if (filterType === 'restaurant') {
+        if (!window.activeStatFilter) {
+          // Off -> Show with matches (green)
+          BMA_LOG.log('Filtering restaurant: has match');
+          filterStayingByStat('restaurant-has-match');
+        } else if (window.activeStatFilter === 'restaurant-has-match') {
+          // Has match -> Show without matches (red)
+          BMA_LOG.log('Filtering restaurant: no match');
+          filterStayingByStat('restaurant-no-match');
+        } else {
+          // No match -> Off
+          BMA_LOG.log('Clearing restaurant filter');
+          filterStayingByStat(null);
+        }
+      } else {
+        // Normal toggle behavior for other filters
+        if (window.activeStatFilter === filterType) {
+          BMA_LOG.log('Clearing stat filter');
+          filterStayingByStat(null);
+        } else {
+          BMA_LOG.log('Filtering by stat:', filterType);
+          filterStayingByStat(filterType);
+        }
+      }
+    });
+  });
+}
+
+/**
+ * Filter staying cards by stat type
+ * @param {string|null} filterType - Type of filter to apply ('arrivals', 'departs', 'stopovers', 'twins'), or null to clear
+ */
+function filterStayingByStat(filterType) {
+  const cards = document.querySelectorAll('.staying-card');
+  const vacantRows = document.querySelectorAll('.vacant-room-line');
+
+  if (filterType === null) {
+    // Show all
+    cards.forEach(card => card.style.display = '');
+    vacantRows.forEach(row => row.style.display = '');
+    window.activeStatFilter = null;
+  } else {
+    // Filter based on type
+    cards.forEach(card => {
+      let shouldShow = false;
+
+      switch(filterType) {
+        case 'arrivals':
+          shouldShow = card.dataset.isArriving === 'true';
+          break;
+        case 'departs':
+          shouldShow = card.dataset.isDeparting === 'true';
+          break;
+        case 'stopovers':
+          shouldShow = card.dataset.isStopover === 'true';
+          break;
+        case 'in-house':
+          shouldShow = true; // Show all booked rooms (vacant excluded below)
+          break;
+        case 'occupancy':
+          shouldShow = true; // Show all booked rooms (vacant excluded below)
+          break;
+        case 'twins':
+          shouldShow = card.dataset.hasTwin === 'true';
+          break;
+        case 'restaurant-has-match':
+          shouldShow = card.dataset.hasRestaurantMatch === 'true';
+          break;
+        case 'restaurant-no-match':
+          shouldShow = card.dataset.hasRestaurantMatch === 'false';
+          break;
+      }
+
+      card.style.display = shouldShow ? '' : 'none';
+    });
+
+    // All filters exclude vacant rooms
+    vacantRows.forEach(row => row.style.display = 'none');
+
+    window.activeStatFilter = filterType;
+  }
+
+  updateStatFilterUI(filterType);
+}
+
+/**
+ * Update visual state of stat filters based on active filter
+ * @param {string|null} activeFilter - Currently active filter type
+ */
+function updateStatFilterUI(activeFilter) {
+  const filters = document.querySelectorAll('.stat-filter');
+
+  filters.forEach(filter => {
+    const filterType = filter.dataset.filter;
+
+    // Remove all state classes
+    filter.classList.remove('active', 'restaurant-has-match', 'restaurant-no-match');
+
+    // Remove any existing corner icons
+    const existingIcon = filter.querySelector('.filter-corner-icon');
+    if (existingIcon) {
+      existingIcon.remove();
+    }
+
+    if (activeFilter === null) {
+      // No filter active
+      return;
+    }
+
+    // Handle restaurant filter special states
+    if (filterType === 'restaurant' && (activeFilter === 'restaurant-has-match' || activeFilter === 'restaurant-no-match')) {
+      filter.classList.add(activeFilter);
+
+      // Add corner icon
+      const cornerIcon = document.createElement('span');
+      cornerIcon.className = 'material-symbols-outlined filter-corner-icon';
+      cornerIcon.textContent = activeFilter === 'restaurant-has-match' ? 'check' : 'add';
+      filter.appendChild(cornerIcon);
+    } else if (filterType === activeFilter) {
+      // Normal active state for other filters
+      filter.classList.add('active');
+    }
   });
 }
 
@@ -4271,6 +4478,27 @@ function initializeGroupHover() {
       });
     });
   });
+
+  // Handle restaurant-status group member hover (ResOS group highlighting)
+  document.querySelectorAll('.restaurant-status[data-resos-id]').forEach(statusElement => {
+    const resosId = statusElement.dataset.resosId;
+
+    if (!resosId) return;
+
+    statusElement.addEventListener('mouseenter', function() {
+      // Highlight all restaurant-status blocks with the same resos-id
+      document.querySelectorAll(`.restaurant-status[data-resos-id="${resosId}"]`).forEach(relatedStatus => {
+        relatedStatus.classList.add('group-highlight');
+      });
+    });
+
+    statusElement.addEventListener('mouseleave', function() {
+      // Remove highlight from all restaurant-status blocks
+      document.querySelectorAll('.restaurant-status.group-highlight').forEach(highlightedStatus => {
+        highlightedStatus.classList.remove('group-highlight');
+      });
+    });
+  });
 }
 
 /**
@@ -4320,7 +4548,7 @@ function initializeRefreshButtons() {
       e.stopPropagation();
 
       const tabName = this.dataset.tab;
-      console.log('Refresh button clicked for tab:', tabName);
+      BMA_LOG.log('Refresh button clicked for tab:', tabName);
 
       // Add refreshing class for animation
       this.classList.add('refreshing');
@@ -4341,7 +4569,7 @@ function initializeRefreshButtons() {
           await loadStayingTab(STATE.stayingDate, true);
         }
       } catch (error) {
-        console.error(`Error refreshing ${tabName} tab:`, error);
+        BMA_LOG.error(`Error refreshing ${tabName} tab:`, error);
       } finally {
         // Remove refreshing class
         this.classList.remove('refreshing');
@@ -4352,27 +4580,27 @@ function initializeRefreshButtons() {
 
 // Message Listener
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  console.log('Sidepanel received message:', message);
+  BMA_LOG.log('Sidepanel received message:', message);
 
   if (message.action === 'bookingDetected') {
-    console.log('Processing bookingDetected message, source:', message.source);
+    BMA_LOG.log('Processing bookingDetected message, source:', message.source);
     handleBookingDetected(message.bookingId);
   } else if (message.action === 'plannerClick') {
     if (STATE.settings?.enablePlannerClickUpdate) {
-      console.log('Processing plannerClick message (setting enabled)');
+      BMA_LOG.log('Processing plannerClick message (setting enabled)');
       handleBookingDetected(message.bookingId);
     } else {
-      console.log('Ignoring plannerClick message (setting disabled)');
+      BMA_LOG.log('Ignoring plannerClick message (setting disabled)');
     }
   } else if (message.action === 'sessionLockChanged') {
-    console.log('Processing sessionLockChanged message:', message.isLocked);
+    BMA_LOG.log('Processing sessionLockChanged message:', message.isLocked);
     AuthManager.handleSessionLock(message.isLocked);
   } else if (message.action === 'settingsUpdated') {
-    console.log('Settings updated, reloading current tab');
+    BMA_LOG.log('Settings updated, reloading current tab');
     loadSettings().then(() => {
       // Reinitialize global API client with new settings
       window.apiClient = new APIClient(STATE.settings);
-      console.log('Global apiClient reinitialized after settings update');
+      BMA_LOG.log('Global apiClient reinitialized after settings update');
 
       // Reload current tab
       if (STATE.currentTab === 'summary') {
@@ -4392,19 +4620,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 async function loadSettings() {
   try {
     const result = await chrome.storage.sync.get('settings');
-    console.log('loadSettings - result:', result);
-    console.log('loadSettings - settings:', result.settings);
+    BMA_LOG.log('loadSettings - result:', result);
+    BMA_LOG.log('loadSettings - settings:', result.settings);
     if (result.settings && result.settings.apiRootUrl) {
       STATE.settings = result.settings;
-      console.log('Settings loaded successfully:', STATE.settings);
-      console.log('recentBookingsCount:', STATE.settings.recentBookingsCount);
+      BMA_LOG.log('Settings loaded successfully:', STATE.settings);
+      BMA_LOG.log('recentBookingsCount:', STATE.settings.recentBookingsCount);
       return true;
     } else {
       showError('summary', 'Please configure API settings first');
       return false;
     }
   } catch (error) {
-    console.error('Error loading settings:', error);
+    BMA_LOG.error('Error loading settings:', error);
     showError('summary', 'Error loading settings');
     return false;
   }
@@ -4446,10 +4674,21 @@ const GROUP_MODAL_STATE = {
   currentGroupId: null
 };
 
+// Get API configuration for GROUP modal functions
+function getAPIConfig() {
+  if (window.apiClient) {
+    return {
+      baseUrl: window.apiClient.baseUrl,
+      authHeader: window.apiClient.authHeader
+    };
+  }
+  throw new Error('API client not initialized');
+}
+
 // Open group management modal
-async function openGroupManagementModal(resosBookingId, hotelBookingId, date) {
+async function openGroupManagementModal(resosBookingId, hotelBookingId, date, resosTime = '', resosGuest = '', resosPeople = '0', resosBookingRef = '', groupExcludeField = '') {
   const modal = document.getElementById('group-management-modal');
-  const dateValue = document.getElementById('group-modal-date-value');
+  const resosInfo = document.getElementById('group-modal-resos-info');
   const groupSection = document.getElementById('group-section-container');
   const otherSection = document.getElementById('other-section-container');
   const loading = modal.querySelector('.group-modal-loading');
@@ -4460,10 +4699,23 @@ async function openGroupManagementModal(resosBookingId, hotelBookingId, date) {
   GROUP_MODAL_STATE.resosBookingId = resosBookingId;
   GROUP_MODAL_STATE.hotelBookingId = hotelBookingId;
   GROUP_MODAL_STATE.date = date;
+  GROUP_MODAL_STATE.resosBooking = { time: resosTime, guest_name: resosGuest, people: resosPeople };
+  GROUP_MODAL_STATE.leadBookingId = resosBookingRef; // The booking ID from ResOS "Booking #" field
+
+  console.log('BMA: openGroupManagementModal - resosBookingRef (lead):', resosBookingRef);
+  console.log('BMA: openGroupManagementModal - groupExcludeField raw:', groupExcludeField);
+  GROUP_MODAL_STATE.groupExcludeData = parseGroupExcludeField(groupExcludeField);
+  console.log('BMA: openGroupManagementModal - parsed groupExcludeData:', GROUP_MODAL_STATE.groupExcludeData);
 
   // Show modal
   modal.classList.remove('hidden');
-  dateValue.textContent = date;
+
+  // Show ResOS booking info
+  console.log('BMA: ResOS data - time:', resosTime, 'guest:', resosGuest, 'people:', resosPeople);
+  const time = (resosTime && resosTime.trim()) || 'N/A';
+  const guestName = (resosGuest && resosGuest.trim()) || 'Unknown';
+  const people = resosPeople || '0';
+  resosInfo.innerHTML = `${time} - ${guestName} (${people} pax)`;
 
   // Show loading
   loading.classList.remove('hidden');
@@ -4472,7 +4724,7 @@ async function openGroupManagementModal(resosBookingId, hotelBookingId, date) {
 
   try {
     // Fetch bookings for date
-    const bookingsData = await fetchBookingsForDate(date, hotelBookingId);
+    const bookingsData = await fetchBookingsForDate(date);
 
     GROUP_MODAL_STATE.bookings = bookingsData.bookings;
     GROUP_MODAL_STATE.groups = bookingsData.groups;
@@ -4489,11 +4741,38 @@ async function openGroupManagementModal(resosBookingId, hotelBookingId, date) {
     container.classList.remove('hidden');
 
   } catch (err) {
-    console.error('Error loading bookings:', err);
+    BMA_LOG.error('Error loading bookings:', err);
     loading.classList.add('hidden');
     error.classList.remove('hidden');
     error.querySelector('.error-message').textContent = err.message || 'Failed to load bookings';
   }
+}
+
+// Parse GROUP/EXCLUDE field
+function parseGroupExcludeField(fieldValue) {
+  const result = {
+    groups: [],
+    excludes: []
+  };
+
+  if (!fieldValue) return result;
+
+  const parts = fieldValue.split(',').map(p => p.trim());
+  parts.forEach(part => {
+    if (part.startsWith('G-')) {
+      // New format: G-{booking_id}
+      result.groups.push(part.substring(2));
+    } else if (part.startsWith('N-')) {
+      // New format: N-{booking_id}
+      result.excludes.push(part.substring(2));
+    } else if (part.startsWith('#')) {
+      // Legacy format: #{booking_id} (treat as group)
+      result.groups.push(part.substring(1));
+    }
+  });
+
+  console.log('BMA: parseGroupExcludeField - input:', fieldValue, 'output:', result);
+  return result;
 }
 
 // Fetch bookings for a specific date
@@ -4506,7 +4785,7 @@ async function fetchBookingsForDate(date, excludeBookingId) {
 
   const response = await fetch(url, {
     headers: {
-      'Authorization': `Basic ${config.auth}`,
+      'Authorization': config.authHeader,
       'Content-Type': 'application/json'
     }
   });
@@ -4521,96 +4800,58 @@ async function fetchBookingsForDate(date, excludeBookingId) {
 
 // Render the group modal with bookings
 function renderGroupModal() {
-  const groupSection = document.getElementById('group-section-container');
-  const otherSection = document.getElementById('other-section-container');
-  const groupLinkCheckbox = document.getElementById('group-link-whole-group');
-  const groupLinkGroupId = document.getElementById('group-link-group-id');
-  const groupLinkToggle = document.querySelector('.group-link-toggle');
+  const container = document.querySelector('.group-bookings-container');
 
-  // Separate bookings into groups and others
-  const groupBookings = [];
-  const otherBookings = [];
-
-  GROUP_MODAL_STATE.bookings.forEach(booking => {
-    if (booking.bookings_group_id === GROUP_MODAL_STATE.currentGroupId && GROUP_MODAL_STATE.currentGroupId) {
-      groupBookings.push(booking);
-    } else {
-      otherBookings.push(booking);
-    }
-  });
-
-  // Show/hide group link toggle
-  if (GROUP_MODAL_STATE.currentGroupId) {
-    groupLinkToggle.classList.remove('hidden');
-    groupLinkGroupId.textContent = `G#${GROUP_MODAL_STATE.currentGroupId}`;
-  } else {
-    groupLinkToggle.classList.add('hidden');
-    groupLinkCheckbox.checked = false;
+  if (!GROUP_MODAL_STATE.bookings || GROUP_MODAL_STATE.bookings.length === 0) {
+    container.innerHTML = '<p style="text-align: center; padding: 20px; color: #6b7280;">No bookings found for this date</p>';
+    return;
   }
 
-  // Render group section
-  if (groupBookings.length > 0) {
-    groupSection.classList.remove('hidden');
-    groupSection.innerHTML = renderBookingsTable(groupBookings, true);
-  } else {
-    groupSection.classList.add('hidden');
-  }
-
-  // Render other section
-  if (otherBookings.length > 0) {
-    otherSection.classList.remove('hidden');
-    otherSection.innerHTML = renderBookingsTable(otherBookings, false);
-  } else {
-    otherSection.classList.add('hidden');
-  }
+  // Render all bookings in a single table
+  container.innerHTML = renderBookingsTable(GROUP_MODAL_STATE.bookings);
 
   // Attach event listeners
   attachGroupModalEventListeners();
 }
 
 // Render bookings table
-function renderBookingsTable(bookings, isGroupSection) {
-  const linkWhole = document.getElementById('group-link-whole-group').checked;
-  const isGroupActive = isGroupSection && linkWhole;
+function renderBookingsTable(bookings) {
+  const groupExcludeData = GROUP_MODAL_STATE.groupExcludeData || { groups: [], excludes: [] };
 
-  let html = '';
-
-  if (isGroupSection) {
-    html += `<div class="group-section-header ${isGroupActive ? 'exclude-mode' : ''}">`;
-    html += isGroupActive ? 'Exclude from Group' : `Bookings in Group #${GROUP_MODAL_STATE.currentGroupId}`;
-    html += '</div>';
-  } else {
-    html += '<div class="other-section-header">Other Bookings</div>';
-  }
-
-  html += '<table class="group-bookings-table"><thead><tr>';
+  let html = '<table class="group-bookings-table"><thead><tr>';
   html += '<th>Lead</th>';
-  html += `<th>${isGroupActive ? 'Exclude' : 'Group'}</th>`;
+  html += '<th>Group</th>';
   html += '<th>Booking</th>';
   html += '</tr></thead><tbody>';
 
   bookings.forEach(booking => {
     html += '<tr>';
 
-    // Lead radio
+    // Lead radio - pre-select based on ResOS "Booking #" field
     html += '<td>';
-    html += `<input type="radio" name="lead-booking" value="${booking.booking_id}" class="lead-radio">`;
-    html += '</td>';
-
-    // Group/Exclude checkbox
-    html += '<td>';
-    if (isGroupActive) {
-      html += `<input type="checkbox" value="${booking.booking_id}" class="exclude-checkbox">`;
-    } else {
-      html += `<input type="checkbox" value="${booking.booking_id}" class="group-checkbox">`;
+    const isLeadBooking = String(booking.booking_id) === String(GROUP_MODAL_STATE.leadBookingId);
+    const checkedAttr = isLeadBooking ? ' checked' : '';
+    if (isLeadBooking) {
+      console.log('BMA: Booking', booking.booking_id, 'matches ResOS Booking # field, pre-selected as lead');
     }
+    html += `<input type="radio" name="lead-booking" value="${booking.booking_id}" class="lead-radio"${checkedAttr}>`;
     html += '</td>';
 
-    // Booking info
+    // Group checkbox - pre-select if in GROUP/EXCLUDE field or is lead booking
     html += '<td>';
-    html += '<div class="booking-info">';
-    html += `<span class="booking-guest-name">${booking.guest_name || 'Guest'}</span>`;
-    html += `<span class="booking-room">Room ${booking.site_name || 'N/A'}</span>`;
+    const isInGroupField = groupExcludeData.groups.includes(String(booking.booking_id));
+    if (isInGroupField) {
+      console.log('BMA: Booking', booking.booking_id, 'is in GROUP/EXCLUDE field, should be pre-selected');
+    }
+    const autoChecked = isLeadBooking || isInGroupField;
+    const groupCheckedAttr = autoChecked ? ' checked' : '';
+    html += `<input type="checkbox" value="${booking.booking_id}" class="group-checkbox"${groupCheckedAttr}>`;
+    html += '</td>';
+
+    // Booking info - single line format
+    html += '<td>';
+    html += '<div class="booking-info-compact">';
+    html += `${booking.site_name || 'N/A'} - ${booking.guest_name || 'Guest'}`;
     html += '</div>';
     html += '</td>';
 
@@ -4623,25 +4864,30 @@ function renderBookingsTable(bookings, isGroupSection) {
 
 // Attach event listeners for group modal
 function attachGroupModalEventListeners() {
-  // Group link toggle
-  const groupLinkCheckbox = document.getElementById('group-link-whole-group');
-  groupLinkCheckbox.addEventListener('change', () => {
-    const groupSection = document.getElementById('group-section-container');
-    if (groupLinkCheckbox.checked) {
-      groupSection.classList.add('active');
-    } else {
-      groupSection.classList.remove('active');
-    }
-    renderGroupModal();
-  });
-
   // Lead radio auto-checks group checkbox
   document.querySelectorAll('.lead-radio').forEach(radio => {
     radio.addEventListener('change', (e) => {
-      const row = e.target.closest('tr');
-      const groupCheckbox = row.querySelector('.group-checkbox');
-      if (groupCheckbox && !groupCheckbox.checked) {
-        groupCheckbox.checked = true;
+      if (!e.target.checked) return;
+
+      const selectedLeadId = e.target.value;
+
+      // Update group checkboxes: lead must be checked
+      document.querySelectorAll('.group-checkbox').forEach(checkbox => {
+        if (checkbox.value === selectedLeadId) {
+          checkbox.checked = true;
+        }
+      });
+    });
+  });
+
+  // Prevent unchecking the lead's group checkbox
+  document.querySelectorAll('.group-checkbox').forEach(checkbox => {
+    checkbox.addEventListener('click', (e) => {
+      const leadRadio = e.target.closest('tr').querySelector('.lead-radio');
+      if (leadRadio && leadRadio.checked && !e.target.checked) {
+        e.preventDefault();
+        e.target.checked = true; // Force it to stay checked
+        showToast('Lead booking must be part of the group', 'info');
       }
     });
   });
@@ -4649,10 +4895,8 @@ function attachGroupModalEventListeners() {
 
 // Save group configuration
 async function saveGroupConfiguration() {
-  const groupLinkCheckbox = document.getElementById('group-link-whole-group');
   const leadRadios = document.querySelectorAll('.lead-radio');
   const groupCheckboxes = document.querySelectorAll('.group-checkbox');
-  const excludeCheckboxes = document.querySelectorAll('.exclude-checkbox');
 
   // Get lead booking ID
   let leadBookingId = null;
@@ -4662,29 +4906,18 @@ async function saveGroupConfiguration() {
     }
   });
 
-  // Get group configuration
-  let groupId = null;
-  const individualIds = [];
-  const excludeIds = [];
-
-  if (groupLinkCheckbox.checked && GROUP_MODAL_STATE.currentGroupId) {
-    // Use group ID
-    groupId = GROUP_MODAL_STATE.currentGroupId;
-
-    // Get excluded IDs
-    excludeCheckboxes.forEach(checkbox => {
-      if (checkbox.checked) {
-        excludeIds.push(checkbox.value);
-      }
-    });
-  } else {
-    // Use individual IDs
-    groupCheckboxes.forEach(checkbox => {
-      if (checkbox.checked) {
-        individualIds.push(checkbox.value);
-      }
-    });
+  if (!leadBookingId) {
+    showToast('Please select a lead booking', 'error');
+    return;
   }
+
+  // Get individual booking IDs that are checked
+  const individualIds = [];
+  groupCheckboxes.forEach(checkbox => {
+    if (checkbox.checked) {
+      individualIds.push(checkbox.value);
+    }
+  });
 
   // Make API call
   try {
@@ -4692,15 +4925,13 @@ async function saveGroupConfiguration() {
     const response = await fetch(`${config.baseUrl}/bookings/group`, {
       method: 'POST',
       headers: {
-        'Authorization': `Basic ${config.auth}`,
+        'Authorization': config.authHeader,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         resos_booking_id: GROUP_MODAL_STATE.resosBookingId,
         lead_booking_id: leadBookingId,
-        group_id: groupId,
-        individual_ids: individualIds,
-        exclude_ids: excludeIds
+        individual_ids: individualIds
       })
     });
 
@@ -4726,7 +4957,7 @@ async function saveGroupConfiguration() {
     }
 
   } catch (err) {
-    console.error('Error saving group:', err);
+    BMA_LOG.error('Error saving group:', err);
     if (window.showToast) {
       window.showToast(`Error: ${err.message}`, 'error');
     }
@@ -4753,15 +4984,22 @@ window.openGroupManagementModal = openGroupManagementModal;
 // Initialize group modal event listeners
 function initializeGroupModal() {
   const modal = document.getElementById('group-management-modal');
+  if (!modal) {
+    BMA_LOG.log('GROUP modal not found, skipping initialization');
+    return;
+  }
+
   const closeBtn = modal.querySelector('.group-modal-close');
   const cancelBtn = modal.querySelector('.group-modal-cancel');
   const saveBtn = modal.querySelector('.group-modal-save');
   const overlay = modal.querySelector('.group-modal-overlay');
 
-  closeBtn.addEventListener('click', closeGroupModal);
-  cancelBtn.addEventListener('click', closeGroupModal);
-  overlay.addEventListener('click', closeGroupModal);
-  saveBtn.addEventListener('click', saveGroupConfiguration);
+  if (closeBtn) closeBtn.addEventListener('click', closeGroupModal);
+  if (cancelBtn) cancelBtn.addEventListener('click', closeGroupModal);
+  if (overlay) overlay.addEventListener('click', closeGroupModal);
+  if (saveBtn) saveBtn.addEventListener('click', saveGroupConfiguration);
+
+  BMA_LOG.log('GROUP modal event listeners initialized');
 }
 
 // ============================================
@@ -4775,7 +5013,7 @@ async function init() {
   if (settingsLoaded) {
     // Initialize global API client for use by injected template content
     window.apiClient = new APIClient(STATE.settings);
-    console.log('Global apiClient initialized');
+    BMA_LOG.log('Global apiClient initialized');
 
     // Start cookie monitoring for NewBook auth
     AuthManager.startCookieMonitoring();
@@ -4836,18 +5074,18 @@ function setupGlobalInactivityReset() {
   document.addEventListener('mousemove', debouncedMouseMove, { passive: true, capture: true });
   document.addEventListener('touchstart', resetTimerGlobal, { passive: true, capture: true });
 
-  console.log('Global inactivity timer reset listeners attached');
+  BMA_LOG.log('Global inactivity timer reset listeners attached');
 }
 
 // Global function to reload restaurant tab (called by injected template content after booking actions)
 window.reloadRestaurantTab = function() {
-  console.log('reloadRestaurantTab called');
+  BMA_LOG.log('reloadRestaurantTab called');
   loadRestaurantTab();
 };
 
 // Notify background when sidepanel is closing
 window.addEventListener('pagehide', () => {
-  console.log('Sidepanel closing, notifying background');
+  BMA_LOG.log('Sidepanel closing, notifying background');
   chrome.runtime.sendMessage({ action: 'sidepanelClosed' }).catch(() => {
     // Background might not be available during unload
   });

@@ -1,10 +1,33 @@
 // Content Script for NewBook pages
 
-console.log('NewBook Assistant content script loaded');
-
 // State
 let currentBookingId = null;
 let settings = null;
+
+// Debug logging utility - respects enableDebugLogging setting
+const BMA_LOG = {
+  log: (...args) => {
+    if (settings?.enableDebugLogging) {
+      console.log(...args);
+    }
+  },
+  warn: (...args) => {
+    if (settings?.enableDebugLogging) {
+      console.warn(...args);
+    }
+  },
+  error: (...args) => {
+    // Always log errors
+    console.error(...args);
+  },
+  info: (...args) => {
+    if (settings?.enableDebugLogging) {
+      console.info(...args);
+    }
+  }
+};
+
+BMA_LOG.log('NewBook Assistant content script loaded');
 
 // Load settings
 async function loadSettings() {
@@ -12,7 +35,7 @@ async function loadSettings() {
     const result = await chrome.storage.sync.get('settings');
     settings = result.settings || null;
   } catch (error) {
-    console.error('Error loading settings:', error);
+    BMA_LOG.error('Error loading settings:', error);
   }
 }
 
@@ -76,7 +99,7 @@ function detectBookingPage() {
 
     if (bookingId !== currentBookingId) {
       currentBookingId = bookingId;
-      console.log('Booking detected:', bookingId);
+      BMA_LOG.log('Booking detected:', bookingId);
 
       // Notify background script
       chrome.runtime.sendMessage({
@@ -84,14 +107,14 @@ function detectBookingPage() {
         bookingId: bookingId,
         url: url
       }).catch(error => {
-        console.log('Could not send message to background:', error);
+        BMA_LOG.log('Could not send message to background:', error);
       });
     }
   } else {
     // Not on a booking page
     if (currentBookingId !== null) {
       currentBookingId = null;
-      console.log('Left booking page');
+      BMA_LOG.log('Left booking page');
     }
   }
 }
@@ -134,28 +157,28 @@ function handlePlannerBlockClick(event) {
     clickTimer = setTimeout(() => {
       if (clickCount === 1 && settings?.enablePlannerClickUpdate) {
         // Single click confirmed - trigger sidepanel refresh
-        console.log('Planner single-click on booking:', bookingId);
+        BMA_LOG.log('Planner single-click on booking:', bookingId);
 
         chrome.runtime.sendMessage({
           action: 'plannerClick',
           bookingId: bookingId,
           source: 'planner-single-click'
         }).catch(error => {
-          console.log('Could not send planner click message:', error);
+          BMA_LOG.log('Could not send planner click message:', error);
         });
       }
       clickCount = 0;
     }, 250); // 250ms delay to detect double-click
   } else {
     // Double-click detected - cancel single-click action
-    console.log('Planner double-click on booking:', bookingId, '(letting NewBook handle it)');
+    BMA_LOG.log('Planner double-click on booking:', bookingId, '(letting NewBook handle it)');
     clearTimeout(clickTimer);
     clickCount = 0;
   }
 }
 
 function setupPlannerClickListeners() {
-  console.log('Setting up planner click listeners...');
+  BMA_LOG.log('Setting up planner click listeners...');
 
   // Attach click listeners to booking blocks
   const attachListenersToBlocks = () => {
@@ -163,7 +186,7 @@ function setupPlannerClickListeners() {
     // This avoids attaching to links, spans, or other elements
     const bookingBlocks = document.querySelectorAll('div[booking_id], div[data-booking-id]');
 
-    console.log(`Found ${bookingBlocks.length} planner booking blocks`);
+    BMA_LOG.log(`Found ${bookingBlocks.length} planner booking blocks`);
 
     bookingBlocks.forEach(block => {
       // Skip if already has listener
@@ -236,7 +259,7 @@ function detectEasyToolTipPopup() {
 }
 
 function handleEasyToolTipPopup(popupElement) {
-  console.log('EasyToolTip element detected:', {
+  BMA_LOG.log('EasyToolTip element detected:', {
     id: popupElement.id,
     classes: popupElement.className,
     hasPermanent: popupElement.classList.contains('permanent')
@@ -244,7 +267,7 @@ function handleEasyToolTipPopup(popupElement) {
 
   // Check if already processed
   if (popupElement.dataset.nbAssistantProcessed) {
-    console.log('Already processed this tooltip');
+    BMA_LOG.log('Already processed this tooltip');
     return;
   }
 
@@ -262,7 +285,7 @@ function handleEasyToolTipPopup(popupElement) {
   // Generic hover tooltips have id="easyTooltip" (no booking number)
   // Preview popups have id="easyTooltip_booking_12345"
   if (!bookingId) {
-    console.log('Ignoring easyToolTip without booking ID (generic hover tooltip)', popupElement.id);
+    BMA_LOG.log('Ignoring easyToolTip without booking ID (generic hover tooltip)', popupElement.id);
     return;
   }
 
@@ -284,7 +307,7 @@ function handleEasyToolTipPopup(popupElement) {
   // Mark as processed
   popupElement.dataset.nbAssistantProcessed = 'true';
 
-  console.log('EasyToolTip preview popup detected for booking:', bookingId);
+  BMA_LOG.log('EasyToolTip preview popup detected for booking:', bookingId);
 
   // Store and notify
   chrome.storage.local.set({ currentBookingId: bookingId }).catch(() => {});
@@ -294,7 +317,7 @@ function handleEasyToolTipPopup(popupElement) {
     url: window.location.href,
     source: 'easytoolip-popup'
   }).catch(error => {
-    console.log('Could not send popup message:', error);
+    BMA_LOG.log('Could not send popup message:', error);
   });
 }
 
@@ -303,7 +326,7 @@ function handleEasyToolTipPopup(popupElement) {
 const processedPopupBookings = new Set();
 
 function handleBookingPopup(popupElement) {
-  console.log('handleBookingPopup called, element:', {
+  BMA_LOG.log('handleBookingPopup called, element:', {
     tagName: popupElement.tagName,
     classList: popupElement.className,
     display: popupElement.style.display
@@ -311,7 +334,7 @@ function handleBookingPopup(popupElement) {
 
   // Check if we've already processed this popup element
   if (popupElement.dataset.nbAssistantProcessed) {
-    console.log('Already processed this popup element');
+    BMA_LOG.log('Already processed this popup element');
     return;
   }
 
@@ -326,7 +349,7 @@ function handleBookingPopup(popupElement) {
   }
 
   if (!bookingId) {
-    console.log('No booking ID found in popup class name');
+    BMA_LOG.log('No booking ID found in popup class name');
     return;
   }
 
@@ -335,7 +358,7 @@ function handleBookingPopup(popupElement) {
 
   // Check if we've recently processed this booking ID (prevents duplicate notifications)
   if (processedPopupBookings.has(bookingId)) {
-    console.log('Booking', bookingId, 'already processed recently, skipping duplicate notification');
+    BMA_LOG.log('Booking', bookingId, 'already processed recently, skipping duplicate notification');
     return;
   }
 
@@ -343,7 +366,7 @@ function handleBookingPopup(popupElement) {
   processedPopupBookings.add(bookingId);
   setTimeout(() => processedPopupBookings.delete(bookingId), 2000);
 
-  console.log('NewBook popup detected for booking:', bookingId);
+  BMA_LOG.log('NewBook popup detected for booking:', bookingId);
 
   // Store and notify
   chrome.storage.local.set({ currentBookingId: bookingId }).catch(() => {});
@@ -353,7 +376,7 @@ function handleBookingPopup(popupElement) {
     url: window.location.href,
     source: 'popup'
   }).catch(error => {
-    console.log('Could not send popup message:', error);
+    BMA_LOG.log('Could not send popup message:', error);
   });
 }
 
@@ -513,11 +536,11 @@ function createOpenButton() {
 
     // Permanently dismiss (persists across sessions)
     localStorage.setItem('sidepanel-button-dismissed', 'permanent');
-    console.log('Open Assistant button permanently dismissed. To re-enable, clear localStorage.');
+    BMA_LOG.log('Open Assistant button permanently dismissed. To re-enable, clear localStorage.');
   });
 
   document.body.appendChild(button);
-  console.log('Open Assistant button shown');
+  BMA_LOG.log('Open Assistant button shown');
 }
 
 // Remove the button if it exists
@@ -533,21 +556,21 @@ function removeOpenButton() {
 // Session Lock Dialog Detection
 // Detects NewBook's idle session dialog (#locked_session_dialog)
 function setupSessionLockDetection() {
-  console.log('Setting up session lock detection...');
+  BMA_LOG.log('Setting up session lock detection...');
 
   // Check for existing dialog on page load
   const checkSessionLock = () => {
     const lockDialog = document.getElementById('locked_session_dialog');
     const isLocked = lockDialog && lockDialog.style.display !== 'none';
 
-    console.log('Session lock check:', isLocked ? 'LOCKED' : 'UNLOCKED');
+    BMA_LOG.log('Session lock check:', isLocked ? 'LOCKED' : 'UNLOCKED');
 
     // Notify background script
     chrome.runtime.sendMessage({
       action: 'sessionLockChanged',
       isLocked: isLocked
     }).catch(error => {
-      console.log('Could not send session lock message:', error);
+      BMA_LOG.log('Could not send session lock message:', error);
     });
 
     return isLocked;
@@ -604,7 +627,7 @@ function setupSessionLockDetection() {
     attributeFilter: ['style', 'class']
   });
 
-  console.log('Session lock observer active');
+  BMA_LOG.log('Session lock observer active');
 }
 
 // Initialize
@@ -629,7 +652,7 @@ async function init() {
   // Show floating button to prompt user to open sidepanel
   setTimeout(createOpenButton, 1000); // Small delay to let page load
 
-  console.log('NewBook Assistant ready');
+  BMA_LOG.log('NewBook Assistant ready');
 }
 
 // Start
@@ -641,12 +664,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     settings = message.settings;
   } else if (message.action === 'sidepanelOpened') {
     // Sidepanel was opened, hide button
-    console.log('Sidepanel opened, hiding button');
+    BMA_LOG.log('Sidepanel opened, hiding button');
     sidepanelOpen = true;
     removeOpenButton();
   } else if (message.action === 'showOpenButton') {
     // Sidepanel was closed, show button
-    console.log('Sidepanel closed, showing button');
+    BMA_LOG.log('Sidepanel closed, showing button');
     sidepanelOpen = false;
     setTimeout(createOpenButton, 500);
   }

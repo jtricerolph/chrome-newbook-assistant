@@ -155,6 +155,11 @@ body {
   display: none;
 }
 
+/* Remove top padding only for staying tab */
+[data-content="staying"] .tab-data {
+  padding: 0 16px 16px 16px;
+}
+
 /* Add bottom padding to restaurant tab to allow last night to scroll to top */
 [data-content="restaurant"] .tab-data {
   padding-bottom: 60vh;
@@ -1458,7 +1463,7 @@ button[data-action].loading::after {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 16px;
+  padding: 6px 16px; /* Reduced vertical padding from 12px to 6px */
   background: #f9fafb;
   border-bottom: 1px solid #e5e7eb;
   position: sticky;
@@ -1565,270 +1570,7 @@ button[data-action].loading::after {
   border-radius: 0;
 }
 
-/* Staying Booking Cards */
-.staying-card {
-  background: #fff;
-  border-radius: 8px;
-  margin: 0 23px 5px 23px; /* Horizontal margin for timeline indicator space (15px indicator + 8px gap) */
-  transition: all 0.2s;
-  position: relative;
-}
-
-/* Border colors based on NewBook status */
-.staying-card[data-status="arrived"] {
-  border: 2px solid #3b82f6; /* Blue */
-}
-
-.staying-card[data-status="confirmed"] {
-  border: 2px solid #10b981; /* Green */
-}
-
-.staying-card[data-status="unconfirmed"] {
-  border: 2px solid #f59e0b; /* Amber */
-}
-
-.staying-card[data-status="departed"] {
-  border: 2px solid #a855f7; /* Purple */
-}
-
-.staying-card:hover {
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-}
-
-.staying-card.expanded {
-  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-}
-
-/* Group highlighting */
-.staying-card.group-highlight {
-  background: #fef3c7 !important; /* Light amber background */
-}
-
-/* Staying Card Header */
-.staying-header {
-  padding: 8px;
-  cursor: pointer;
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  position: relative;
-  border-radius: 8px; /* Default: fully rounded */
-  background: white;
-  overflow: visible; /* Allow timeline extensions to show beyond card bounds */
-}
-
-/* Header borders matching status colors - fully wrapped */
-.staying-card[data-status="arrived"] .staying-header {
-  border: 2px solid #3b82f6; /* Blue */
-}
-
-.staying-card[data-status="confirmed"] .staying-header {
-  border: 2px solid #10b981; /* Green */
-}
-
-.staying-card[data-status="unconfirmed"] .staying-header {
-  border: 2px solid #f59e0b; /* Amber */
-}
-
-.staying-card[data-status="departed"] .staying-header {
-  border: 2px solid #a855f7; /* Purple */
-}
-
-/* Remove borders on extending sides */
-.staying-card[data-spans-previous="true"] .staying-header {
-  border-left: none !important;
-}
-
-.staying-card[data-spans-next="true"] .staying-header {
-  border-right: none !important;
-}
-
-/* When expanded with timeline indicators - remove bottom corner radius to connect with details */
-
-/* Grey vacant indicators */
-.staying-card.expanded[data-previous-vacant="true"] .staying-header {
-  border-radius: 8px 8px 8px 0 !important; /* Remove bottom-left radius */
-}
-
-.staying-card.expanded[data-next-vacant="true"] .staying-header {
-  border-radius: 8px 8px 0 8px !important; /* Remove bottom-right radius */
-}
-
-.staying-card.expanded[data-previous-vacant="true"][data-next-vacant="true"] .staying-header {
-  border-radius: 8px 8px 0 0 !important; /* Remove both bottom corners */
-}
-
-/* Colored status indicators (different booking on adjacent night) */
-.staying-card.expanded[data-previous-status]:not([data-previous-status=""]) .staying-header {
-  border-radius: 8px 8px 8px 0 !important; /* Remove bottom-left radius */
-}
-
-.staying-card.expanded[data-next-status]:not([data-next-status=""]) .staying-header {
-  border-radius: 8px 8px 0 8px !important; /* Remove bottom-right radius */
-}
-
-.staying-card.expanded[data-previous-status]:not([data-previous-status=""])[data-next-status]:not([data-next-status=""]) .staying-header {
-  border-radius: 8px 8px 0 0 !important; /* Remove both bottom corners */
-}
-
-/* Mixed indicators - vacant on one side, status on other */
-.staying-card.expanded[data-previous-vacant="true"][data-next-status]:not([data-next-status=""]) .staying-header,
-.staying-card.expanded[data-previous-status]:not([data-previous-status=""])[data-next-vacant="true"] .staying-header {
-  border-radius: 8px 8px 0 0 !important; /* Remove both bottom corners */
-}
-
-/* Spanning bookings when expanded - connect bottom to expanded section */
-.staying-card.expanded[data-spans-previous="true"]:not([data-spans-next="true"]) .staying-header {
-  border-radius: 0 8px 0 0 !important; /* Left flat, only top-right rounded */
-}
-
-.staying-card.expanded[data-spans-next="true"]:not([data-spans-previous="true"]) .staying-header {
-  border-radius: 8px 0 0 0 !important; /* Right flat, only top-left rounded */
-}
-
-.staying-card.expanded[data-spans-previous="true"][data-spans-next="true"] .staying-header {
-  border-radius: 0 !important; /* All corners square when spanning both sides */
-}
-
-.staying-main-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.staying-guest-line {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 14px;
-  line-height: 1.2;
-}
-
-.room-number {
-  font-weight: 600;
-  color: #3b82f6;
-  min-width: 40px;
-}
-
-.guest-name {
-  font-weight: 600;
-  color: #2d3748;
-}
-
-.night-progress {
-  background: #edf2f7;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 500;
-  color: #4a5568;
-  margin-left: auto;
-}
-
-.staying-restaurant-line {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: #4a5568;
-}
-
-.staying-restaurant-line .material-symbols-outlined {
-  font-size: 16px;
-  color: #6b7280;
-}
-
-.restaurant-status {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.restaurant-status .material-symbols-outlined {
-  font-size: 14px;
-}
-
-.restaurant-status.no-booking {
-  color: inherit;
-}
-
-.restaurant-status.no-booking .material-symbols-outlined {
-  color: #10b981;
-}
-
-.restaurant-status.has-booking {
-  color: #10b981;
-}
-
-.restaurant-status.has-issue {
-  color: #f59e0b;
-}
-
-.restaurant-status.has-package {
-  color: inherit;
-}
-
-.restaurant-status.has-package .material-symbols-outlined {
-  color: #dc2626;
-}
-
-.group-id-badge {
-  font-size: 11px;
-  color: #d97706;
-  font-weight: 500;
-  background: transparent;
-  border: 1px solid #f59e0b;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-/* Staying badges (issues) */
-.staying-badges {
-  display: flex;
-  gap: 6px;
-  align-self: flex-start;
-}
-
-.staying-expand-icon {
-  font-size: 12px;
-  color: #a0aec0;
-  transition: transform 0.2s;
-}
-
-.staying-card.expanded .staying-expand-icon {
-  transform: rotate(180deg);
-}
-
-/* Staying card details */
-.staying-details {
-  padding: 0 8px 8px 8px;
-  border-top: 1px solid #e2e8f0;
-  display: none;
-}
-
-.staying-card.expanded .staying-details {
-  display: block;
-}
-
-/* Empty state */
-.staying-empty {
-  text-align: center;
-  padding: 60px 20px;
-}
-
-.staying-empty .empty-icon {
-  font-size: 64px;
-  margin-bottom: 16px;
-  opacity: 0.5;
-}
-
-.staying-empty p {
-  font-size: 16px;
-  font-weight: 500;
-  color: #374151;
-}
+/* Staying tab CSS has been moved to API template (chrome-staying-response.php) for centralized maintenance */
 
 /* ============================================
    GROUP MANAGEMENT MODAL
@@ -1910,12 +1652,15 @@ button[data-action].loading::after {
   flex: 1;
 }
 
-.group-modal-date {
+.group-modal-resos-info {
   margin-bottom: 16px;
-  padding: 12px;
-  background: #f9fafb;
+  padding: 12px 14px;
+  background: #f0f9ff;
+  border-left: 3px solid #3b82f6;
   border-radius: 4px;
-  font-size: 14px;
+  font-size: 15px;
+  font-weight: 500;
+  color: #1e40af;
 }
 
 .group-link-toggle {
@@ -1988,7 +1733,7 @@ button[data-action].loading::after {
   font-size: 12px;
   font-weight: 600;
   color: #6b7280;
-  padding: 8px 4px;
+  padding: 6px 4px;
   border-bottom: 1px solid #e5e7eb;
 }
 
@@ -2005,8 +1750,14 @@ button[data-action].loading::after {
 }
 
 .group-bookings-table td {
-  padding: 8px 4px;
+  padding: 4px 4px;
   font-size: 13px;
+}
+
+.booking-info-compact {
+  font-size: 13px;
+  line-height: 1.4;
+  color: #374151;
 }
 
 .group-bookings-table input[type="radio"],
