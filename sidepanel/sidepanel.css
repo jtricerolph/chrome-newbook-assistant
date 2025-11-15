@@ -106,7 +106,9 @@ body {
 .tab-content.active {
   display: flex;
   flex-direction: column;
-  min-height: 100%;
+  flex: 1; /* Fill available space */
+  min-height: 0; /* Allow flex shrinking */
+  overflow: hidden; /* Prevent this container from scrolling */
 }
 
 /* Tab data area - grows to fill space, pushing last-updated to bottom */
@@ -191,7 +193,6 @@ body {
 .summary-placed-pane {
   flex: 0 0 75%; /* Default 75% */
   min-height: 100px; /* Minimum size */
-  max-height: 75%; /* Prevent overflow */
 }
 
 .summary-cancelled-pane {
