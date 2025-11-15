@@ -206,7 +206,7 @@ body {
 }
 
 .summary-cancelled-pane {
-  flex: 1 1 auto; /* Takes remaining space */
+  flex: 1 0 0; /* Grow to fill remaining space, don't shrink, start from 0 */
   min-height: 100px; /* Minimum size */
 }
 
