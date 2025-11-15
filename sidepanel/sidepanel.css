@@ -10,6 +10,7 @@ body {
   color: #1f2937;
   line-height: 1.6;
   overflow: hidden;
+  zoom: 90%; /* Set sidepanel zoom to 90% */
 }
 
 .sidepanel-container {
