@@ -1804,7 +1804,7 @@ button[data-action].loading::after {
   height: 100%;
 }
 
-/* Restaurant Date Picker (reuse staying styles) */
+/* Restaurant Date Picker (fixed at top) */
 .restaurant-date-picker {
   display: flex;
   align-items: center;
@@ -1812,8 +1812,7 @@ button[data-action].loading::after {
   padding: 6px 16px;
   background: #f9fafb;
   border-bottom: 1px solid #e5e7eb;
-  position: sticky;
-  top: 0;
+  flex-shrink: 0; /* Don't shrink - stay fixed at top */
   z-index: 10;
 }
 
@@ -1841,7 +1840,7 @@ button[data-action].loading::after {
   font-size: 16px;
 }
 
-/* Restaurant Gantt Section (30% of sidepanel height) */
+/* Restaurant Gantt Section (fixed at top, 30% of sidepanel height) */
 .restaurant-gantt-section {
   height: 30vh;
   border-bottom: 1px solid #e5e7eb;
@@ -1849,6 +1848,7 @@ button[data-action].loading::after {
   display: flex;
   flex-direction: column;
   min-height: 200px; /* Minimum height to prevent collapse */
+  flex-shrink: 0; /* Don't shrink - stay fixed at top */
 }
 
 .restaurant-gantt-section .bma-gantt-header {
@@ -2090,7 +2090,7 @@ button[data-action].loading::after {
   font-style: italic;
 }
 
-/* Restaurant Summary Updated Footer */
+/* Restaurant Summary Updated Footer (fixed at bottom) */
 .restaurant-summary-updated {
   display: flex;
   align-items: center;
@@ -2100,8 +2100,7 @@ button[data-action].loading::after {
   border-top: 1px solid #e5e7eb;
   font-size: 12px;
   color: #6b7280;
-  position: sticky;
-  bottom: 0;
+  flex-shrink: 0; /* Don't shrink - stay fixed at bottom */
   z-index: 10;
 }
 
