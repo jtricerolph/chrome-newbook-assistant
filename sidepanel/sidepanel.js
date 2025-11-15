@@ -4192,6 +4192,37 @@ function buildRestaurantGanttChart(bookings, date, openingHours = [], specialEve
 
   // Attach tooltips
   attachGanttTooltips();
+
+  // Auto-scroll gantt after rendering
+  setTimeout(() => {
+    const today = new Date().toISOString().split('T')[0];
+
+    if (date === today) {
+      // Today: scroll to current time
+      console.log('📍 Auto-scrolling gantt to current time');
+      scrollGanttToTime('restaurant-summary-gantt', 'now', false);
+    } else if (bookings.length > 0) {
+      // Future date: scroll to first booking + 60 minutes
+      const firstBooking = bookings[0];
+      if (firstBooking.time) {
+        const timeParts = firstBooking.time.split(':');
+        if (timeParts.length === 2) {
+          const hours = parseInt(timeParts[0]);
+          const minutes = parseInt(timeParts[1]);
+          // Add 60 minutes
+          let targetMinutes = minutes + 60;
+          let targetHours = hours;
+          if (targetMinutes >= 60) {
+            targetMinutes -= 60;
+            targetHours += 1;
+          }
+          const targetTime = (targetHours * 100) + targetMinutes;
+          console.log('📍 Auto-scrolling gantt to first booking +60min:', firstBooking.time, '→', `${targetHours}:${String(targetMinutes).padStart(2, '0')}`);
+          scrollGanttToTime('restaurant-summary-gantt', targetTime, false);
+        }
+      }
+    }
+  }, 100); // Small delay to ensure DOM is rendered
 }
 
 // Build restaurant booking cards with opening hours accordion grouping
@@ -4453,7 +4484,17 @@ function initializeRestaurantDatePicker() {
   const ganttNowBtn = document.getElementById('restaurant-gantt-now-btn');
   if (ganttNowBtn) {
     ganttNowBtn.addEventListener('click', () => {
-      scrollGanttToTime('restaurant-summary-gantt', 'now', true);
+      // Get today's date in YYYY-MM-DD format
+      const today = new Date().toISOString().split('T')[0];
+
+      // Check if we're already viewing today
+      if (STATE.restaurantDate !== today) {
+        // Load today's date (will auto-scroll to now after loading)
+        loadRestaurantSummaryView(today);
+      } else {
+        // Already on today, just scroll to current time
+        scrollGanttToTime('restaurant-summary-gantt', 'now', true);
+      }
     });
   }
 }
