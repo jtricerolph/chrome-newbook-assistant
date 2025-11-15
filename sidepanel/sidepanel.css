@@ -175,7 +175,7 @@ body {
 [data-content="summary"].tab-content.active {
   display: grid;
   grid-template-rows: 1fr auto; /* Data fills space, countdown is auto-sized */
-  min-height: 0;
+  height: 100%; /* Fill parent height */
 }
 
 [data-content="summary"] .tab-data {
