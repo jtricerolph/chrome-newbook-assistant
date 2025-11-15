@@ -4406,17 +4406,17 @@ function initializeRestaurantCards() {
         if (timeParts.length === 2) {
           const hours = parseInt(timeParts[0]);
           const minutes = parseInt(timeParts[1]);
-          // Subtract one interval (15 minutes) to show context before the booking
-          let targetMinutes = minutes - 15;
+          // Add 60 minutes to center the viewport around the booking duration
+          let targetMinutes = minutes + 60;
           let targetHours = hours;
-          if (targetMinutes < 0) {
-            targetMinutes += 60;
-            targetHours -= 1;
-            if (targetHours < 0) targetHours = 0;
+          if (targetMinutes >= 60) {
+            targetMinutes -= 60;
+            targetHours += 1;
+            if (targetHours >= 24) targetHours = 23;
           }
           // Convert to HHMM format
           const targetTime = (targetHours * 100) + targetMinutes;
-          // Scroll gantt chart
+          // Scroll gantt chart (centers target time in viewport)
           scrollGanttToTime('restaurant-summary-gantt', targetTime, true);
         }
       });
