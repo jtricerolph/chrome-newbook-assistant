@@ -3939,10 +3939,54 @@ async function loadRestaurantSummaryView(date, force_refresh = false) {
 
     BMA_LOG.log('Valid bookings for Gantt:', validBookings);
 
-    // Build Gantt chart (if we have bookings)
+    // Fetch opening hours and special events in parallel
+    console.log('🕐 Fetching opening hours and special events for date:', date);
+    let openingHours = [];
+    let specialEvents = [];
+    let onlineBookingAvailable = true;
+
+    try {
+      const [hoursData, eventsData] = await Promise.all([
+        fetchOpeningHours(date),
+        fetchSpecialEvents(date)
+      ]);
+
+      openingHours = (hoursData.success && hoursData.data) ? hoursData.data : [];
+      console.log('✓ Fetched opening hours:', openingHours.length, 'periods');
+
+      specialEvents = (eventsData.success && eventsData.data) ? eventsData.data : [];
+      onlineBookingAvailable = eventsData.onlineBookingAvailable !== false;
+      console.log('✓ Fetched special events:', specialEvents.length, 'events, online booking:', onlineBookingAvailable);
+    } catch (error) {
+      console.error('❌ Error fetching opening hours/special events:', error);
+      // Continue with empty arrays
+    }
+
+    // Build and display special events banner
+    if (specialEvents.length > 0 || !onlineBookingAvailable) {
+      const alertsHtml = buildSpecialEventsAlert(specialEvents, onlineBookingAvailable);
+      if (alertsHtml) {
+        const cardsSection = document.querySelector('.restaurant-cards-section');
+        if (cardsSection) {
+          // Remove existing banner if any
+          const existingBanner = cardsSection.querySelector('.special-events-banner');
+          if (existingBanner) {
+            existingBanner.remove();
+          }
+
+          // Insert banner before cards container
+          const bannerDiv = document.createElement('div');
+          bannerDiv.className = 'special-events-banner special-events-horizontal';
+          bannerDiv.innerHTML = alertsHtml;
+          cardsSection.insertBefore(bannerDiv, cardsSection.firstChild);
+        }
+      }
+    }
+
+    // Build Gantt chart with special events for grey overlays
     if (validBookings.length > 0) {
       console.log('📊 Building Gantt chart with', validBookings.length, 'bookings');
-      buildRestaurantGanttChart(validBookings, date);
+      buildRestaurantGanttChart(validBookings, date, specialEvents);
     } else {
       console.log('📭 No valid bookings - showing empty state');
       // Clear gantt chart
@@ -3950,18 +3994,6 @@ async function loadRestaurantSummaryView(date, force_refresh = false) {
       if (ganttContainer) {
         ganttContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #9ca3af;">No bookings for this date</div>';
       }
-    }
-
-    // Fetch opening hours for grouping
-    console.log('🕐 Fetching opening hours for date:', date);
-    let openingHours = [];
-    try {
-      const hoursData = await fetchOpeningHours(date);
-      openingHours = hoursData.opening_hours || hoursData.periods || [];
-      console.log('✓ Fetched opening hours:', openingHours);
-    } catch (error) {
-      console.error('❌ Error fetching opening hours:', error);
-      // Continue with empty opening hours - will show all bookings in "Other" section
     }
 
     // Build booking cards with opening hours grouping
@@ -4085,7 +4117,7 @@ function formatTimeFromMinutes(minutes) {
 }
 
 // Build Gantt chart for restaurant summary
-function buildRestaurantGanttChart(bookings, date) {
+function buildRestaurantGanttChart(bookings, date, specialEvents = []) {
   const ganttContainer = document.getElementById('restaurant-summary-gantt');
   if (!ganttContainer) return;
 
@@ -4097,14 +4129,13 @@ function buildRestaurantGanttChart(bookings, date) {
     duration: 120
   }];
 
-  const specialEvents = [];
   const availableTimes = []; // No availability indication needed for summary view
   const onlineBookingAvailable = false; // Not applicable for summary view
 
   // Build Gantt chart HTML using existing buildGanttChart function
   const ganttHtml = buildGanttChart(
     openingHours,
-    specialEvents,
+    specialEvents,            // Pass special events for grey overlays
     availableTimes,
     bookings,
     'compact', // Use compact mode (smaller bars, no names)
@@ -4184,17 +4215,9 @@ function buildRestaurantCards(bookings, openingHours = [], date = '') {
     const status = booking.status || 'confirmed';
     const source = booking.source || 'resos';
 
-    // Extract "Booking #" custom field to get room number (hotel booking match)
-    let room = '';
-    let isResident = false;
-    if (booking.customFields && Array.isArray(booking.customFields)) {
-      booking.customFields.forEach(field => {
-        if (field.name === 'Booking #' && field.value) {
-          room = field.value;
-          isResident = true;
-        }
-      });
-    }
+    // Get room number from server-side matching (already enhanced by API)
+    const room = booking.room_number || '';
+    const isResident = booking.is_hotel_guest || false;
 
     // Get source icon
     const sourceIcon = getRestaurantSourceIcon(source);
