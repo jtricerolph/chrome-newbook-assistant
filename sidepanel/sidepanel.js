@@ -3742,6 +3742,8 @@ function showNoChangesMessage() {
 
 // Restaurant Tab
 async function loadRestaurantTab(force_refresh = false) {
+  BMA_LOG.log('loadRestaurantTab called, booking ID:', STATE.currentBookingId, 'force_refresh:', force_refresh);
+
   if (!STATE.settings) {
     showError('restaurant', 'Please configure settings first');
     return;
@@ -3749,11 +3751,13 @@ async function loadRestaurantTab(force_refresh = false) {
 
   // Determine view mode: summary (no booking ID) vs detail (has booking ID)
   if (!STATE.currentBookingId) {
+    BMA_LOG.log('No booking ID - showing restaurant summary view');
     // Show restaurant summary view (date-based view)
     loadRestaurantSummaryView(STATE.restaurantDate, force_refresh);
     return;
   }
 
+  BMA_LOG.log('Has booking ID - showing restaurant detail view');
   // Show restaurant detail view (booking-specific view)
   showRestaurantDetailView();
 
