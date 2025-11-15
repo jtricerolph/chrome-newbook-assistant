@@ -4106,6 +4106,14 @@ function initializeRestaurantDatePicker() {
   if (nextBtn) {
     nextBtn.addEventListener('click', () => changeRestaurantDate(1));
   }
+
+  // Initialize Gantt "Now" button
+  const ganttNowBtn = document.getElementById('restaurant-gantt-now-btn');
+  if (ganttNowBtn) {
+    ganttNowBtn.addEventListener('click', () => {
+      scrollGanttToTime('restaurant-summary-gantt', 'now', true);
+    });
+  }
 }
 
 // Change restaurant date by offset
