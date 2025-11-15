@@ -1801,7 +1801,9 @@ button[data-action].loading::after {
 .restaurant-summary-view {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  flex: 1; /* Fill available space in flex parent (.tab-content.active) */
+  min-height: 0; /* Critical: Allow flex shrinking for scroll */
+  overflow: hidden; /* Prevent overflow from breaking layout */
 }
 
 .restaurant-detail-view {
