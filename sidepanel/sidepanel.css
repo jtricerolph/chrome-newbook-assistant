@@ -98,6 +98,11 @@ body {
   scrollbar-gutter: stable; /* Reserve space for scrollbar to prevent width jumping */
 }
 
+/* Disable scrolling when Summary tab is active - panes handle their own scrolling */
+.tab-contents:has([data-content="summary"].active) {
+  overflow: hidden !important;
+}
+
 .tab-content {
   display: none;
   min-height: 100%;
@@ -167,17 +172,12 @@ body {
 }
 
 /* Summary Tab Split-Pane Layout */
-[data-content="summary"].tab-content {
-  overflow: hidden; /* Prevent tab-content from scrolling */
-}
-
 [data-content="summary"] .tab-data {
   padding: 0;
   flex: 1;
   display: flex;
   flex-direction: column;
   min-height: 0; /* Critical for flex child scrolling */
-  overflow: hidden; /* Prevent tab-data from scrolling */
 }
 
 .summary-split-container {
