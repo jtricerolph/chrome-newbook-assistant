@@ -472,6 +472,13 @@ function createOpenButton() {
   // Don't show if sidepanel is open
   if (sidepanelOpen) return;
 
+  // Don't show if session is locked (sidepanel already handles login prompt)
+  const lockDialog = document.getElementById('locked_session_dialog');
+  if (lockDialog && lockDialog.style.display !== 'none') {
+    BMA_LOG.log('Session locked, not showing popup button');
+    return;
+  }
+
   const button = document.createElement('button');
   button.id = 'newbook-helper-btn';
   button.innerHTML = `
@@ -630,9 +637,27 @@ function setupSessionLockDetection() {
   BMA_LOG.log('Session lock observer active');
 }
 
+// Check if sidepanel is already open on initialization
+async function checkInitialSidepanelState() {
+  try {
+    const response = await chrome.runtime.sendMessage({
+      action: 'isSidepanelOpen'
+    });
+    if (response && response.isOpen) {
+      sidepanelOpen = true;
+      BMA_LOG.log('Sidepanel detected as already open on init');
+    }
+  } catch (error) {
+    BMA_LOG.log('Could not check initial sidepanel state:', error);
+  }
+}
+
 // Initialize
 async function init() {
   await loadSettings();
+
+  // Check if sidepanel is already open before showing popup button
+  await checkInitialSidepanelState();
 
   // Initial detection
   detectBookingPage();
@@ -649,7 +674,7 @@ async function init() {
   // Set up session lock detection
   setupSessionLockDetection();
 
-  // Show floating button to prompt user to open sidepanel
+  // Show floating button to prompt user to open sidepanel (only if not already open)
   setTimeout(createOpenButton, 1000); // Small delay to let page load
 
   BMA_LOG.log('NewBook Assistant ready');

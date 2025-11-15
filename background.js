@@ -2,6 +2,7 @@
 
 // State
 let settings = null;
+let sidepanelOpenTabs = new Set(); // Track which tabs have sidepanel open
 
 // Debug logging utility - respects enableDebugLogging setting
 const BMA_LOG = {
@@ -38,10 +39,24 @@ async function loadSettings() {
   }
 }
 
+// Restore sidepanel state from storage
+async function restoreSidepanelState() {
+  try {
+    const result = await chrome.storage.local.get('sidepanelOpenTabs');
+    if (result.sidepanelOpenTabs && Array.isArray(result.sidepanelOpenTabs)) {
+      sidepanelOpenTabs = new Set(result.sidepanelOpenTabs);
+      BMA_LOG.log('Restored sidepanel state for tabs:', Array.from(sidepanelOpenTabs));
+    }
+  } catch (error) {
+    BMA_LOG.error('Error restoring sidepanel state:', error);
+  }
+}
+
 // Initialize on install/update
 chrome.runtime.onInstalled.addListener(async () => {
   BMA_LOG.log('NewBook Assistant installed/updated');
   await loadSettings();
+  await restoreSidepanelState();
 
   // Set up panel behavior for specific origin
   try {
@@ -53,6 +68,13 @@ chrome.runtime.onInstalled.addListener(async () => {
   } catch (error) {
     BMA_LOG.error('Error setting global sidepanel options:', error);
   }
+});
+
+// Initialize on browser startup
+chrome.runtime.onStartup.addListener(async () => {
+  BMA_LOG.log('Browser started, restoring extension state');
+  await loadSettings();
+  await restoreSidepanelState();
 });
 
 // Tab Update Listener - Enable/Disable Sidepanel
@@ -159,6 +181,11 @@ chrome.action.onClicked.addListener(async (tab) => {
     // Open sidepanel for the current tab
     await chrome.sidePanel.open({ tabId: tab.id });
     BMA_LOG.log('Sidepanel opened via toolbar icon');
+    // Track that sidepanel is open for this tab
+    sidepanelOpenTabs.add(tab.id);
+    chrome.storage.local.set({ sidepanelOpenTabs: Array.from(sidepanelOpenTabs) });
+    // Notify content script that sidepanel was opened
+    chrome.tabs.sendMessage(tab.id, { action: 'sidepanelOpened' }).catch(() => {});
   } catch (error) {
     BMA_LOG.error('Failed to open sidepanel:', error);
   }
@@ -205,6 +232,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     chrome.sidePanel.open({ tabId: sender.tab.id })
       .then(() => {
         BMA_LOG.log('Sidepanel opened for tab:', sender.tab.id);
+        // Track that sidepanel is open for this tab
+        sidepanelOpenTabs.add(sender.tab.id);
+        chrome.storage.local.set({ sidepanelOpenTabs: Array.from(sidepanelOpenTabs) });
         // Notify content script that sidepanel was opened
         chrome.tabs.sendMessage(sender.tab.id, { action: 'sidepanelOpened' }).catch(() => {});
       })
@@ -216,9 +246,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     BMA_LOG.log('Sidepanel closed, notifying content script');
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs[0]) {
+        // Track that sidepanel is closed for this tab
+        sidepanelOpenTabs.delete(tabs[0].id);
+        chrome.storage.local.set({ sidepanelOpenTabs: Array.from(sidepanelOpenTabs) });
         chrome.tabs.sendMessage(tabs[0].id, { action: 'showOpenButton' }).catch(() => {});
       }
     });
+  } else if (message.action === 'isSidepanelOpen' && sender.tab?.id) {
+    // Query if sidepanel is open for this tab
+    const isOpen = sidepanelOpenTabs.has(sender.tab.id);
+    BMA_LOG.log('Sidepanel state query for tab', sender.tab.id, ':', isOpen);
+    sendResponse({ isOpen: isOpen });
+    return true; // Keep message channel open for async response
   }
 
   return true;
