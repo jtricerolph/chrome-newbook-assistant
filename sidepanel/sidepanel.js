@@ -712,7 +712,7 @@ function buildGanttChart(openingHours, specialEvents = [], availableTimes = [], 
   const topMargin = 20; // Space for time labels
   const bottomMargin = 40; // Extra space below last booking bar for visibility
   const totalGridRows = positionedBookings.length > 0 ? positionedBookings[0].total_grid_rows : 0;
-  const minChartHeight = 150; // Minimum height to fill viewport even with few bookings
+  const minChartHeight = 250; // Minimum height to fill 30vh viewport better
   const calculatedHeight = totalGridRows > 0 ? topMargin + (totalGridRows * config.gridRowHeight) + bottomMargin : 100;
   const chartHeight = Math.max(calculatedHeight, minChartHeight);
 
@@ -3952,9 +3952,21 @@ async function loadRestaurantSummaryView(date, force_refresh = false) {
       }
     }
 
-    // Build booking cards
-    console.log('🎴 Building booking cards');
-    buildRestaurantCards(validBookings);
+    // Fetch opening hours for grouping
+    console.log('🕐 Fetching opening hours for date:', date);
+    let openingHours = [];
+    try {
+      const hoursData = await fetchOpeningHours(date);
+      openingHours = hoursData.opening_hours || hoursData.periods || [];
+      console.log('✓ Fetched opening hours:', openingHours);
+    } catch (error) {
+      console.error('❌ Error fetching opening hours:', error);
+      // Continue with empty opening hours - will show all bookings in "Other" section
+    }
+
+    // Build booking cards with opening hours grouping
+    console.log('🎴 Building booking cards with accordion grouping');
+    buildRestaurantCards(validBookings, openingHours, date);
 
     // Update badge
     updateBadge('restaurant', validBookings.length);
@@ -3990,15 +4002,97 @@ function showRestaurantDetailView() {
   if (detailView) detailView.classList.remove('hidden');
 }
 
+// Group bookings by opening hours periods
+function groupBookingsByOpeningHours(bookings, openingHours) {
+  const groups = [];
+  const OTHER_GROUP = {
+    name: 'Other Bookings',
+    open: null,
+    close: null,
+    bookings: []
+  };
+
+  // Create groups for each opening hours period
+  openingHours.forEach(period => {
+    groups.push({
+      name: period.name || 'Service Period',
+      open: period.open,
+      close: period.close,
+      _id: period._id,
+      bookings: []
+    });
+  });
+
+  // Assign each booking to the appropriate group
+  bookings.forEach(booking => {
+    const timeString = booking.timeString || booking.time || '';
+    const bookingTime = parseTimeToMinutes(timeString);
+
+    let assigned = false;
+
+    for (const group of groups) {
+      const periodStart = group.open;
+      const periodEnd = group.close;
+
+      // Check if booking time falls within this period
+      if (bookingTime >= periodStart && bookingTime < periodEnd) {
+        group.bookings.push(booking);
+        assigned = true;
+        break;
+      }
+    }
+
+    // If not assigned to any period, add to "Other"
+    if (!assigned) {
+      OTHER_GROUP.bookings.push(booking);
+    }
+  });
+
+  // Add "Other" group at the end if it has bookings
+  if (OTHER_GROUP.bookings.length > 0) {
+    groups.push(OTHER_GROUP);
+  }
+
+  return groups;
+}
+
+// Helper: Parse time string to minutes since midnight
+function parseTimeToMinutes(timeString) {
+  if (!timeString) return 0;
+
+  // Handle formats: "14:30", "2:30 PM", "1430"
+  const match = timeString.match(/(\d{1,2}):?(\d{2})\s*(AM|PM)?/i);
+  if (!match) return 0;
+
+  let hours = parseInt(match[1]);
+  const minutes = parseInt(match[2]);
+  const ampm = match[3];
+
+  // Convert to 24-hour format if AM/PM specified
+  if (ampm) {
+    if (ampm.toUpperCase() === 'PM' && hours < 12) hours += 12;
+    if (ampm.toUpperCase() === 'AM' && hours === 12) hours = 0;
+  }
+
+  return (hours * 100) + minutes;
+}
+
+// Helper: Format minutes (HHMM format) to display time
+function formatTimeFromMinutes(minutes) {
+  const hours = Math.floor(minutes / 100);
+  const mins = minutes % 100;
+  return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+}
+
 // Build Gantt chart for restaurant summary
 function buildRestaurantGanttChart(bookings, date) {
   const ganttContainer = document.getElementById('restaurant-summary-gantt');
   if (!ganttContainer) return;
 
-  // Default opening hours (18:00 - 22:00, can be made configurable)
+  // Full day view (00:00 - 23:59) with horizontal scrolling
   const openingHours = [{
-    open: 1800,  // 6:00 PM
-    close: 2200, // 10:00 PM
+    open: 0,     // 12:00 AM (midnight)
+    close: 2359, // 11:59 PM
     interval: 15,
     duration: 120
   }];
@@ -4024,8 +4118,8 @@ function buildRestaurantGanttChart(bookings, date) {
   attachGanttTooltips();
 }
 
-// Build restaurant booking cards
-function buildRestaurantCards(bookings) {
+// Build restaurant booking cards with opening hours accordion grouping
+function buildRestaurantCards(bookings, openingHours = [], date = '') {
   const cardsContainer = document.querySelector('.restaurant-cards-container');
   const emptyState = document.querySelector('.restaurant-cards-empty');
 
@@ -4039,17 +4133,68 @@ function buildRestaurantCards(bookings) {
 
   if (emptyState) emptyState.classList.add('hidden');
 
+  // Group bookings by opening hours periods
+  const groups = groupBookingsByOpeningHours(bookings, openingHours);
+
   let html = '';
 
-  bookings.forEach(booking => {
-    const resosId = booking.resos_id || booking.booking_id || '';
-    const guestName = booking.name || booking.guest_name || 'Unknown Guest';
-    const time = booking.time || booking.arrival_time || '';
+  // Build accordion sections for each opening hours period
+  groups.forEach((group, groupIndex) => {
+    const bookingCount = group.bookings.length;
+    const totalPax = group.bookings.reduce((sum, b) => sum + (b.people || 0), 0);
+
+    // Format time range
+    let timeRange = '';
+    if (group.open !== null && group.close !== null) {
+      const openTime = formatTimeFromMinutes(group.open);
+      const closeTime = formatTimeFromMinutes(group.close);
+      timeRange = `${openTime} - ${closeTime}`;
+    }
+
+    // Build header with badges
+    html += `
+      <div class="service-period-section" data-period-id="${group._id || groupIndex}">
+        <div class="period-header">
+          <div class="period-info">
+            <h3 class="period-name">${group.name}</h3>
+            ${timeRange ? `<span class="period-times">${timeRange}</span>` : ''}
+          </div>
+          <div class="period-badges">
+            <span class="period-badge bookings-badge" title="${bookingCount} booking(s)">
+              <span class="material-symbols-outlined">restaurant_menu</span>
+              ${bookingCount}
+            </span>
+            <span class="period-badge pax-badge" title="${totalPax} people">
+              <span class="material-symbols-outlined">group</span>
+              ${totalPax}
+            </span>
+          </div>
+          <span class="period-expand-icon">▼</span>
+        </div>
+        <div class="period-bookings">
+    `;
+
+    // Add booking cards for this period
+    group.bookings.forEach(booking => {
+    // ResOS API field mappings
+    const resosId = booking._id || booking.id || booking.resos_id || booking.booking_id || '';
+    const guestName = booking.guest?.name || booking.guest_name || booking.name || 'Unknown Guest';
+    const time = booking.timeString || booking.time || booking.arrival_time || '';
     const people = booking.people || 0;
     const status = booking.status || 'confirmed';
     const source = booking.source || 'resos';
-    const room = booking.room || '';
-    const isResident = booking.is_resident || false;
+
+    // Extract "Booking #" custom field to get room number (hotel booking match)
+    let room = '';
+    let isResident = false;
+    if (booking.customFields && Array.isArray(booking.customFields)) {
+      booking.customFields.forEach(field => {
+        if (field.name === 'Booking #' && field.value) {
+          room = field.value;
+          isResident = true;
+        }
+      });
+    }
 
     // Get source icon
     const sourceIcon = getRestaurantSourceIcon(source);
@@ -4098,11 +4243,18 @@ function buildRestaurantCards(bookings) {
         </div>
       </div>
     `;
+    });
+
+    // Close period section
+    html += `
+        </div>
+      </div>
+    `;
   });
 
   cardsContainer.innerHTML = html;
 
-  // Initialize accordion behavior
+  // Initialize accordion behavior for both period headers and booking cards
   initializeRestaurantCards();
 }
 
@@ -4126,17 +4278,33 @@ function initializeRestaurantCards() {
   const cardsContainer = document.querySelector('.restaurant-cards-container');
   if (!cardsContainer) return;
 
-  // Accordion-style: clicking one closes others
+  // Period header accordion (opening hours sections)
+  cardsContainer.querySelectorAll('.period-header').forEach(header => {
+    header.addEventListener('click', function(e) {
+      // Prevent event bubbling to card headers
+      e.stopPropagation();
+
+      const section = this.closest('.service-period-section');
+
+      // Toggle current section
+      section.classList.toggle('expanded');
+    });
+  });
+
+  // Booking card accordion (individual booking details)
   cardsContainer.querySelectorAll('.restaurant-header').forEach(header => {
-    header.addEventListener('click', function() {
+    header.addEventListener('click', function(e) {
       const card = this.closest('.restaurant-card');
 
-      // Close all other expanded cards (accordion)
-      cardsContainer.querySelectorAll('.restaurant-card.expanded').forEach(expandedCard => {
-        if (expandedCard !== card) {
-          expandedCard.classList.remove('expanded');
-        }
-      });
+      // Close all other expanded cards within the same period (accordion)
+      const period = card.closest('.service-period-section');
+      if (period) {
+        period.querySelectorAll('.restaurant-card.expanded').forEach(expandedCard => {
+          if (expandedCard !== card) {
+            expandedCard.classList.remove('expanded');
+          }
+        });
+      }
 
       // Toggle current card
       card.classList.toggle('expanded');
