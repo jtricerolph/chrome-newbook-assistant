@@ -47,6 +47,7 @@ const STATE = {
   }, // Track scroll positions per tab/date
   restaurantBookings: {}, // Store restaurant bookings by date: { '2026-01-31': [{time, people, name, room}, ...] }
   restaurantDate: new Date().toISOString().split('T')[0], // Current date for restaurant summary view
+  restaurantRequestId: 0, // Track latest restaurant summary request to prevent race conditions
   stayingDate: new Date().toISOString().split('T')[0] // Current date for staying tab
   // activeGroupFilter moved to window.activeGroupFilter (managed by inline API template script)
 };
@@ -3882,6 +3883,11 @@ async function loadRestaurantSummaryView(date, force_refresh = false) {
   console.log('🍴 Loading restaurant summary view for date:', date);
   BMA_LOG.log('Loading restaurant summary view for date:', date);
 
+  // Increment request ID to track this request
+  STATE.restaurantRequestId++;
+  const thisRequestId = STATE.restaurantRequestId;
+  console.log('🔖 Restaurant request ID:', thisRequestId);
+
   try {
     // Show summary view, hide detail view
     showRestaurantSummaryView();
@@ -3910,6 +3916,13 @@ async function loadRestaurantSummaryView(date, force_refresh = false) {
       try {
         const api = new APIClient(STATE.settings);
         const data = await api.fetchRestaurantBookings(date, force_refresh);
+
+        // Check if this is still the latest request
+        if (thisRequestId !== STATE.restaurantRequestId) {
+          console.log('⚠️ Request superseded (ID', thisRequestId, 'vs current', STATE.restaurantRequestId, ') - ignoring results');
+          return;
+        }
+
         console.log('✓ API Response:', data);
 
         BMA_LOG.log('Restaurant bookings API response:', data);
@@ -3967,6 +3980,12 @@ async function loadRestaurantSummaryView(date, force_refresh = false) {
         fetchSpecialEvents(date)
       ]);
 
+      // Check if this is still the latest request
+      if (thisRequestId !== STATE.restaurantRequestId) {
+        console.log('⚠️ Request superseded (ID', thisRequestId, 'vs current', STATE.restaurantRequestId, ') - ignoring results');
+        return;
+      }
+
       openingHours = (hoursData.success && hoursData.data) ? hoursData.data : [];
       console.log('✓ Fetched opening hours:', openingHours.length, 'periods');
 
@@ -3976,6 +3995,12 @@ async function loadRestaurantSummaryView(date, force_refresh = false) {
     } catch (error) {
       console.error('❌ Error fetching opening hours/special events:', error);
       // Continue with empty arrays
+    }
+
+    // Final check before building UI - ensure this is still the latest request
+    if (thisRequestId !== STATE.restaurantRequestId) {
+      console.log('⚠️ Request superseded (ID', thisRequestId, 'vs current', STATE.restaurantRequestId, ') - skipping UI update');
+      return;
     }
 
     // Build and display special events banner
