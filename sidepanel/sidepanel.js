@@ -1574,6 +1574,22 @@ class APIClient {
 
     return response.json();
   }
+
+  async fetchRestaurantBookings(date, force_refresh = false) {
+    const response = await fetch(`${this.baseUrl}/staying?date=${date}&force_refresh=${force_refresh}&context=chrome-restaurant`, {
+      method: 'GET',
+      headers: {
+        'Authorization': this.authHeader,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
 }
 
 // UI Helper Functions
@@ -3864,9 +3880,31 @@ async function loadRestaurantSummaryView(date, force_refresh = false) {
 
     // If no cached data or force refresh, fetch from API
     if (bookings.length === 0 || force_refresh) {
-      BMA_LOG.log('No cached bookings for date or force refresh, would fetch from API');
-      // TODO: Implement API fetch for restaurant bookings by date
-      // For now, use cached data from restaurantBookings
+      BMA_LOG.log('Fetching restaurant bookings for date:', date);
+      try {
+        const api = new APIClient(STATE.settings);
+        const data = await api.fetchRestaurantBookings(date, force_refresh);
+
+        BMA_LOG.log('Restaurant bookings API response:', data);
+
+        // Extract bookings from response
+        // The response might have bookings_by_date or bookings array
+        if (data.bookings_by_date && data.bookings_by_date[date]) {
+          bookings = data.bookings_by_date[date];
+          // Cache all bookings by date
+          STATE.restaurantBookings = data.bookings_by_date;
+        } else if (data.bookings && Array.isArray(data.bookings)) {
+          bookings = data.bookings;
+          // Cache for this date
+          if (!STATE.restaurantBookings) STATE.restaurantBookings = {};
+          STATE.restaurantBookings[date] = bookings;
+        }
+
+        BMA_LOG.log('Extracted bookings:', bookings);
+      } catch (error) {
+        BMA_LOG.error('Error fetching restaurant bookings:', error);
+        // Continue with empty bookings array
+      }
     }
 
     // Filter out excluded statuses
@@ -5128,7 +5166,17 @@ async function loadSettings() {
 // Event Listeners
 document.querySelectorAll('.tab-button').forEach(button => {
   button.addEventListener('click', () => {
-    switchTab(button.dataset.tab);
+    const tabName = button.dataset.tab;
+
+    // Clear booking context when clicking Restaurant tab button directly
+    // This ensures we show the summary view instead of detail view
+    if (tabName === 'restaurant') {
+      BMA_LOG.log('Restaurant tab button clicked - clearing booking context');
+      STATE.currentBookingId = null;
+      chrome.storage.local.remove('currentBookingId');
+    }
+
+    switchTab(tabName);
   });
 });
 
