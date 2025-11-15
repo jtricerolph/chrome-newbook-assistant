@@ -113,7 +113,6 @@ body {
   flex-direction: column;
   flex: 1; /* Fill available space */
   min-height: 0; /* Allow flex shrinking */
-  overflow: hidden; /* Prevent this container from scrolling */
 }
 
 /* Tab data area - grows to fill space, pushing last-updated to bottom */
@@ -192,7 +191,6 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 0; /* Critical for flex scrolling */
-  overflow: hidden; /* Prevent content from expanding pane */
 }
 
 .summary-placed-pane {
