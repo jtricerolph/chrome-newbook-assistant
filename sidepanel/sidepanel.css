@@ -13,6 +13,11 @@ body {
   zoom: 90%; /* Set sidepanel zoom to 90% */
 }
 
+/* Utility Classes */
+.hidden {
+  display: none !important;
+}
+
 .sidepanel-container {
   display: flex;
   flex-direction: column;
