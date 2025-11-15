@@ -98,6 +98,11 @@ body {
   scrollbar-gutter: stable; /* Reserve space for scrollbar to prevent width jumping */
 }
 
+/* Disable scrolling for Summary tab - panes handle their own scrolling */
+.tab-contents:has([data-content="summary"].active) {
+  overflow: hidden;
+}
+
 .tab-content {
   display: none;
   min-height: 100%;
