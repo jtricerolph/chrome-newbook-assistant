@@ -3758,21 +3758,25 @@ function showNoChangesMessage() {
 
 // Restaurant Tab
 async function loadRestaurantTab(force_refresh = false) {
+  console.log('🍽️ loadRestaurantTab called - booking ID:', STATE.currentBookingId, 'force_refresh:', force_refresh);
   BMA_LOG.log('loadRestaurantTab called, booking ID:', STATE.currentBookingId, 'force_refresh:', force_refresh);
 
   if (!STATE.settings) {
+    console.error('❌ Settings not configured!');
     showError('restaurant', 'Please configure settings first');
     return;
   }
 
   // Determine view mode: summary (no booking ID) vs detail (has booking ID)
   if (!STATE.currentBookingId) {
+    console.log('➡️ No booking ID - showing restaurant summary view');
     BMA_LOG.log('No booking ID - showing restaurant summary view');
     // Show restaurant summary view (date-based view)
     loadRestaurantSummaryView(STATE.restaurantDate, force_refresh);
     return;
   }
 
+  console.log('➡️ Has booking ID - showing restaurant detail view');
   BMA_LOG.log('Has booking ID - showing restaurant detail view');
   // Show restaurant detail view (booking-specific view)
   showRestaurantDetailView();
@@ -3859,6 +3863,7 @@ async function loadRestaurantTab(force_refresh = false) {
 
 // Restaurant Summary View (date-based view)
 async function loadRestaurantSummaryView(date, force_refresh = false) {
+  console.log('🍴 Loading restaurant summary view for date:', date);
   BMA_LOG.log('Loading restaurant summary view for date:', date);
 
   try {
@@ -3869,6 +3874,9 @@ async function loadRestaurantSummaryView(date, force_refresh = false) {
     const dateInput = document.getElementById('restaurant-date-input');
     if (dateInput) {
       dateInput.value = date;
+      console.log('✓ Date input set to:', date);
+    } else {
+      console.error('❌ Date input element not found!');
     }
 
     // Update state
@@ -3877,13 +3885,16 @@ async function loadRestaurantSummaryView(date, force_refresh = false) {
 
     // Try to get bookings from cache first
     let bookings = STATE.restaurantBookings[date] || [];
+    console.log('📦 Cached bookings for', date, ':', bookings.length, 'bookings');
 
     // If no cached data or force refresh, fetch from API
     if (bookings.length === 0 || force_refresh) {
+      console.log('🌐 Fetching restaurant bookings from API for date:', date);
       BMA_LOG.log('Fetching restaurant bookings for date:', date);
       try {
         const api = new APIClient(STATE.settings);
         const data = await api.fetchRestaurantBookings(date, force_refresh);
+        console.log('✓ API Response:', data);
 
         BMA_LOG.log('Restaurant bookings API response:', data);
 
@@ -3891,17 +3902,22 @@ async function loadRestaurantSummaryView(date, force_refresh = false) {
         // The response might have bookings_by_date or bookings array
         if (data.bookings_by_date && data.bookings_by_date[date]) {
           bookings = data.bookings_by_date[date];
+          console.log('✓ Extracted bookings from bookings_by_date[' + date + ']:', bookings.length);
           // Cache all bookings by date
           STATE.restaurantBookings = data.bookings_by_date;
         } else if (data.bookings && Array.isArray(data.bookings)) {
           bookings = data.bookings;
+          console.log('✓ Extracted bookings from bookings array:', bookings.length);
           // Cache for this date
           if (!STATE.restaurantBookings) STATE.restaurantBookings = {};
           STATE.restaurantBookings[date] = bookings;
+        } else {
+          console.warn('⚠️ API response has no bookings_by_date or bookings array');
         }
 
         BMA_LOG.log('Extracted bookings:', bookings);
       } catch (error) {
+        console.error('❌ Error fetching restaurant bookings:', error);
         BMA_LOG.error('Error fetching restaurant bookings:', error);
         // Continue with empty bookings array
       }
@@ -3912,6 +3928,7 @@ async function loadRestaurantSummaryView(date, force_refresh = false) {
     const validBookings = bookings.filter(b =>
       !EXCLUDED_STATUSES.includes(b.status?.toLowerCase())
     );
+    console.log('✅ Valid bookings after filtering:', validBookings.length, 'of', bookings.length);
 
     // Sort by arrival time
     validBookings.sort((a, b) => {
@@ -3924,8 +3941,10 @@ async function loadRestaurantSummaryView(date, force_refresh = false) {
 
     // Build Gantt chart (if we have bookings)
     if (validBookings.length > 0) {
+      console.log('📊 Building Gantt chart with', validBookings.length, 'bookings');
       buildRestaurantGanttChart(validBookings, date);
     } else {
+      console.log('📭 No valid bookings - showing empty state');
       // Clear gantt chart
       const ganttContainer = document.getElementById('restaurant-summary-gantt');
       if (ganttContainer) {
@@ -3934,6 +3953,7 @@ async function loadRestaurantSummaryView(date, force_refresh = false) {
     }
 
     // Build booking cards
+    console.log('🎴 Building booking cards');
     buildRestaurantCards(validBookings);
 
     // Update badge
