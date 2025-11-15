@@ -503,14 +503,20 @@ function scrollGanttToTime(chartId, time, smooth = true) {
     targetTime = parseInt(time);
   }
 
-  // Check if chart is in a scrollable viewport
-  const viewport = chart.closest('.gantt-viewport');
-  if (!viewport) {
-    // No viewport, chart is not scrollable
-    return;
+  // Check if chart element itself is the viewport, or find parent viewport
+  let viewport = chart;
+  let chartContainer = chart.querySelector('.gantt-chart-container');
+
+  // If no chart container inside, check if this element is inside a viewport
+  if (!chartContainer) {
+    viewport = chart.closest('.gantt-viewport-container') || chart.closest('.gantt-viewport');
+    chartContainer = chart;
   }
 
-  const chartContainer = chart.querySelector('.gantt-chart-container') || chart;
+  if (!viewport) {
+    BMA_LOG.warn('No scrollable viewport found for chart:', chartId);
+    return;
+  }
 
   // Read time range from data attributes (set by buildGanttChart)
   const startHour = parseInt(chartContainer.dataset.startHour);
