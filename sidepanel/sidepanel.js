@@ -1735,17 +1735,13 @@ function attachSummaryEventListeners(container) {
         card.classList.add('expanded');
 
         // Auto-scroll the pane so the card aligns to the top
-        const paneContent = card.closest('.summary-pane-content');
-        if (paneContent) {
-          // Use setTimeout to allow the details to render first
-          setTimeout(() => {
-            const cardOffsetTop = card.offsetTop;
-            paneContent.scrollTo({
-              top: cardOffsetTop,
-              behavior: 'smooth'
-            });
-          }, 50);
-        }
+        // Use setTimeout to allow the details to render first
+        setTimeout(() => {
+          card.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start' // Align to top of scrollable container
+          });
+        }, 50);
       }
     });
   });
