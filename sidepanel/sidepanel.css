@@ -183,13 +183,15 @@ body {
 .summary-split-container {
   display: flex;
   flex-direction: column;
-  height: 100%; /* Fill parent height */
+  flex: 1;
+  min-height: 0;
 }
 
 .summary-pane {
   display: flex;
   flex-direction: column;
-  min-height: 0; /* Critical for flex scrolling */
+  min-height: 0;
+  overflow: hidden; /* Constrain content to pane size */
 }
 
 .summary-placed-pane {
