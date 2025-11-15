@@ -1798,6 +1798,12 @@ button[data-action].loading::after {
   overflow: hidden;
 }
 
+.restaurant-summary-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
 .restaurant-detail-view {
   display: flex;
   flex-direction: column;
