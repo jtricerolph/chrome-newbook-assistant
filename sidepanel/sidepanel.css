@@ -1992,6 +1992,7 @@ button[data-action].loading::after {
 .restaurant-header {
   display: flex;
   align-items: center;
+  flex-wrap: wrap; /* Allow wrapped content (for grouped rooms) */
   gap: 8px;
   padding: 8px;
   cursor: pointer;
@@ -2024,6 +2025,7 @@ button[data-action].loading::after {
   display: flex;
   align-items: center;
   gap: 6px;
+  flex-basis: 100%; /* Force to new line */
   padding-left: 16px;
   margin-top: 4px;
   font-size: 12px;
