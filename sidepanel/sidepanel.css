@@ -1927,6 +1927,7 @@ button[data-action].loading::after {
 
 .restaurant-cards-container {
   flex: 1;
+  min-height: 0; /* Critical: Allow flex to constrain height for scrolling */
   overflow-y: auto;
   padding: 8px 0 100px 0; /* Bottom padding for scroll space */
   margin: 0 -16px; /* Extend to edges */
