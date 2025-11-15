@@ -4059,24 +4059,45 @@ function groupBookingsByOpeningHours(bookings, openingHours) {
   bookings.forEach(booking => {
     const timeString = booking.timeString || booking.time || '';
     const bookingTime = parseTimeToMinutes(timeString);
-
     let assigned = false;
+    let matchMethod = '';
 
     for (const group of groups) {
-      const periodStart = group.open;
-      const periodEnd = group.close;
-
-      // Check if booking time falls within this period
-      if (bookingTime >= periodStart && bookingTime < periodEnd) {
+      // Method 1: Direct ID matching (most reliable)
+      // ResOS bookings include openingHourId that references the period _id
+      if (booking.openingHourId && booking.openingHourId === group._id) {
         group.bookings.push(booking);
         assigned = true;
+        matchMethod = 'openingHourId';
         break;
       }
     }
 
-    // If not assigned to any period, add to "Other"
+    // Method 2: Time-based matching (fallback for old bookings without openingHourId)
+    // NOTE: This can fail for long bookings that span multiple periods
+    if (!assigned) {
+      for (const group of groups) {
+        const periodStart = group.open;
+        const periodEnd = group.close;
+
+        if (bookingTime >= periodStart && bookingTime < periodEnd) {
+          group.bookings.push(booking);
+          assigned = true;
+          matchMethod = 'time-based (fallback)';
+          console.warn('⚠️ Booking', booking._id || booking.id, 'matched using time-based fallback (no openingHourId). This may be incorrect for long bookings.');
+          break;
+        }
+      }
+    }
+
+    // If still not assigned to any period, add to "Other"
     if (!assigned) {
       OTHER_GROUP.bookings.push(booking);
+      if (booking.openingHourId) {
+        console.warn('⚠️ Booking', booking._id || booking.id, 'has openingHourId:', booking.openingHourId, 'but no matching period found');
+      }
+    } else {
+      console.log('✓ Booking', booking._id || booking.id, 'matched to period using:', matchMethod);
     }
   });
 
