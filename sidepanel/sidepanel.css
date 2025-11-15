@@ -2019,6 +2019,21 @@ button[data-action].loading::after {
   flex-wrap: wrap;
 }
 
+/* Grouped rooms (for booking groups) */
+.restaurant-grouped-rooms {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 16px;
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.restaurant-grouped-rooms .grouped-label {
+  color: #6b7280;
+  font-style: italic;
+}
+
 .booking-time {
   font-weight: 600;
   font-size: 14px;

@@ -4294,9 +4294,28 @@ function buildRestaurantCards(bookings, openingHours = [], date = '') {
     // Get room number from server-side matching (already enhanced by API)
     const room = booking.room_number || '';
     const isResident = booking.is_hotel_guest || false;
+    const groupedRooms = booking.grouped_rooms || [];
 
     // Get source icon
     const sourceIcon = getRestaurantSourceIcon(source);
+
+    // Build room badges display
+    let roomBadgesHtml = '';
+    if (isResident && room) {
+      // Total rooms = primary + grouped
+      const totalRooms = 1 + groupedRooms.length;
+
+      if (totalRooms === 2) {
+        // 2 rooms total: show inline
+        roomBadgesHtml = `<span class="room-badge">${room}</span><span class="room-badge">${groupedRooms[0]}</span>`;
+      } else if (totalRooms > 2) {
+        // 3+ rooms total: show primary on first line
+        roomBadgesHtml = `<span class="room-badge">${room}</span>`;
+      } else {
+        // Just 1 room (no group)
+        roomBadgesHtml = `<span class="room-badge">${room}</span>`;
+      }
+    }
 
     html += `
       <div class="restaurant-card" data-resos-id="${resosId}" data-status="${status}">
@@ -4306,8 +4325,20 @@ function buildRestaurantCards(bookings, openingHours = [], date = '') {
             <span class="guest-name">${guestName}</span>
             <span class="pax-badge">(${people})</span>
             <span class="source-icon material-symbols-outlined" title="${source}">${sourceIcon}</span>
-            ${isResident && room ? `<span class="room-badge">${room}</span>` : ''}
-          </div>
+            ${roomBadgesHtml}
+          </div>`;
+
+    // Add grouped rooms on second line if 3+ total rooms
+    if (isResident && room && groupedRooms.length > 1) {
+      const groupedBadges = groupedRooms.map(r => `<span class="room-badge">${r}</span>`).join('');
+      html += `
+          <div class="restaurant-grouped-rooms">
+            <span class="grouped-label">Joined by</span>
+            ${groupedBadges}
+          </div>`;
+    }
+
+    html += `
           <span class="restaurant-expand-icon">▼</span>
         </div>
         <div class="restaurant-details">
