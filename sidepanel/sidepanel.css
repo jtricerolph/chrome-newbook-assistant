@@ -109,6 +109,11 @@ body {
   overflow: hidden !important;
 }
 
+/* Disable scrolling when Restaurant tab is active - restaurant-cards-section handles scrolling */
+.tab-contents:has([data-content="restaurant"].active) {
+  overflow: hidden !important;
+}
+
 .tab-content {
   display: none;
   min-height: 100%;
