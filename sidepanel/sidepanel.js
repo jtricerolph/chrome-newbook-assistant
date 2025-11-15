@@ -46,6 +46,7 @@ const STATE = {
     staying: 0
   }, // Track scroll positions per tab/date
   restaurantBookings: {}, // Store restaurant bookings by date: { '2026-01-31': [{time, people, name, room}, ...] }
+  restaurantDate: new Date().toISOString().split('T')[0], // Current date for restaurant summary view
   stayingDate: new Date().toISOString().split('T')[0] // Current date for staying tab
   // activeGroupFilter moved to window.activeGroupFilter (managed by inline API template script)
 };
@@ -3746,12 +3747,15 @@ async function loadRestaurantTab(force_refresh = false) {
     return;
   }
 
+  // Determine view mode: summary (no booking ID) vs detail (has booking ID)
   if (!STATE.currentBookingId) {
-    showEmpty('restaurant');
-    updateBadge('restaurant', 0);
-    STATE.loadedBookingIds.restaurant = null;
+    // Show restaurant summary view (date-based view)
+    loadRestaurantSummaryView(STATE.restaurantDate, force_refresh);
     return;
   }
+
+  // Show restaurant detail view (booking-specific view)
+  showRestaurantDetailView();
 
   // Smart refresh: Check if we're already showing the same booking
   // Skip smart refresh if force_refresh is true
@@ -3831,6 +3835,312 @@ async function loadRestaurantTab(force_refresh = false) {
     showError('restaurant', error.message);
     STATE.loadedBookingIds.restaurant = null;
   }
+}
+
+// Restaurant Summary View (date-based view)
+async function loadRestaurantSummaryView(date, force_refresh = false) {
+  BMA_LOG.log('Loading restaurant summary view for date:', date);
+
+  try {
+    // Show summary view, hide detail view
+    showRestaurantSummaryView();
+
+    // Update date input
+    const dateInput = document.getElementById('restaurant-date-input');
+    if (dateInput) {
+      dateInput.value = date;
+    }
+
+    // Update state
+    STATE.restaurantDate = date;
+    STATE.loadedBookingIds.restaurant = `summary:${date}`;
+
+    // Try to get bookings from cache first
+    let bookings = STATE.restaurantBookings[date] || [];
+
+    // If no cached data or force refresh, fetch from API
+    if (bookings.length === 0 || force_refresh) {
+      BMA_LOG.log('No cached bookings for date or force refresh, would fetch from API');
+      // TODO: Implement API fetch for restaurant bookings by date
+      // For now, use cached data from restaurantBookings
+    }
+
+    // Filter out excluded statuses
+    const EXCLUDED_STATUSES = ['request', 'cancelled', 'canceled', 'no_show', 'no-show', 'deleted'];
+    const validBookings = bookings.filter(b =>
+      !EXCLUDED_STATUSES.includes(b.status?.toLowerCase())
+    );
+
+    // Sort by arrival time
+    validBookings.sort((a, b) => {
+      const timeA = a.time || '00:00';
+      const timeB = b.time || '00:00';
+      return timeA.localeCompare(timeB);
+    });
+
+    BMA_LOG.log('Valid bookings for Gantt:', validBookings);
+
+    // Build Gantt chart (if we have bookings)
+    if (validBookings.length > 0) {
+      buildRestaurantGanttChart(validBookings, date);
+    } else {
+      // Clear gantt chart
+      const ganttContainer = document.getElementById('restaurant-summary-gantt');
+      if (ganttContainer) {
+        ganttContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #9ca3af;">No bookings for this date</div>';
+      }
+    }
+
+    // Build booking cards
+    buildRestaurantCards(validBookings);
+
+    // Update badge
+    updateBadge('restaurant', validBookings.length);
+
+    // Update last updated timestamp
+    STATE.lastRestaurantUpdate = Date.now();
+    updateRestaurantSummaryLastUpdated(STATE.lastRestaurantUpdate);
+
+  } catch (error) {
+    BMA_LOG.error('Error loading restaurant summary view:', error);
+    showRestaurantDetailView();
+    showError('restaurant', error.message);
+  }
+}
+
+// Show restaurant summary view, hide detail view
+function showRestaurantSummaryView() {
+  const restaurantTab = document.querySelector('[data-content="restaurant"]');
+  const summaryView = restaurantTab.querySelector('.restaurant-summary-view');
+  const detailView = restaurantTab.querySelector('.restaurant-detail-view');
+
+  if (summaryView) summaryView.classList.remove('hidden');
+  if (detailView) detailView.classList.add('hidden');
+}
+
+// Show restaurant detail view, hide summary view
+function showRestaurantDetailView() {
+  const restaurantTab = document.querySelector('[data-content="restaurant"]');
+  const summaryView = restaurantTab.querySelector('.restaurant-summary-view');
+  const detailView = restaurantTab.querySelector('.restaurant-detail-view');
+
+  if (summaryView) summaryView.classList.add('hidden');
+  if (detailView) detailView.classList.remove('hidden');
+}
+
+// Build Gantt chart for restaurant summary
+function buildRestaurantGanttChart(bookings, date) {
+  const ganttContainer = document.getElementById('restaurant-summary-gantt');
+  if (!ganttContainer) return;
+
+  // Default opening hours (18:00 - 22:00, can be made configurable)
+  const openingHours = [{
+    open: 1800,  // 6:00 PM
+    close: 2200, // 10:00 PM
+    interval: 15,
+    duration: 120
+  }];
+
+  const specialEvents = [];
+  const availableTimes = []; // No availability indication needed for summary view
+  const onlineBookingAvailable = false; // Not applicable for summary view
+
+  // Build Gantt chart HTML using existing buildGanttChart function
+  const ganttHtml = buildGanttChart(
+    openingHours,
+    specialEvents,
+    availableTimes,
+    bookings,
+    'compact', // Use compact mode (smaller bars, no names)
+    'restaurant-summary-gantt',
+    onlineBookingAvailable
+  );
+
+  ganttContainer.innerHTML = ganttHtml;
+
+  // Attach tooltips
+  attachGanttTooltips();
+}
+
+// Build restaurant booking cards
+function buildRestaurantCards(bookings) {
+  const cardsContainer = document.querySelector('.restaurant-cards-container');
+  const emptyState = document.querySelector('.restaurant-cards-empty');
+
+  if (!cardsContainer) return;
+
+  if (bookings.length === 0) {
+    cardsContainer.innerHTML = '';
+    if (emptyState) emptyState.classList.remove('hidden');
+    return;
+  }
+
+  if (emptyState) emptyState.classList.add('hidden');
+
+  let html = '';
+
+  bookings.forEach(booking => {
+    const resosId = booking.resos_id || booking.booking_id || '';
+    const guestName = booking.name || booking.guest_name || 'Unknown Guest';
+    const time = booking.time || booking.arrival_time || '';
+    const people = booking.people || 0;
+    const status = booking.status || 'confirmed';
+    const source = booking.source || 'resos';
+    const room = booking.room || '';
+    const isResident = booking.is_resident || false;
+
+    // Get source icon
+    const sourceIcon = getRestaurantSourceIcon(source);
+
+    html += `
+      <div class="restaurant-card" data-resos-id="${resosId}" data-status="${status}">
+        <div class="restaurant-header">
+          <div class="restaurant-main-info">
+            <span class="booking-time">${time}</span>
+            <span class="guest-name">${guestName}</span>
+            <span class="pax-badge">(${people})</span>
+            <span class="source-icon material-symbols-outlined" title="${source}">${sourceIcon}</span>
+            ${isResident && room ? `<span class="room-badge">${room}</span>` : ''}
+          </div>
+          <span class="restaurant-expand-icon">▼</span>
+        </div>
+        <div class="restaurant-details">
+          <div class="restaurant-details-grid">
+            <div class="restaurant-detail-item">
+              <span class="restaurant-detail-label">Status</span>
+              <span class="restaurant-detail-value">${status}</span>
+            </div>
+            <div class="restaurant-detail-item">
+              <span class="restaurant-detail-label">Covers</span>
+              <span class="restaurant-detail-value">${people}</span>
+            </div>
+            <div class="restaurant-detail-item">
+              <span class="restaurant-detail-label">Time</span>
+              <span class="restaurant-detail-value">${time}</span>
+            </div>
+            <div class="restaurant-detail-item">
+              <span class="restaurant-detail-label">Source</span>
+              <span class="restaurant-detail-value">${source}</span>
+            </div>
+            ${isResident ? `
+              <div class="restaurant-detail-item">
+                <span class="restaurant-detail-label">Room</span>
+                <span class="restaurant-detail-value">${room}</span>
+              </div>
+              <div class="restaurant-detail-item">
+                <span class="restaurant-detail-label">Hotel Guest</span>
+                <span class="restaurant-detail-value">Yes</span>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+  });
+
+  cardsContainer.innerHTML = html;
+
+  // Initialize accordion behavior
+  initializeRestaurantCards();
+}
+
+// Get source icon for restaurant booking
+function getRestaurantSourceIcon(source) {
+  const icons = {
+    'resos': 'restaurant',
+    'phone': 'phone',
+    'email': 'email',
+    'walkin': 'person',
+    'walk-in': 'person',
+    'online': 'language',
+    'widget': 'widgets',
+    'web': 'language'
+  };
+  return icons[source?.toLowerCase()] || 'restaurant';
+}
+
+// Initialize restaurant card accordion behavior
+function initializeRestaurantCards() {
+  const cardsContainer = document.querySelector('.restaurant-cards-container');
+  if (!cardsContainer) return;
+
+  // Accordion-style: clicking one closes others
+  cardsContainer.querySelectorAll('.restaurant-header').forEach(header => {
+    header.addEventListener('click', function() {
+      const card = this.closest('.restaurant-card');
+
+      // Close all other expanded cards (accordion)
+      cardsContainer.querySelectorAll('.restaurant-card.expanded').forEach(expandedCard => {
+        if (expandedCard !== card) {
+          expandedCard.classList.remove('expanded');
+        }
+      });
+
+      // Toggle current card
+      card.classList.toggle('expanded');
+    });
+  });
+}
+
+// Initialize restaurant date picker
+function initializeRestaurantDatePicker() {
+  const dateInput = document.getElementById('restaurant-date-input');
+  const prevBtn = document.getElementById('restaurant-prev-date');
+  const nextBtn = document.getElementById('restaurant-next-date');
+
+  if (dateInput) {
+    dateInput.value = STATE.restaurantDate;
+    dateInput.addEventListener('change', function() {
+      loadRestaurantSummaryView(this.value);
+    });
+  }
+
+  if (prevBtn) {
+    prevBtn.addEventListener('click', () => changeRestaurantDate(-1));
+  }
+
+  if (nextBtn) {
+    nextBtn.addEventListener('click', () => changeRestaurantDate(1));
+  }
+}
+
+// Change restaurant date by offset
+function changeRestaurantDate(offset) {
+  const currentDate = new Date(STATE.restaurantDate);
+  currentDate.setDate(currentDate.getDate() + offset);
+  const newDate = currentDate.toISOString().split('T')[0];
+  loadRestaurantSummaryView(newDate);
+}
+
+// Update restaurant summary last updated timestamp
+function updateRestaurantSummaryLastUpdated(timestamp) {
+  const lastUpdatedElement = document.querySelector('.restaurant-summary-updated .last-updated-text');
+  if (!lastUpdatedElement) return;
+
+  if (!timestamp) {
+    lastUpdatedElement.textContent = 'Never updated';
+    return;
+  }
+
+  const now = Date.now();
+  const diff = now - timestamp;
+  const seconds = Math.floor(diff / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+
+  let text = '';
+  if (days > 0) {
+    text = `Last updated ${days} day${days !== 1 ? 's' : ''} ago`;
+  } else if (hours > 0) {
+    text = `Last updated ${hours} hour${hours !== 1 ? 's' : ''} ago`;
+  } else if (minutes > 0) {
+    text = `Last updated ${minutes} minute${minutes !== 1 ? 's' : ''} ago`;
+  } else {
+    text = 'Last updated just now';
+  }
+
+  lastUpdatedElement.textContent = text;
 }
 
 // Checks Tab
@@ -5266,6 +5576,9 @@ async function init() {
 
       // Initialize staying tab date picker
       initializeStayingDatePicker();
+
+      // Initialize restaurant tab date picker
+      initializeRestaurantDatePicker();
 
       // Initialize refresh buttons
       initializeRefreshButtons();

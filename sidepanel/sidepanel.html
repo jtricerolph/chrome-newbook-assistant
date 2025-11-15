@@ -85,26 +85,79 @@
 
       <!-- Restaurant Tab -->
       <div class="tab-content" data-content="restaurant">
-        <div class="tab-loading">
-          <div class="spinner"></div>
-          <p>Loading restaurant matches...</p>
+        <!-- Restaurant Summary View (date-based view) -->
+        <div class="restaurant-summary-view hidden">
+          <!-- Date Picker -->
+          <div class="restaurant-date-picker">
+            <button class="date-nav-btn" id="restaurant-prev-date">
+              <span class="material-symbols-outlined">chevron_left</span>
+            </button>
+            <input type="date" id="restaurant-date-input" class="date-input" />
+            <button class="date-nav-btn" id="restaurant-next-date">
+              <span class="material-symbols-outlined">chevron_right</span>
+            </button>
+          </div>
+
+          <!-- Gantt Chart Section (30% height) -->
+          <div class="restaurant-gantt-section">
+            <div class="bma-gantt-header">
+              <h3>Bookings Timeline</h3>
+              <div class="bma-gantt-controls">
+                <button class="gantt-scroll-btn" onclick="scrollGanttToTime('restaurant-summary-gantt', 'now', true)">
+                  <span class="material-symbols-outlined">schedule</span>
+                  Now
+                </button>
+              </div>
+            </div>
+            <div class="gantt-viewport-container" id="restaurant-summary-gantt">
+              <!-- Gantt chart inserted here by JavaScript -->
+            </div>
+          </div>
+
+          <!-- Scrollable Booking Cards Section -->
+          <div class="restaurant-cards-section">
+            <div class="restaurant-cards-container">
+              <!-- Booking cards inserted here by JavaScript -->
+            </div>
+            <div class="restaurant-cards-empty hidden">
+              <span class="material-symbols-outlined">info</span>
+              <p>No restaurant bookings for this date</p>
+            </div>
+          </div>
+
+          <!-- Last Updated Footer -->
+          <div class="restaurant-summary-updated">
+            <span class="material-symbols-outlined">schedule</span>
+            <span class="last-updated-text">Last updated just now</span>
+            <button class="tab-refresh-btn" data-tab="restaurant" title="Refresh data">
+              <span class="material-symbols-outlined">refresh</span>
+            </button>
+          </div>
         </div>
-        <div class="tab-data hidden"></div>
-        <div class="tab-error hidden">
-          <span class="material-symbols-outlined">error</span>
-          <p class="error-message"></p>
-          <button class="retry-button">Retry</button>
-        </div>
-        <div class="tab-empty hidden">
-          <span class="material-symbols-outlined">info</span>
-          <p>Navigate to a booking page to view restaurant matches</p>
-        </div>
-        <div class="tab-last-updated hidden">
-          <span class="material-symbols-outlined">schedule</span>
-          <span class="last-updated-text">Last updated just now</span>
-          <button class="tab-refresh-btn" data-tab="restaurant" title="Refresh data">
-            <span class="material-symbols-outlined">refresh</span>
-          </button>
+
+        <!-- Restaurant Detail View (booking-specific view) -->
+        <div class="restaurant-detail-view">
+          <div class="tab-loading">
+            <div class="spinner"></div>
+            <p>Loading restaurant matches...</p>
+          </div>
+          <div class="tab-data hidden"></div>
+          <div class="tab-error hidden">
+            <span class="material-symbols-outlined">error</span>
+            <p class="error-message"></p>
+            <button class="retry-button">Retry</button>
+          </div>
+          <div class="tab-empty hidden">
+            <span class="material-symbols-outlined">info</span>
+            <p>Navigate to a booking page to view restaurant matches</p>
+          </div>
+          <div class="tab-last-updated hidden">
+            <span class="material-symbols-outlined">schedule</span>
+            <span class="last-updated-text">Last updated just now</span>
+            <button class="tab-refresh-btn" data-tab="restaurant" title="Refresh data">
+              <span class="material-symbols-outlined">refresh</span>
+            </button>
+          </div>
         </div>
       </div>
 
