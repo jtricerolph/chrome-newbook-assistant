@@ -171,13 +171,19 @@ body {
   padding-bottom: 60vh;
 }
 
-/* Summary Tab Split-Pane Layout */
+/* Summary Tab Split-Pane Layout - Use Grid for reliable height constraints */
+[data-content="summary"].tab-content.active {
+  display: grid;
+  grid-template-rows: 1fr auto; /* Data fills space, countdown is auto-sized */
+  min-height: 0;
+}
+
 [data-content="summary"] .tab-data {
   padding: 0;
-  flex: 1;
   display: flex;
   flex-direction: column;
-  min-height: 0; /* Critical for flex child scrolling */
+  min-height: 0;
+  overflow: hidden; /* Prevent this from scrolling - panes handle it */
 }
 
 .summary-split-container {
