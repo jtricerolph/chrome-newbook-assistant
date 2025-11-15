@@ -1686,13 +1686,13 @@ function checkForStaleDataAndScheduleRefresh(tabName, dataElement) {
 
     // Trigger refresh based on tab type
     if (tabName === 'summary') {
-      loadSummaryData(true); // Force refresh
+      loadSummaryTab(true); // Force refresh
     } else if (tabName === 'staying') {
-      loadStayingData(STATE.stayingDate, true); // Force refresh
+      loadStayingTab(STATE.stayingDate, true); // Force refresh
     } else if (tabName === 'restaurant') {
-      reloadRestaurantTab(); // Refresh restaurant tab
+      loadRestaurantTab(true); // Force refresh
     } else if (tabName === 'checks') {
-      loadChecksData(STATE.currentBookingId, true); // Force refresh
+      loadChecksTab(true); // Force refresh
     }
 
     STATE.timers.staleRefresh = null;
