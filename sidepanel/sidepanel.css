@@ -1080,6 +1080,14 @@ body {
   border-right-style: dashed;
 }
 
+.gantt-booking-bar.gantt-bar-highlighted {
+  border: 3px solid #fbbf24 !important;
+  box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.3), 0 4px 6px rgba(0, 0, 0, 0.2) !important;
+  z-index: 50 !important;
+  transform: scale(1.05);
+  transition: all 0.2s ease;
+}
+
 /* Tooltip for booking bar hover */
 .gantt-booking-tooltip {
   position: fixed;

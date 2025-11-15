@@ -901,8 +901,9 @@ function buildGanttChart(openingHours, specialEvents = [], availableTimes = [], 
 
     const barClass = 'gantt-booking-bar' + (isCapped ? ' gantt-bar-capped' : '');
     const isResident = booking.is_resident ? 'true' : 'false';
+    const bookingId = booking._id || booking.id || booking.resos_id || booking.booking_id || '';
 
-    html += '<div class="' + barClass + '" data-name="' + booking.name + '" data-people="' + booking.people + '" data-time="' + booking.time + '" data-is-resident="' + isResident + '" style="position: absolute; left: ' + leftPercent + '%; top: ' + yPosition + 'px; width: ' + widthPercent + '%; height: ' + barHeight + 'px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 4px; border: 2px solid #5568d3; padding: 2px 6px; color: white; font-weight: 500; display: flex; align-items: center; gap: 4px; overflow: hidden; cursor: pointer; z-index: 5;">';
+    html += '<div class="' + barClass + '" data-booking-id="' + bookingId + '" data-name="' + booking.name + '" data-people="' + booking.people + '" data-time="' + booking.time + '" data-is-resident="' + isResident + '" style="position: absolute; left: ' + leftPercent + '%; top: ' + yPosition + 'px; width: ' + widthPercent + '%; height: ' + barHeight + 'px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 4px; border: 2px solid #5568d3; padding: 2px 6px; color: white; font-weight: 500; display: flex; align-items: center; gap: 4px; overflow: hidden; cursor: pointer; z-index: 5;">';
 
     // Guest name and room (only in full mode)
     if (displayText) {
@@ -3986,7 +3987,7 @@ async function loadRestaurantSummaryView(date, force_refresh = false) {
     // Build Gantt chart with special events for grey overlays
     if (validBookings.length > 0) {
       console.log('📊 Building Gantt chart with', validBookings.length, 'bookings');
-      buildRestaurantGanttChart(validBookings, date, specialEvents);
+      buildRestaurantGanttChart(validBookings, date, openingHours, specialEvents);
     } else {
       console.log('📭 No valid bookings - showing empty state');
       // Clear gantt chart
@@ -4138,24 +4139,32 @@ function formatTimeFromMinutes(minutes) {
 }
 
 // Build Gantt chart for restaurant summary
-function buildRestaurantGanttChart(bookings, date, specialEvents = []) {
+function buildRestaurantGanttChart(bookings, date, openingHours = [], specialEvents = []) {
   const ganttContainer = document.getElementById('restaurant-summary-gantt');
   if (!ganttContainer) return;
 
-  // Full day view (00:00 - 23:59) with horizontal scrolling
-  const openingHours = [{
-    open: 0,     // 12:00 AM (midnight)
-    close: 2359, // 11:59 PM
-    interval: 15,
-    duration: 120
-  }];
+  // Use actual opening hours from API, or fallback to full day view
+  let ganttOpeningHours = openingHours;
+
+  if (!ganttOpeningHours || ganttOpeningHours.length === 0) {
+    // Fallback: Full day view if no opening hours available
+    console.warn('⚠️ No opening hours available, using full day view (00:00-23:59)');
+    ganttOpeningHours = [{
+      open: 0,     // 12:00 AM (midnight)
+      close: 2359, // 11:59 PM
+      interval: 15,
+      duration: 120
+    }];
+  } else {
+    console.log('✓ Using opening hours for gantt:', ganttOpeningHours.length, 'periods');
+  }
 
   const availableTimes = []; // No availability indication needed for summary view
   const onlineBookingAvailable = false; // Not applicable for summary view
 
   // Build Gantt chart HTML using existing buildGanttChart function
   const ganttHtml = buildGanttChart(
-    openingHours,
+    ganttOpeningHours,
     specialEvents,            // Pass special events for grey overlays
     availableTimes,
     bookings,
@@ -4352,6 +4361,28 @@ function initializeRestaurantCards() {
 
       // Toggle current card
       card.classList.toggle('expanded');
+    });
+  });
+
+  // Highlight gantt bar on card hover
+  cardsContainer.querySelectorAll('.restaurant-card').forEach(card => {
+    const bookingId = card.getAttribute('data-resos-id');
+    if (!bookingId) return;
+
+    // Mouse enter - highlight gantt bar
+    card.addEventListener('mouseenter', function() {
+      const ganttBar = document.querySelector(`.gantt-booking-bar[data-booking-id="${bookingId}"]`);
+      if (ganttBar) {
+        ganttBar.classList.add('gantt-bar-highlighted');
+      }
+    });
+
+    // Mouse leave - remove highlight
+    card.addEventListener('mouseleave', function() {
+      const ganttBar = document.querySelector(`.gantt-booking-bar[data-booking-id="${bookingId}"]`);
+      if (ganttBar) {
+        ganttBar.classList.remove('gantt-bar-highlighted');
+      }
     });
   });
 }
