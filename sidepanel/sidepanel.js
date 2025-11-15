@@ -1711,15 +1711,41 @@ function attachSummaryEventListeners(container) {
       const bookingId = card.dataset.bookingId;
       const details = document.getElementById('details-' + bookingId);
       const icon = card.querySelector('.expand-icon');
+      const isCurrentlyExpanded = details.style.display === 'block';
 
-      if (details.style.display === 'none' || !details.style.display) {
+      // Close all other expanded booking cards across both panes (accordion behavior)
+      const allDetails = container.querySelectorAll('.booking-details');
+      const allIcons = container.querySelectorAll('.expand-icon');
+      const allCards = container.querySelectorAll('.booking-card');
+
+      allDetails.forEach(detail => {
+        detail.style.display = 'none';
+      });
+      allIcons.forEach(ic => {
+        ic.textContent = '▼';
+      });
+      allCards.forEach(c => {
+        c.classList.remove('expanded');
+      });
+
+      // If this card wasn't expanded, expand it and scroll to top
+      if (!isCurrentlyExpanded) {
         details.style.display = 'block';
         icon.textContent = '▲';
         card.classList.add('expanded');
-      } else {
-        details.style.display = 'none';
-        icon.textContent = '▼';
-        card.classList.remove('expanded');
+
+        // Auto-scroll the pane so the card aligns to the top
+        const paneContent = card.closest('.summary-pane-content');
+        if (paneContent) {
+          // Use setTimeout to allow the details to render first
+          setTimeout(() => {
+            const cardOffsetTop = card.offsetTop;
+            paneContent.scrollTo({
+              top: cardOffsetTop,
+              behavior: 'smooth'
+            });
+          }, 50);
+        }
       }
     });
   });
