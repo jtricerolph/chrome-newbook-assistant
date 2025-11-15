@@ -496,7 +496,11 @@ function scrollGanttToTime(chartId, time, smooth = true) {
 
   // Convert to HHMM format if needed
   let targetTime;
-  if (typeof time === 'string' && time.includes(':')) {
+  if (time === 'now') {
+    // Get current time
+    const now = new Date();
+    targetTime = (now.getHours() * 100) + now.getMinutes();
+  } else if (typeof time === 'string' && time.includes(':')) {
     const parts = time.split(':');
     targetTime = parseInt(parts[0]) * 100 + parseInt(parts[1]);
   } else {
