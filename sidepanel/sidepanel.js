@@ -572,6 +572,11 @@ function positionBookingsOnGrid(bookings, startHour, totalMinutes, bookingDurati
         name: booking.name || 'Guest',
         room: booking.room || 'Unknown',
         is_resident: booking.is_resident || false,
+        // Preserve ID fields for gantt bar data-booking-id attribute
+        _id: booking._id,
+        id: booking.id,
+        resos_id: booking.resos_id,
+        booking_id: booking.booking_id,
         hours: hours,
         minutes: minutes,
         minutesFromStart: minutesFromStart
@@ -4384,6 +4389,32 @@ function initializeRestaurantCards() {
         ganttBar.classList.remove('gantt-bar-highlighted');
       }
     });
+
+    // Horizontal scroll gantt on booking-time hover
+    const bookingTimeElement = card.querySelector('.booking-time');
+    if (bookingTimeElement) {
+      bookingTimeElement.addEventListener('mouseenter', function() {
+        const timeText = this.textContent.trim();
+        // Parse time (format: "HH:MM")
+        const timeParts = timeText.split(':');
+        if (timeParts.length === 2) {
+          const hours = parseInt(timeParts[0]);
+          const minutes = parseInt(timeParts[1]);
+          // Subtract one interval (15 minutes) to show context before the booking
+          let targetMinutes = minutes - 15;
+          let targetHours = hours;
+          if (targetMinutes < 0) {
+            targetMinutes += 60;
+            targetHours -= 1;
+            if (targetHours < 0) targetHours = 0;
+          }
+          // Convert to HHMM format
+          const targetTime = (targetHours * 100) + targetMinutes;
+          // Scroll gantt chart
+          scrollGanttToTime('restaurant-summary-gantt', targetTime, true);
+        }
+      });
+    }
   });
 }
 
