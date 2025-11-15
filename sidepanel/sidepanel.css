@@ -111,6 +111,8 @@ body {
 
 /* Disable scrolling when Restaurant tab is active - restaurant-cards-section handles scrolling */
 .tab-contents:has([data-content="restaurant"].active) {
+  display: flex !important;
+  flex-direction: column !important;
   overflow: hidden !important;
 }
 
