@@ -2018,6 +2018,7 @@ button[data-action].loading::after {
   gap: 8px;
   flex: 1;
   flex-wrap: wrap;
+  order: 1; /* First on line */
 }
 
 /* Grouped rooms (for booking groups) */
@@ -2029,6 +2030,7 @@ button[data-action].loading::after {
   padding-left: 16px;
   margin-top: 4px;
   font-size: 12px;
+  order: 3; /* After expand icon, wraps to second line */
 }
 
 .restaurant-grouped-rooms .grouped-label {
@@ -2074,6 +2076,7 @@ button[data-action].loading::after {
   transition: transform 0.2s;
   font-size: 16px;
   color: #6b7280;
+  order: 2; /* After main-info, before grouped rooms */
 }
 
 .restaurant-card.expanded .restaurant-expand-icon {
