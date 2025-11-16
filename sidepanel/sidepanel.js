@@ -4893,6 +4893,16 @@ async function loadStayingTab(date = null, force_refresh = false) {
           // No changes detected
           BMA_LOG.log('Smart refresh: No changes detected in Staying, keeping current view');
           updateBadge('staying', newData.critical_count || 0, newData.warning_count || 0);
+
+          // IMPORTANT: If we're showing the tab for the first time (after silent load),
+          // we need to display the cached data even though nothing changed
+          const tabData = document.querySelector('[data-content="staying"] .tab-data');
+          if (tabData && tabData.classList.contains('hidden')) {
+            BMA_LOG.log('Smart refresh: First time showing Staying tab, displaying cached data');
+            showData('staying', currentHtml);
+            updateTabLastUpdated('staying', STATE.lastStayingUpdate);
+          }
+
           return; // Don't reload
         } else {
           // Changes detected, proceed with refresh
