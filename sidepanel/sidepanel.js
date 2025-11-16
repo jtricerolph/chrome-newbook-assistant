@@ -3574,6 +3574,10 @@ async function loadSummaryTab(force_refresh = false) {
           // No changes detected
           BMA_LOG.log('Smart refresh: No changes detected in Summary, keeping current view');
           updateBadge('summary', newData.critical_count || 0, newData.warning_count || 0);
+
+          // IMPORTANT: Restart countdown even when no changes detected
+          // to prevent timer from calling loadSummaryTab() repeatedly every second
+          showSummaryCountdown();
           return; // Don't reload
         } else {
           // Changes detected, proceed with refresh
@@ -3657,6 +3661,11 @@ function showSummaryCountdown() {
     updateCountdownText(countdownText, secondsLeft);
 
     if (secondsLeft <= 0) {
+      // IMPORTANT: Clear this interval immediately to prevent it from firing again
+      // while loadSummaryTab() is running (which will create a new countdown)
+      clearInterval(STATE.timers.summaryCountdown);
+      STATE.timers.summaryCountdown = null;
+
       // Check if any booking cards are expanded (user is reading)
       const expandedCards = document.querySelectorAll('.booking-card.expanded');
       if (expandedCards.length > 0) {
@@ -3676,6 +3685,8 @@ function showSummaryCountdown() {
           setTimeout(() => {
             secondsLeft = STATE.settings.summaryRefreshRate;
             updateCountdownText(countdownText, secondsLeft);
+            // Restart countdown timer
+            showSummaryCountdown();
           }, 2000);
         }
       } else {
