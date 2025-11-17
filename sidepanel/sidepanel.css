@@ -109,8 +109,8 @@ body {
   overflow: hidden !important;
 }
 
-/* Disable scrolling when Restaurant tab is active - restaurant-cards-section handles scrolling */
-.tab-contents:has([data-content="restaurant"].active) {
+/* Disable scrolling when Restaurant tab is active AND summary view is visible - restaurant-cards-section handles scrolling */
+.tab-contents:has([data-content="restaurant"].active):has(.restaurant-summary-view:not(.hidden)) {
   display: flex !important;
   flex-direction: column !important;
   overflow: hidden !important;
