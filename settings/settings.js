@@ -11,6 +11,7 @@ const DEFAULT_SETTINGS = {
   inactivityTimeout: 60,
   pauseInactivityWhenFormOpen: true,
   autoRefreshOnStaleCache: true,
+  autoRefreshPauseIdleMinutes: 5,
   cancelledHours: 24,
   includeFlaggedCancelled: true,
   enableDebugLogging: false
@@ -27,6 +28,7 @@ const elements = {
   enablePlannerClickUpdate: document.getElementById('enablePlannerClickUpdate'),
   highlightNewestMinutes: document.getElementById('highlightNewestMinutes'),
   autoRefreshOnStaleCache: document.getElementById('autoRefreshOnStaleCache'),
+  autoRefreshPauseIdleMinutes: document.getElementById('autoRefreshPauseIdleMinutes'),
   cancelledHours: document.getElementById('cancelledHours'),
   includeFlaggedCancelled: document.getElementById('includeFlaggedCancelled'),
   inactivityTimeout: document.getElementById('inactivityTimeout'),

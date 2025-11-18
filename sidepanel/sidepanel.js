@@ -3575,9 +3575,8 @@ async function loadSummaryTab(force_refresh = false) {
           BMA_LOG.log('Smart refresh: No changes detected in Summary, keeping current view');
           updateBadge('summary', newData.critical_count || 0, newData.warning_count || 0);
 
-          // IMPORTANT: Restart countdown even when no changes detected
-          // to prevent timer from calling loadSummaryTab() repeatedly every second
-          showSummaryCountdown();
+          // Show "No changes detected" message to user
+          showNoChangesMessage();
           return; // Don't reload
         } else {
           // Changes detected, proceed with refresh
@@ -3671,7 +3670,7 @@ function showSummaryCountdown() {
       if (expandedCards.length > 0) {
         // Check how long since last user interaction
         const idleMinutes = (Date.now() - STATE.lastSummaryInteraction) / 1000 / 60;
-        const maxIdleMinutes = 5; // Resume refresh after 5 minutes of inactivity
+        const maxIdleMinutes = STATE.settings?.autoRefreshPauseIdleMinutes || 5; // Resume refresh after N minutes of inactivity (configurable)
 
         if (idleMinutes >= maxIdleMinutes) {
           // User has been idle too long - assume they've left, resume refresh
@@ -3771,16 +3770,15 @@ function showNoChangesMessage() {
   // Update the last updated text first
   updateLastUpdatedText();
 
-  // Show "No new bookings" message with last updated info
+  // Show "No changes detected" message with last updated info
   const lastUpdatedElement = document.querySelector('[data-content="summary"] .last-updated-text');
   const lastUpdatedText = lastUpdatedElement ? lastUpdatedElement.textContent : '';
 
-  countdownText.innerHTML = `<strong style="color: #10b981;">No new bookings</strong><br><span style="font-size: 11px; color: #6b7280;">${lastUpdatedText}</span>`;
+  countdownText.innerHTML = `<strong style="color: #10b981;">No changes detected</strong><br><span style="font-size: 11px; color: #6b7280;">${lastUpdatedText}</span>`;
 
   // Reset to countdown after 2 seconds
   setTimeout(() => {
-    const secondsLeft = STATE.settings.summaryRefreshRate;
-    updateCountdownText(countdownText, secondsLeft);
+    showSummaryCountdown(); // Restart the countdown timer
   }, 2000);
 }
 
@@ -5490,22 +5488,60 @@ function initializeRefreshButtons() {
   const refreshButtons = document.querySelectorAll('.tab-refresh-btn');
 
   refreshButtons.forEach(btn => {
+    // Update tooltip to explain left-click vs right-click
+    btn.title = 'Left-click: Refresh (uses cache) | Right-click: Force fresh data';
+
+    // Left-click: Soft refresh (force_refresh=false)
     btn.addEventListener('click', async function(e) {
       e.preventDefault();
       e.stopPropagation();
 
       const tabName = this.dataset.tab;
-      BMA_LOG.log('Refresh button clicked for tab:', tabName);
+      BMA_LOG.log('Refresh button (soft) clicked for tab:', tabName);
 
       // Add refreshing class for animation
       this.classList.add('refreshing');
 
       try {
-        // Clear cache for this tab to force full reload
+        // Clear local cache to ensure fresh fetch
         STATE.cache[tabName] = null;
         STATE.loadedBookingIds[tabName] = null;
 
-        // Trigger reload based on tab type with force_refresh=true
+        // Trigger reload with force_refresh=false (uses API cache)
+        if (tabName === 'summary') {
+          await loadSummaryTab(false);
+        } else if (tabName === 'restaurant') {
+          await loadRestaurantTab(false);
+        } else if (tabName === 'checks') {
+          await loadChecksTab(false);
+        } else if (tabName === 'staying') {
+          await loadStayingTab(STATE.stayingDate, false);
+        }
+      } catch (error) {
+        BMA_LOG.error(`Error refreshing ${tabName} tab:`, error);
+      } finally {
+        // Remove refreshing class
+        this.classList.remove('refreshing');
+      }
+    });
+
+    // Right-click: Hard refresh (force_refresh=true)
+    btn.addEventListener('contextmenu', async function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const tabName = this.dataset.tab;
+      BMA_LOG.log('Refresh button (hard) right-clicked for tab:', tabName);
+
+      // Add hard-refreshing class for different animation
+      this.classList.add('hard-refreshing');
+
+      try {
+        // Clear local cache
+        STATE.cache[tabName] = null;
+        STATE.loadedBookingIds[tabName] = null;
+
+        // Trigger reload with force_refresh=true (bypasses API cache)
         if (tabName === 'summary') {
           await loadSummaryTab(true);
         } else if (tabName === 'restaurant') {
@@ -5516,10 +5552,10 @@ function initializeRefreshButtons() {
           await loadStayingTab(STATE.stayingDate, true);
         }
       } catch (error) {
-        BMA_LOG.error(`Error refreshing ${tabName} tab:`, error);
+        BMA_LOG.error(`Error hard refreshing ${tabName} tab:`, error);
       } finally {
-        // Remove refreshing class
-        this.classList.remove('refreshing');
+        // Remove hard-refreshing class
+        this.classList.remove('hard-refreshing');
       }
     });
   });

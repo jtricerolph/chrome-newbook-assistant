@@ -459,6 +459,11 @@ body {
   animation: spin 1s linear infinite;
 }
 
+.tab-refresh-btn.hard-refreshing .material-symbols-outlined {
+  animation: spin 1s linear infinite;
+  color: #f97316; /* Orange color to indicate "hard" refresh */
+}
+
 /* Footer */
 .sidepanel-footer {
   background-color: #fff;

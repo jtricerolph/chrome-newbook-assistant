@@ -107,6 +107,18 @@
         </div>
 
         <div class="form-group">
+          <label for="autoRefreshPauseIdleMinutes">Auto-refresh pause idle timeout (minutes)</label>
+          <input
+            type="number"
+            id="autoRefreshPauseIdleMinutes"
+            min="1"
+            max="30"
+            value="5"
+          >
+          <small>When bookings are expanded on Summary tab, auto-refresh pauses. Resume after this many minutes of inactivity (1-30 minutes)</small>
+        </div>
+
+        <div class="form-group">
           <label for="cancelledHours">Show cancelled bookings from last</label>
           <select id="cancelledHours">
             <option value="24">24 hours</option>
