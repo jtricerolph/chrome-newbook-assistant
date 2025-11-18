@@ -4586,6 +4586,16 @@ function buildRestaurantCards(bookings, openingHours = [], date = '') {
       allergiesBadgesHtml = '<span class="allergy-badge none-selected">None Selected</span>';
     }
 
+    // Format room badges for details section (if hotel guest)
+    let roomBadgesDetailsHtml = '';
+    if (isResident && room) {
+      const allRooms = [room, ...groupedRooms];
+      roomBadgesDetailsHtml = allRooms.map((r, i) => {
+        const badgeClass = i === 0 ? 'room-badge-lead' : 'room-badge-grouped';
+        return `<span class="${badgeClass}">${r}</span>`;
+      }).join('');
+    }
+
     html += `
           ${hasAllergies() ? '<span class="allergy-icon material-symbols-outlined" title="Allergies">no_food</span>' : ''}
           <span class="restaurant-expand-icon">▼</span>
@@ -4597,7 +4607,7 @@ function buildRestaurantCards(bookings, openingHours = [], date = '') {
             <span class="detail-line"><strong>Source:</strong> ${titleCase(source)}</span>
             <span class="detail-line">${formatDuration(duration) || '<span style="color: #9ca3af;">No duration</span>'}</span>
             <span class="detail-line"><strong>Status:</strong> ${titleCase(status)}</span>
-            <span class="detail-line">${isResident ? '<span class="material-symbols-outlined" style="font-size: 18px; vertical-align: middle;">bedroom_parent</span>' : ''}</span>
+            <span class="detail-line">${roomBadgesDetailsHtml}</span>
             <span class="detail-line full-span"><strong>Allergies:</strong> <span class="allergy-badges">${allergiesBadgesHtml}</span></span>
             ${otherAllergies ? `<span class="detail-line full-span"><strong>Other Allergies:</strong> <span class="other-allergies-badge">${otherAllergies}</span></span>` : ''}
           </div>

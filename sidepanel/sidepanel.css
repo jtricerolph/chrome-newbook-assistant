@@ -2078,6 +2078,29 @@ button[data-action].loading::after {
   font-weight: 600;
 }
 
+/* Room badges for details section */
+.room-badge-lead {
+  display: inline-block;
+  background: #1e40af;
+  color: white;
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-right: 4px;
+}
+
+.room-badge-grouped {
+  display: inline-block;
+  background: #93c5fd;
+  color: #1e3a8a;
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-right: 4px;
+}
+
 .restaurant-expand-icon {
   margin-left: auto;
   transition: transform 0.2s;
