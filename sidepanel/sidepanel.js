@@ -3662,12 +3662,12 @@ function switchTab(tabName) {
       }
       STATE.currentBookingId = null;
       chrome.storage.local.remove('currentBookingId');
+    } else {
+      BMA_LOG.log('Switching to Restaurant tab - preserving booking context:', STATE.currentBookingId);
     }
 
-    // Clear the preserveBookingId flag after using it (one-time use)
-    if (STATE.navigationContext?.preserveBookingId) {
-      STATE.navigationContext.preserveBookingId = false;
-    }
+    // Don't clear the preserveBookingId flag yet - let loadRestaurantTab handle it
+    // This ensures navigation works even when already on the Restaurant tab
 
     loadRestaurantTab();
     startInactivityTimer();
@@ -4021,6 +4021,11 @@ async function loadRestaurantTab(force_refresh = false) {
       requestAnimationFrame(() => {
         setTimeout(() => {
           processNavigationContext();
+          // Clear navigation context after loading detail view
+          if (STATE.navigationContext?.preserveBookingId) {
+            BMA_LOG.log('Clearing navigation context after Restaurant detail view loaded');
+            STATE.navigationContext = null;
+          }
         }, 200);
       });
     } else if (data.success && !data.html) {
@@ -4207,6 +4212,12 @@ async function loadRestaurantSummaryView(date, force_refresh = false) {
     // Update last updated timestamp
     STATE.lastRestaurantUpdate = Date.now();
     updateRestaurantSummaryLastUpdated(STATE.lastRestaurantUpdate);
+
+    // Clear navigation context after loading summary view
+    if (STATE.navigationContext) {
+      BMA_LOG.log('Clearing navigation context after Restaurant summary view loaded');
+      STATE.navigationContext = null;
+    }
 
   } catch (error) {
     BMA_LOG.error('Error loading restaurant summary view:', error);
