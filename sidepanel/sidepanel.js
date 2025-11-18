@@ -684,6 +684,22 @@ function buildGanttChart(openingHours, specialEvents = [], availableTimes = [], 
     return '<p style="padding: 20px; text-align: center; color: #999;">No opening hours available</p>';
   }
 
+  // Get status-based color for gantt bar
+  function getStatusColor(status) {
+    const colors = {
+      'approved': '#10b981',      // Green
+      'request': '#f59e0b',        // Orange
+      'arrived': '#fb923c',        // Light Red
+      'seated': '#dc2626',         // Dark Red
+      'left': '#8b5cf6',           // Purple
+      'waitlist': '#eab308',       // Yellow
+      'declined': '#4b5563',       // Dark Gray
+      'canceled': '#94a3b8',       // Light Gray
+      'cancelled': '#94a3b8'       // Light Gray
+    };
+    return colors[status?.toLowerCase()] || '#667eea'; // Default to purple-blue
+  }
+
   // Display mode configuration
   const modeConfig = {
     full: {
@@ -907,10 +923,13 @@ function buildGanttChart(openingHours, specialEvents = [], availableTimes = [], 
     const actualBookingWidth = bookingEndMinutes - booking.minutesFromStart;
     const widthPercent = (actualBookingWidth / totalMinutes) * 100;
 
+    // Extract guest name from various possible fields (same as restaurant card rendering)
+    const guestName = booking.guest?.name || booking.guest_name || booking.name || 'Guest';
+
     // Display text based on config
     let displayText = '';
     if (config.showNames) {
-      displayText = booking.name;
+      displayText = guestName;
       if (config.showRoomNumbers && booking.room !== 'Non-Resident') {
         displayText += ' - ' + booking.room;
       }
@@ -919,8 +938,11 @@ function buildGanttChart(openingHours, specialEvents = [], availableTimes = [], 
     const barClass = 'gantt-booking-bar' + (isCapped ? ' gantt-bar-capped' : '');
     const isResident = booking.is_resident ? 'true' : 'false';
     const bookingId = booking._id || booking.id || booking.resos_id || booking.booking_id || '';
+    const status = booking.status || 'approved';
+    const statusColor = getStatusColor(status);
+    const borderColor = statusColor; // Use same color for border
 
-    html += '<div class="' + barClass + '" data-booking-id="' + bookingId + '" data-name="' + booking.name + '" data-people="' + booking.people + '" data-time="' + booking.time + '" data-is-resident="' + isResident + '" style="position: absolute; left: ' + leftPercent + '%; top: ' + yPosition + 'px; width: ' + widthPercent + '%; height: ' + barHeight + 'px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 4px; border: 2px solid #5568d3; padding: 2px 6px; color: white; font-weight: 500; display: flex; align-items: center; gap: 4px; overflow: hidden; cursor: pointer; z-index: 5;">';
+    html += '<div class="' + barClass + '" data-booking-id="' + bookingId + '" data-name="' + guestName + '" data-people="' + booking.people + '" data-time="' + booking.time + '" data-status="' + status + '" data-is-resident="' + isResident + '" style="position: absolute; left: ' + leftPercent + '%; top: ' + yPosition + 'px; width: ' + widthPercent + '%; height: ' + barHeight + 'px; background: ' + statusColor + '; border-radius: 4px; border: 2px solid ' + borderColor + '; padding: 2px 6px; color: white; font-weight: 500; display: flex; align-items: center; gap: 4px; overflow: hidden; cursor: pointer; z-index: 5;">';
 
     // Guest name and room (only in full mode)
     if (displayText) {
@@ -1035,8 +1057,9 @@ function attachGanttTooltips() {
     });
 
     bar.addEventListener('mousemove', (e) => {
-      tooltip.style.left = (e.clientX + 10) + 'px';
-      tooltip.style.top = (e.clientY + 10) + 'px';
+      // Position tooltip above and to the right of cursor
+      tooltip.style.left = (e.clientX + 15) + 'px';
+      tooltip.style.top = (e.clientY - 35) + 'px';
     });
 
     bar.addEventListener('mouseleave', () => {

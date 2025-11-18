@@ -1944,10 +1944,78 @@ button[data-action].loading::after {
   background-color: #f9fafb;
 }
 
+/* Status-based hover colors */
+.restaurant-card[data-status="approved"] .restaurant-header:hover {
+  background-color: rgba(16, 185, 129, 0.1); /* Green */
+}
+
+.restaurant-card[data-status="request"] .restaurant-header:hover {
+  background-color: rgba(245, 158, 11, 0.1); /* Orange */
+}
+
+.restaurant-card[data-status="arrived"] .restaurant-header:hover {
+  background-color: rgba(251, 146, 60, 0.1); /* Light Red */
+}
+
+.restaurant-card[data-status="seated"] .restaurant-header:hover {
+  background-color: rgba(220, 38, 38, 0.1); /* Dark Red */
+}
+
+.restaurant-card[data-status="left"] .restaurant-header:hover {
+  background-color: rgba(139, 92, 246, 0.1); /* Purple */
+}
+
+.restaurant-card[data-status="waitlist"] .restaurant-header:hover {
+  background-color: rgba(234, 179, 8, 0.1); /* Yellow */
+}
+
+.restaurant-card[data-status="declined"] .restaurant-header:hover {
+  background-color: rgba(75, 85, 99, 0.1); /* Dark Gray */
+}
+
+.restaurant-card[data-status="canceled"] .restaurant-header:hover,
+.restaurant-card[data-status="cancelled"] .restaurant-header:hover {
+  background-color: rgba(148, 163, 184, 0.1); /* Light Gray */
+}
+
 .restaurant-card.expanded .restaurant-header {
   background-color: #eff6ff;
   border-bottom: 1px solid #e5e7eb;
   border-radius: 6px 6px 0 0;
+}
+
+/* Status-based expanded colors */
+.restaurant-card[data-status="approved"].expanded .restaurant-header {
+  background-color: rgba(16, 185, 129, 0.15); /* Green */
+}
+
+.restaurant-card[data-status="request"].expanded .restaurant-header {
+  background-color: rgba(245, 158, 11, 0.15); /* Orange */
+}
+
+.restaurant-card[data-status="arrived"].expanded .restaurant-header {
+  background-color: rgba(251, 146, 60, 0.15); /* Light Red */
+}
+
+.restaurant-card[data-status="seated"].expanded .restaurant-header {
+  background-color: rgba(220, 38, 38, 0.15); /* Dark Red */
+}
+
+.restaurant-card[data-status="left"].expanded .restaurant-header {
+  background-color: rgba(139, 92, 246, 0.15); /* Purple */
+}
+
+.restaurant-card[data-status="waitlist"].expanded .restaurant-header {
+  background-color: rgba(234, 179, 8, 0.15); /* Yellow */
+}
+
+.restaurant-card[data-status="declined"].expanded .restaurant-header {
+  background-color: rgba(75, 85, 99, 0.15); /* Dark Gray */
+}
+
+.restaurant-card[data-status="canceled"].expanded .restaurant-header,
+.restaurant-card[data-status="cancelled"].expanded .restaurant-header {
+  background-color: rgba(148, 163, 184, 0.15); /* Light Gray */
 }
 
 /* Restaurant Header Content */
