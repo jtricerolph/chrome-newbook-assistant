@@ -2265,7 +2265,7 @@ button[data-action].loading::after {
 
 /* Allergy badges */
 .allergy-badges {
-  display: flex;
+  display: inline-flex;
   flex-wrap: wrap;
   gap: 6px;
   align-items: center;

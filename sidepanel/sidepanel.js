@@ -4472,21 +4472,25 @@ function buildRestaurantCards(bookings, openingHours = [], date = '') {
     const status = booking.status || 'confirmed';
     const source = booking.source || 'resos';
     const duration = booking.duration || 0; // Duration in minutes
-    const allergies = booking.allergies || booking.guest?.allergies || [];
-    const otherAllergies = booking.otherAllergies || booking.other_allergies || '';
+
+    // Extract allergies from customFields
+    const customFields = booking.customFields || [];
+    const dietaryField = customFields.find(f => f.name && f.name.toLowerCase().includes('dietary requirements') && !f.name.toLowerCase().includes('other'));
+    const otherDietaryField = customFields.find(f => f.name && f.name.toLowerCase().includes('other dietary'));
+
+    const allergies = dietaryField?.value || [];
+    const otherAllergies = otherDietaryField?.value || '';
+
     const restaurantNotes = booking.restaurantNotes || [];
     const comments = booking.comments || [];
 
-    // Debug allergies data
-    if (booking.allergies || booking.guest?.allergies) {
-      console.log('Allergies data for', guestName, ':', {
-        'booking.allergies': booking.allergies,
-        'booking.guest?.allergies': booking.guest?.allergies,
-        'allergies variable': allergies,
-        'type': typeof allergies,
-        'isArray': Array.isArray(allergies)
-      });
-    }
+    // Debug allergies extraction
+    console.log('🍎 Allergies for', guestName, ':', {
+      dietaryField,
+      allergies,
+      otherDietaryField,
+      otherAllergies
+    });
 
     // Title case helper
     const titleCase = (str) => str.split(/[\s-_]/).map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
@@ -4546,8 +4550,7 @@ function buildRestaurantCards(bookings, openingHours = [], date = '') {
             <span class="pax-badge">(${people})</span>
             <span class="source-icon material-symbols-outlined" title="${source}">${sourceIcon}</span>
             ${roomBadgesHtml}
-          </div>
-          ${hasAllergies() ? '<span class="allergy-icon material-symbols-outlined" title="Allergies">no_food</span>' : ''}`;
+          </div>`;
 
     // Add grouped rooms on second line if 3+ total rooms
     if (isResident && room && groupedRooms.length > 1) {
@@ -4574,12 +4577,17 @@ function buildRestaurantCards(bookings, openingHours = [], date = '') {
     const allergyArray = Array.isArray(allergies) ? allergies : (allergies ? [allergies] : []);
     let allergiesBadgesHtml = '';
     if (allergyArray.length > 0) {
-      allergiesBadgesHtml = allergyArray.map(a => `<span class="allergy-badge">${a}</span>`).join('');
+      // Extract name from allergy objects (could be multipleChoiceValueName or name)
+      allergiesBadgesHtml = allergyArray.map(a => {
+        const allergyName = typeof a === 'string' ? a : (a.multipleChoiceValueName || a.name || a.label || a);
+        return `<span class="allergy-badge">${allergyName}</span>`;
+      }).join('');
     } else {
       allergiesBadgesHtml = '<span class="allergy-badge none-selected">None Selected</span>';
     }
 
     html += `
+          ${hasAllergies() ? '<span class="allergy-icon material-symbols-outlined" title="Allergies">no_food</span>' : ''}
           <span class="restaurant-expand-icon">▼</span>
         </div>
         <div class="restaurant-details">
