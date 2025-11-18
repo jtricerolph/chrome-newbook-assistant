@@ -4644,6 +4644,16 @@ function buildRestaurantCards(bookings, openingHours = [], date = '') {
               </div>
             `;
           })()}
+          <div class="restaurant-actions">
+            <button class="restaurant-btn-resos" data-resos-id="${resosId}" data-restaurant-id="${booking.restaurantId || ''}" data-date="${date}">
+              <span class="material-symbols-outlined">open_in_new</span> Open in ResOS
+            </button>
+            ${isResident && room ? `
+              <button class="restaurant-btn-newbook" data-booking-id="${booking.newbook_booking_id || booking.hotel_booking_id || ''}">
+                <span class="material-symbols-outlined">arrow_back</span> Open in NewBook
+              </button>
+            ` : ''}
+          </div>
         </div>
       </div>
     `;
@@ -4767,6 +4777,36 @@ function initializeRestaurantCards() {
         }
       });
     }
+  });
+
+  // "Open in ResOS" button click handlers
+  cardsContainer.querySelectorAll('.restaurant-btn-resos').forEach(button => {
+    button.addEventListener('click', function(e) {
+      e.stopPropagation(); // Prevent card toggle
+      const resosId = this.dataset.resosId;
+      const restaurantId = this.dataset.restaurantId;
+      const date = this.dataset.date;
+
+      if (resosId && restaurantId && date) {
+        const resosUrl = `https://app.resos.com/${restaurantId}/bookings/timetable/${date}/${resosId}`;
+        BMA_LOG.log('Opening ResOS booking in new tab:', resosUrl);
+        chrome.tabs.create({ url: resosUrl });
+      }
+    });
+  });
+
+  // "Open in NewBook" button click handlers
+  cardsContainer.querySelectorAll('.restaurant-btn-newbook').forEach(button => {
+    button.addEventListener('click', function(e) {
+      e.stopPropagation(); // Prevent card toggle
+      const bookingId = this.dataset.bookingId;
+
+      if (bookingId) {
+        const newbookUrl = `https://appeu.newbook.cloud/bookings_view/${bookingId}`;
+        BMA_LOG.log('Opening NewBook booking in current tab:', newbookUrl);
+        chrome.tabs.update({ url: newbookUrl });
+      }
+    });
   });
 }
 

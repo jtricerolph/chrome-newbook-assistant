@@ -2331,6 +2331,54 @@ button[data-action].loading::after {
   order: 1;
 }
 
+/* Restaurant action buttons */
+.restaurant-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.restaurant-btn-resos,
+.restaurant-btn-newbook {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.restaurant-btn-resos {
+  background: #667eea;
+  color: white;
+}
+
+.restaurant-btn-resos:hover {
+  background: #5568d3;
+}
+
+.restaurant-btn-newbook {
+  background: #10b981;
+  color: white;
+}
+
+.restaurant-btn-newbook:hover {
+  background: #059669;
+}
+
+.restaurant-btn-resos .material-symbols-outlined,
+.restaurant-btn-newbook .material-symbols-outlined {
+  font-size: 18px !important;
+}
+
 /* Restaurant Summary Updated Footer (fixed at bottom) */
 .restaurant-summary-updated {
   display: flex;
