@@ -1894,24 +1894,37 @@ button[data-action].loading::after {
 }
 
 /* Status-based colored left borders */
-.restaurant-card[data-status="confirmed"] {
-  border-left: 4px solid #10b981; /* Green */
+.restaurant-card[data-status="approved"] {
+  border-left: 4px solid #10b981; /* Green - Confirmed/Approved */
 }
 
-.restaurant-card[data-status="provisional"] {
-  border-left: 4px solid #f59e0b; /* Orange */
+.restaurant-card[data-status="request"] {
+  border-left: 4px solid #f59e0b; /* Orange - Pending Request */
 }
 
 .restaurant-card[data-status="arrived"] {
-  border-left: 4px solid #8b5cf6; /* Purple */
+  border-left: 4px solid #8b5cf6; /* Purple - Guest Arrived */
 }
 
 .restaurant-card[data-status="seated"] {
-  border-left: 4px solid #06b6d4; /* Cyan */
+  border-left: 4px solid #06b6d4; /* Cyan - Guest Seated */
 }
 
-.restaurant-card[data-status="completed"] {
-  border-left: 4px solid #6b7280; /* Gray */
+.restaurant-card[data-status="left"] {
+  border-left: 4px solid #6b7280; /* Gray - Completed/Left */
+}
+
+.restaurant-card[data-status="waitlist"] {
+  border-left: 4px solid #eab308; /* Yellow - Waitlist */
+}
+
+.restaurant-card[data-status="declined"] {
+  border-left: 4px solid #ef4444; /* Red - Declined */
+}
+
+.restaurant-card[data-status="canceled"],
+.restaurant-card[data-status="cancelled"] {
+  border-left: 4px solid #94a3b8; /* Light Gray - Cancelled */
 }
 
 /* Restaurant Card Header (clickable) */
