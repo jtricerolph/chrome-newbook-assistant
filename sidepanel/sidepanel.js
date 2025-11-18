@@ -2758,6 +2758,19 @@ function attachRestaurantEventListeners(container) {
       formData.booking_ref = bookingRef;
     }
 
+    // Add group data from hidden fields
+    const groupMembersField = form.querySelector('.form-group-members');
+    if (groupMembersField && groupMembersField.value) {
+      formData.group_members = groupMembersField.value;
+      console.log('BMA: Including group_members in create booking:', groupMembersField.value);
+    }
+
+    const leadBookingField = form.querySelector('.form-lead-booking');
+    if (leadBookingField && leadBookingField.value) {
+      formData.lead_booking_id = leadBookingField.value;
+      console.log('BMA: Including lead_booking_id in create booking:', leadBookingField.value);
+    }
+
     BMA_LOG.log('Starting create booking operation with data:', formData);
 
     // Disable button and update UI
