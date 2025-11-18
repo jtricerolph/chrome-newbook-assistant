@@ -1743,7 +1743,7 @@ function attachSummaryEventListeners(container) {
 
       const card = this.closest('.booking-card');
       const bookingId = card.dataset.bookingId;
-      const details = document.getElementById('details-' + bookingId);
+      const details = card.querySelector('.booking-details');
       const icon = card.querySelector('.expand-icon');
       const isCurrentlyExpanded = details.style.display === 'block';
 
