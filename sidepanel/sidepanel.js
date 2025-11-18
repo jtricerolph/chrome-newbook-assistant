@@ -5137,33 +5137,22 @@ function initializeStayingCards() {
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
             const tabContents = document.querySelector('.tab-contents');
-            const stayingList = card.closest('.staying-list');
-            if (tabContents && stayingList) {
+            if (tabContents) {
               // Get height of sticky datepicker (stats row scrolls with content, so don't include it)
               const datePicker = document.querySelector('.staying-date-picker');
               const datePickerHeight = datePicker ? datePicker.offsetHeight : 0;
 
-              // card.offsetTop is relative to .staying-list
-              // Add .staying-list's offset to get position relative to .tab-contents
-              const cardPositionInList = card.offsetTop;
-              const listPositionInContainer = stayingList.offsetTop;
-              const cardPositionInContainer = listPositionInContainer + cardPositionInList;
-
-              console.log('STAYING SCROLL DEBUG:', {
-                card: card.querySelector('.guest-name')?.textContent,
-                cardPositionInList,
-                listPositionInContainer,
-                cardPositionInContainer,
-                datePickerHeight,
-                desiredGap: datePickerHeight + 4,
-                scrollTo: cardPositionInContainer - (datePickerHeight + 4),
-                'card.offsetParent': card.offsetParent?.className,
-                'stayingList.offsetParent': stayingList.offsetParent?.className
-              });
+              // Walk offsetParent chain from card to tabContents to get absolute position
+              let cardPosition = 0;
+              let elem = card;
+              while (elem && elem !== tabContents) {
+                cardPosition += elem.offsetTop;
+                elem = elem.offsetParent;
+              }
 
               // Position card (header is at top of card) 4px below the sticky datepicker
               const desiredGap = datePickerHeight + 4;
-              const scrollTo = cardPositionInContainer - desiredGap;
+              const scrollTo = cardPosition - desiredGap;
 
               tabContents.scrollTo({
                 top: scrollTo,
