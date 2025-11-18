@@ -1748,25 +1748,34 @@ function applyNewBookingClasses(container) {
   const now = Date.now();
   const newThreshold = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
+  BMA_LOG.log('[New Booking Classes] Processing', bookingCards.length, 'cards');
+
   bookingCards.forEach(card => {
     const isCancelled = card.classList.contains('cancelled-booking');
     const placedTime = card.dataset.bookingPlaced;
     const cancelledTime = card.dataset.bookingCancelled;
+    const bookingId = card.dataset.bookingId;
 
     let isNew = false;
+    let timeDiff = null;
 
     if (isCancelled && cancelledTime) {
       // Check if recently cancelled
       const cancelledTimestamp = new Date(cancelledTime.replace(' ', 'T')).getTime();
-      isNew = (now - cancelledTimestamp) <= newThreshold;
+      timeDiff = now - cancelledTimestamp;
+      isNew = timeDiff <= newThreshold;
+      BMA_LOG.log('[New Booking Classes] Booking', bookingId, '- Cancelled:', cancelledTime, 'Time diff (hours):', (timeDiff / 1000 / 60 / 60).toFixed(2), 'Is new:', isNew);
     } else if (!isCancelled && placedTime) {
       // Check if recently placed
       const placedTimestamp = new Date(placedTime.replace(' ', 'T')).getTime();
-      isNew = (now - placedTimestamp) <= newThreshold;
+      timeDiff = now - placedTimestamp;
+      isNew = timeDiff <= newThreshold;
+      BMA_LOG.log('[New Booking Classes] Booking', bookingId, '- Placed:', placedTime, 'Time diff (hours):', (timeDiff / 1000 / 60 / 60).toFixed(2), 'Is new:', isNew);
     }
 
     if (isNew) {
       card.classList.add('new-booking');
+      BMA_LOG.log('[New Booking Classes] Added new-booking class to', bookingId);
     }
   });
 }
