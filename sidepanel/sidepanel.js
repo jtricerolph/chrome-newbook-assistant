@@ -5137,23 +5137,21 @@ function initializeStayingCards() {
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
             const tabContents = document.querySelector('.tab-contents');
-            const header = this; // The .staying-header element
-            if (tabContents) {
+            const stayingList = card.closest('.staying-list');
+            if (tabContents && stayingList) {
               // Get height of sticky datepicker (stats row scrolls with content, so don't include it)
               const datePicker = document.querySelector('.staying-date-picker');
               const datePickerHeight = datePicker ? datePicker.offsetHeight : 0;
 
-              // Walk offsetParent chain from header to tabContents to get header's position
-              let headerOffset = 0;
-              let elem = header;
-              while (elem && elem !== tabContents) {
-                headerOffset += elem.offsetTop;
-                elem = elem.offsetParent;
-              }
+              // card.offsetTop is relative to .staying-list
+              // Add .staying-list's offset to get position relative to .tab-contents
+              const cardPositionInList = card.offsetTop;
+              const listPositionInContainer = stayingList.offsetTop;
+              const cardPositionInContainer = listPositionInContainer + cardPositionInList;
 
-              // Position header 4px below the sticky datepicker
+              // Position card (header is at top of card) 4px below the sticky datepicker
               const desiredGap = datePickerHeight + 4;
-              const scrollTo = headerOffset - desiredGap;
+              const scrollTo = cardPositionInContainer - desiredGap;
 
               tabContents.scrollTo({
                 top: scrollTo,
