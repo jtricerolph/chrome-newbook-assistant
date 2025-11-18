@@ -918,7 +918,7 @@ body {
 
 .gantt-viewport-container {
   overflow-x: auto;
-  overflow-y: auto;
+  overflow-y: hidden;
   max-width: 100%;
   scroll-behavior: smooth;
 }
@@ -1782,14 +1782,13 @@ button[data-action].loading::after {
   font-size: 16px;
 }
 
-/* Restaurant Gantt Section (fixed at top, 30% of sidepanel height) */
+/* Restaurant Gantt Section (auto-expands to fit bookings) */
 .restaurant-gantt-section {
-  height: 30vh;
+  min-height: 200px;
   border-bottom: 1px solid #e5e7eb;
   background: white;
   display: flex;
   flex-direction: column;
-  min-height: 200px; /* Minimum height to prevent collapse */
   flex-shrink: 0; /* Don't shrink - stay fixed at top */
 }
 
@@ -1840,7 +1839,7 @@ button[data-action].loading::after {
 .restaurant-gantt-section .gantt-viewport-container {
   flex: 1;
   overflow-x: auto;
-  overflow-y: auto;
+  overflow-y: hidden;
 }
 
 /* Restaurant Cards Section (scrollable, fills remaining space) */
