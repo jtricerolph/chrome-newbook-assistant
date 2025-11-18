@@ -5146,8 +5146,8 @@ function initializeStayingCards() {
               const statsRow = document.querySelector('.staying-stats-row');
               const statsRowHeight = statsRow ? statsRow.offsetHeight : 0;
 
-              // Position card 4px below datepicker, accounting for stats row that sits between them
-              const desiredGap = datePickerHeight + statsRowHeight + 4;
+              // Position card 4px below datepicker, accounting for stats row + additional margin/padding (~35px)
+              const desiredGap = datePickerHeight + statsRowHeight + 35 + 4;
               const scrollTo = card.offsetTop - desiredGap;
 
               tabContents.scrollTo({
