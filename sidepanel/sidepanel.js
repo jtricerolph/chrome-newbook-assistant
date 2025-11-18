@@ -1783,17 +1783,20 @@ function attachSummaryEventListeners(container) {
         icon.textContent = '▲';
         card.classList.add('expanded');
 
-        // Auto-scroll the pane so the card aligns 4px below the tabs bar
+        // Auto-scroll the pane so the card appears with a gap at top (preventing visual overlap with tabs)
         // Use requestAnimationFrame twice to ensure layout is fully recalculated after expansion/collapse
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
             const activityContent = card.closest('.summary-activity-content');
             if (activityContent) {
-              // Account for the container's padding (16px) when calculating scroll position
-              // offsetTop is relative to the parent's padding box, but we want the card
-              // to be 4px from the top of the visible viewport (below tabs bar)
-              const contentPadding = 16; // .summary-activity-content has padding: 16px
-              const scrollTo = card.offsetTop - contentPadding - 4;
+              // Get the tab-nav height to ensure card appears below it visually
+              const tabNav = document.querySelector('.tab-nav');
+              const tabNavHeight = tabNav ? tabNav.offsetHeight : 44; // fallback to ~44px
+
+              // Position card (tabNavHeight + 4px gap) from top of scroll container
+              // This ensures the card doesn't visually appear to go behind the tabs bar
+              const desiredGap = tabNavHeight + 4;
+              const scrollTo = card.offsetTop - desiredGap;
 
               activityContent.scrollTo({
                 top: scrollTo,
