@@ -5138,17 +5138,19 @@ function initializeStayingCards() {
           requestAnimationFrame(() => {
             const tabContents = document.querySelector('.tab-contents');
             if (tabContents) {
-              // Get heights of sticky elements above the cards
+              // Get height of sticky datepicker (stats row scrolls with content, so don't include it)
               const datePicker = document.querySelector('.staying-date-picker');
-              const statsRow = document.querySelector('.staying-stats-row');
-
               const datePickerHeight = datePicker ? datePicker.offsetHeight : 0;
-              const statsRowHeight = statsRow ? statsRow.offsetHeight : 0;
 
-              // Position card (datepicker height + stats row height + 4px gap) from top
-              // This ensures the card appears with a clear visual gap below the stats bar
-              const desiredGap = datePickerHeight + statsRowHeight + 4;
-              const scrollTo = card.offsetTop - desiredGap;
+              // Position card header 4px below the sticky datepicker
+              // Use getBoundingClientRect for accurate positioning across nested containers
+              const cardRect = card.getBoundingClientRect();
+              const containerRect = tabContents.getBoundingClientRect();
+
+              const desiredGap = datePickerHeight + 4;
+              const currentScrollTop = tabContents.scrollTop;
+              const cardTopRelativeToContainer = cardRect.top - containerRect.top + currentScrollTop;
+              const scrollTo = cardTopRelativeToContainer - desiredGap;
 
               tabContents.scrollTo({
                 top: scrollTo,
