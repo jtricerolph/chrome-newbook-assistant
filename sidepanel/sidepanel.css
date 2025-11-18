@@ -184,7 +184,7 @@ body {
   padding-bottom: 60vh;
 }
 
-/* Summary Tab Split-Pane Layout - Use Grid for reliable height constraints */
+/* Activity Tab (formerly Summary) - Single scrollable list */
 [data-content="summary"].tab-content.active {
   display: grid;
   grid-template-rows: 1fr auto; /* Data fills space, countdown is auto-sized */
@@ -196,93 +196,14 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  overflow: hidden; /* Prevent this from scrolling - panes handle it */
+  overflow: hidden;
 }
 
-.summary-split-container {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-}
-
-.summary-pane {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  overflow: hidden; /* Constrain content to pane size */
-}
-
-.summary-placed-pane {
-  flex: 0 0 50%; /* Default 50/50 split */
-  min-height: 100px; /* Minimum size */
-}
-
-.summary-cancelled-pane {
-  flex: 1 0 0; /* Grow to fill remaining space, don't shrink, start from 0 */
-  min-height: 100px; /* Minimum size */
-}
-
-.summary-pane-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 16px;
-  background: #f9fafb;
-  border-bottom: 1px solid #e5e7eb;
-  flex-shrink: 0;
-}
-
-.summary-pane-header h3 {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 600;
-  color: #374151;
-}
-
-.summary-pane-header .pane-count {
-  font-size: 12px;
-  font-weight: 500;
-  color: #6b7280;
-  background: #e5e7eb;
-  padding: 2px 8px;
-  border-radius: 12px;
-}
-
-.summary-pane-content {
+.summary-activity-content {
   flex: 1 1 auto;
   overflow-y: auto;
   overflow-x: hidden;
   padding: 16px;
-}
-
-.summary-divider {
-  height: 8px;
-  background: #e5e7eb;
-  cursor: row-resize;
-  position: relative;
-  flex-shrink: 0;
-  transition: background 0.2s;
-}
-
-.summary-divider:hover {
-  background: #d1d5db;
-}
-
-.summary-divider-handle {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 40px;
-  height: 4px;
-  background: #9ca3af;
-  border-radius: 2px;
-  pointer-events: none;
-}
-
-.summary-divider:hover .summary-divider-handle {
-  background: #6b7280;
 }
 
 /* Error State */

@@ -13,7 +13,7 @@
     <nav class="tab-nav">
       <button class="tab-button active" data-tab="summary">
         <span class="material-symbols-outlined">summarize</span>
-        <span class="tab-label">Summary</span>
+        <span class="tab-label">Activity</span>
         <span class="tab-badge hidden" data-badge="summary">0</span>
       </button>
       <button class="tab-button" data-tab="staying">
@@ -42,27 +42,7 @@
           <p>Loading summary...</p>
         </div>
         <div class="tab-data hidden">
-          <div class="summary-split-container">
-            <div class="summary-pane summary-placed-pane">
-              <div class="summary-pane-header">
-                <h3>Recently Placed</h3>
-                <span class="pane-count"></span>
-              </div>
-              <div class="summary-pane-content"></div>
-            </div>
-
-            <div class="summary-divider">
-              <div class="summary-divider-handle"></div>
-            </div>
-
-            <div class="summary-pane summary-cancelled-pane">
-              <div class="summary-pane-header">
-                <h3>Recently Cancelled</h3>
-                <span class="pane-count"></span>
-              </div>
-              <div class="summary-pane-content"></div>
-            </div>
-          </div>
+          <div class="summary-activity-content"></div>
         </div>
         <div class="tab-error hidden">
           <span class="material-symbols-outlined">error</span>
