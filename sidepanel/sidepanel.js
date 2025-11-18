@@ -5952,7 +5952,39 @@ async function saveGroupConfiguration() {
     }
   });
 
-  // Make API call
+  // CREATE MODE: Store in form, don't call API yet
+  if (!GROUP_MODAL_STATE.resosBookingId) {
+    BMA_LOG.log('GROUP modal in CREATE mode - storing selections in form');
+
+    // Find the create form for this date
+    const form = document.querySelector(`#create-form-${GROUP_MODAL_STATE.date}`);
+    if (!form) {
+      BMA_LOG.error('Create form not found for date:', GROUP_MODAL_STATE.date);
+      showToast('Error: Form not found', 'error');
+      return;
+    }
+
+    // Store lead booking ID
+    const leadField = form.querySelector('.form-lead-booking');
+    if (leadField) {
+      leadField.value = leadBookingId || '';
+    }
+
+    // Build and store group members (G-{id},G-{id},...)
+    const groupValue = individualIds.map(id => 'G-' + id).join(',');
+    const groupField = form.querySelector('.form-group-members');
+    if (groupField) {
+      groupField.value = groupValue;
+    }
+
+    BMA_LOG.log('Stored group data:', { leadBookingId, groupMembers: groupValue });
+
+    showToast(`Selected ${individualIds.length} group member(s)`, 'success');
+    closeGroupModal();
+    return;
+  }
+
+  // UPDATE MODE: Make API call
   try {
     const config = getAPIConfig();
     const response = await fetch(`${config.baseUrl}/bookings/group`, {
