@@ -6033,8 +6033,8 @@ async function saveGroupConfiguration() {
       leadField.value = leadBookingId || '';
     }
 
-    // Build and store group members (G-{id},G-{id},...)
-    const groupValue = individualIds.map(id => 'G-' + id).join(',');
+    // Build and store group members (plain IDs: id,id,...)
+    const groupValue = individualIds.join(',');
     const groupField = form.querySelector('.form-group-members');
     if (groupField) {
       groupField.value = groupValue;
