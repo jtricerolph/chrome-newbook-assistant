@@ -5138,23 +5138,17 @@ function initializeStayingCards() {
           requestAnimationFrame(() => {
             const tabContents = document.querySelector('.tab-contents');
             if (tabContents) {
-              // Get height of sticky datepicker (stats row scrolls with content, so don't include it)
+              // Get height of sticky datepicker
               const datePicker = document.querySelector('.staying-date-picker');
               const datePickerHeight = datePicker ? datePicker.offsetHeight : 0;
 
-              // Use exact same pattern as Activity tab - just card.offsetTop
-              // card.offsetTop should be relative to its offsetParent
-              const desiredGap = datePickerHeight + 4;
-              const scrollTo = card.offsetTop - desiredGap;
+              // Get stats row height (it scrolls with content but sits between datepicker and staying-list)
+              const statsRow = document.querySelector('.staying-stats-row');
+              const statsRowHeight = statsRow ? statsRow.offsetHeight : 0;
 
-              console.log('STAYING SCROLL:', {
-                guest: card.querySelector('.guest-name')?.textContent,
-                cardOffsetTop: card.offsetTop,
-                datePickerHeight,
-                desiredGap,
-                scrollTo,
-                offsetParent: card.offsetParent?.className
-              });
+              // Position card 4px below datepicker, accounting for stats row that sits between them
+              const desiredGap = datePickerHeight + statsRowHeight + 4;
+              const scrollTo = card.offsetTop - desiredGap;
 
               tabContents.scrollTo({
                 top: scrollTo,
