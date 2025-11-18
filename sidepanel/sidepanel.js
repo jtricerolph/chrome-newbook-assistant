@@ -4529,13 +4529,16 @@ function buildRestaurantCards(bookings, openingHours = [], date = '') {
 function getRestaurantSourceIcon(source) {
   const icons = {
     'resos': 'restaurant',
-    'phone': 'phone',
-    'email': 'email',
-    'walkin': 'person',
-    'walk-in': 'person',
-    'online': 'language',
-    'widget': 'widgets',
-    'web': 'language'
+    'phone': 'phone_in_talk',
+    'email': 'mark_email_unread',
+    'walkin': 'directions_walk',
+    'walk-in': 'directions_walk',
+    'online': 'captive_portal',
+    'widget': 'captive_portal',
+    'web': 'captive_portal',
+    'website': 'captive_portal',
+    'api': 'integration_instructions',
+    'other': 'alt_route'
   };
   return icons[source?.toLowerCase()] || 'restaurant';
 }
