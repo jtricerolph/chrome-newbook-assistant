@@ -1903,15 +1903,15 @@ button[data-action].loading::after {
 }
 
 .restaurant-card[data-status="arrived"] {
-  border-left: 4px solid #8b5cf6; /* Purple - Guest Arrived */
+  border-left: 4px solid #fb923c; /* Light Red - Guest Arrived */
 }
 
 .restaurant-card[data-status="seated"] {
-  border-left: 4px solid #06b6d4; /* Cyan - Guest Seated */
+  border-left: 4px solid #dc2626; /* Dark Red - Guest Seated */
 }
 
 .restaurant-card[data-status="left"] {
-  border-left: 4px solid #6b7280; /* Gray - Completed/Left */
+  border-left: 4px solid #8b5cf6; /* Purple - Completed/Left */
 }
 
 .restaurant-card[data-status="waitlist"] {
@@ -1919,7 +1919,7 @@ button[data-action].loading::after {
 }
 
 .restaurant-card[data-status="declined"] {
-  border-left: 4px solid #ef4444; /* Red - Declined */
+  border-left: 4px solid #4b5563; /* Dark Gray - Declined */
 }
 
 .restaurant-card[data-status="canceled"],
