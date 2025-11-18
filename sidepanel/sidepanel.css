@@ -1983,8 +1983,8 @@ button[data-action].loading::after {
   font-weight: 500;
 }
 
-.source-icon {
-  font-size: 11px;
+.source-icon.material-symbols-outlined {
+  font-size: 11px !important;
   color: #9ca3af;
 }
 
