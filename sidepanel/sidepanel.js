@@ -1783,24 +1783,21 @@ function attachSummaryEventListeners(container) {
         card.classList.add('expanded');
 
         // Auto-scroll the pane so the card aligns 4px below the tabs bar
-        // Use setTimeout to allow the details to render first
-        setTimeout(() => {
-          const activityContent = card.closest('.summary-activity-content');
-          if (activityContent) {
-            // Get current scroll position and element positions
-            const currentScroll = activityContent.scrollTop;
-            const cardRect = card.getBoundingClientRect();
-            const containerRect = activityContent.getBoundingClientRect();
+        // Use requestAnimationFrame twice to ensure layout is fully recalculated after expansion/collapse
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            const activityContent = card.closest('.summary-activity-content');
+            if (activityContent) {
+              // Calculate scroll position to place card 4px from top of visible area
+              const scrollTo = card.offsetTop - 4;
 
-            // Calculate scroll position to place card 4px from top of visible area
-            const scrollTo = currentScroll + (cardRect.top - containerRect.top) - 4;
-
-            activityContent.scrollTo({
-              top: scrollTo,
-              behavior: 'smooth'
-            });
-          }
-        }, 50);
+              activityContent.scrollTo({
+                top: scrollTo,
+                behavior: 'smooth'
+              });
+            }
+          });
+        });
       }
     });
   });
