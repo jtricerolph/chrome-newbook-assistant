@@ -2196,6 +2196,36 @@ button[data-action].loading::after {
   font-style: italic;
 }
 
+/* Restaurant messages section (grey boxes) */
+.restaurant-messages-section {
+  margin-top: 12px;
+}
+
+.restaurant-message-box {
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  padding: 8px;
+  margin-bottom: 6px;
+}
+
+.restaurant-message-box:last-child {
+  margin-bottom: 0;
+}
+
+.restaurant-message-box .message-text {
+  font-size: 11px;
+  color: #374151;
+  margin-bottom: 4px;
+  line-height: 1.4;
+}
+
+.restaurant-message-box .message-meta {
+  font-size: 9px;
+  color: #9ca3af;
+  font-style: italic;
+}
+
 /* Restaurant Summary Updated Footer (fixed at bottom) */
 .restaurant-summary-updated {
   display: flex;

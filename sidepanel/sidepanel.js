@@ -4559,17 +4559,38 @@ function buildRestaurantCards(bookings, openingHours = [], date = '') {
               `).join('')}
             </div>
           ` : ''}
-          ${comments.length > 0 ? `
-            <div class="restaurant-comments-section">
-              <h4>Guest Comments</h4>
-              ${comments.map(comment => `
-                <div class="restaurant-comment-box">
-                  <div class="comment-text">${comment.comment || ''}</div>
-                  <div class="comment-meta">${new Date(comment.createdAt).toLocaleString()}</div>
+          ${(() => {
+            const guestComments = comments.filter(c => c.role === 'user');
+            const restaurantMessages = comments.filter(c => c.role === 'restaurant');
+            let html = '';
+            if (guestComments.length > 0) {
+              html += `
+                <div class="restaurant-comments-section">
+                  <h4>Guest Comments</h4>
+                  ${guestComments.map(comment => `
+                    <div class="restaurant-comment-box">
+                      <div class="comment-text">${comment.comment || ''}</div>
+                      <div class="comment-meta">${new Date(comment.createdAt).toLocaleString()}</div>
+                    </div>
+                  `).join('')}
                 </div>
-              `).join('')}
-            </div>
-          ` : ''}
+              `;
+            }
+            if (restaurantMessages.length > 0) {
+              html += `
+                <div class="restaurant-messages-section">
+                  <h4>Restaurant Messages</h4>
+                  ${restaurantMessages.map(message => `
+                    <div class="restaurant-message-box">
+                      <div class="message-text">${message.comment || ''}</div>
+                      <div class="message-meta">${new Date(message.createdAt).toLocaleString()}</div>
+                    </div>
+                  `).join('')}
+                </div>
+              `;
+            }
+            return html;
+          })()}
         </div>
       </div>
     `;
