@@ -99,9 +99,8 @@ body {
 /* Tab Contents */
 .tab-contents {
   flex: 1;
-  overflow-y: auto;
+  overflow-y: scroll; /* Always show scrollbar to prevent content shift */
   overflow-x: visible; /* Allow timeline indicators to show beyond edges */
-  scrollbar-gutter: stable; /* Reserve space for scrollbar to prevent width jumping */
 }
 
 /* Disable scrolling when Summary tab is active - panes handle their own scrolling */
@@ -1854,7 +1853,7 @@ button[data-action].loading::after {
 .restaurant-cards-container {
   flex: 1;
   min-height: 0; /* Critical: Allow flex to constrain height for scrolling */
-  overflow-y: auto;
+  overflow-y: scroll; /* Always show scrollbar to prevent content shift */
   padding: 8px 0 100px 0; /* Bottom padding for scroll space */
   margin: 0 -16px; /* Extend to edges */
   overflow-x: clip;
