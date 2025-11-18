@@ -1782,15 +1782,21 @@ function attachSummaryEventListeners(container) {
         icon.textContent = '▲';
         card.classList.add('expanded');
 
-        // Auto-scroll the pane so the card aligns to the top (with offset to avoid tabs bar)
+        // Auto-scroll the pane so the card aligns 4px below the tabs bar
         // Use setTimeout to allow the details to render first
         setTimeout(() => {
           const activityContent = card.closest('.summary-activity-content');
           if (activityContent) {
-            const cardTop = card.offsetTop;
-            const offset = 4; // 4px offset to prevent border from going behind tabs bar
+            // Get current scroll position and element positions
+            const currentScroll = activityContent.scrollTop;
+            const cardRect = card.getBoundingClientRect();
+            const containerRect = activityContent.getBoundingClientRect();
+
+            // Calculate scroll position to place card 4px from top of visible area
+            const scrollTo = currentScroll + (cardRect.top - containerRect.top) - 4;
+
             activityContent.scrollTo({
-              top: cardTop - offset,
+              top: scrollTo,
               behavior: 'smooth'
             });
           }
