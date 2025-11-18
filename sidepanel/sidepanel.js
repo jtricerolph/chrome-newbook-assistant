@@ -4538,7 +4538,10 @@ function getRestaurantSourceIcon(source) {
     'web': 'captive_portal',
     'website': 'captive_portal',
     'api': 'integration_instructions',
-    'other': 'alt_route'
+    'other': 'alt_route',
+    'facebook': 'share',
+    'instagram': 'share',
+    'google': 'search'
   };
   return icons[source?.toLowerCase()] || 'restaurant';
 }
