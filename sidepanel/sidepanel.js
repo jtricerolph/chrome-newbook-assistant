@@ -2,6 +2,7 @@
 const STATE = {
   currentTab: 'summary',
   currentBookingId: null,
+  isUrlTriggerBooking: false, // Track if current booking loaded from URL trigger (sticky)
   settings: null,
   badges: {
     summary: { critical: 0, warning: 0 },
@@ -77,6 +78,31 @@ const BMA_LOG = {
 
 // Global API client (exposed for use by injected template content)
 window.apiClient = null;
+
+// =============================================================================
+// URL Pattern Helper Functions
+// =============================================================================
+
+/**
+ * Check if current page URL matches a booking trigger pattern
+ * Trigger patterns: /bookings_view/{id} or /bookings_checkin/{id}
+ * @returns {Object|null} { bookingId: string } if match, null otherwise
+ */
+async function checkUrlTriggerPattern() {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab || !tab.url) return null;
+
+    const urlMatch = tab.url.match(/\/bookings_(?:view|checkin)\/(\d+)/i);
+    if (urlMatch && urlMatch[1]) {
+      return { bookingId: urlMatch[1] };
+    }
+    return null;
+  } catch (error) {
+    BMA_LOG.error('Error checking URL trigger pattern:', error);
+    return null;
+  }
+}
 
 // =============================================================================
 // Navigation Helper Functions
@@ -3653,16 +3679,22 @@ function switchTab(tabName) {
     loadSummaryTab();
     resetInactivityTimer(); // Clear inactivity timer on Summary tab
   } else if (tabName === 'restaurant') {
-    // Always clear booking context when switching to Restaurant tab
-    // This ensures we show the summary view instead of detail view
-    // Exception: Only preserve if we have explicit navigation context
-    if (!STATE.navigationContext?.preserveBookingId) {
+    // Handle booking context based on URL trigger status
+    // URL triggers are "sticky" - they persist even when switching tabs
+    // Navigation context (planner clicks) and manual clicks are temporary
+
+    if (STATE.isUrlTriggerBooking) {
+      // URL trigger is sticky - preserve booking even when switching tabs
+      BMA_LOG.log('Switching to Restaurant tab - URL trigger is sticky, preserving booking:', STATE.currentBookingId);
+    } else if (!STATE.navigationContext?.preserveBookingId) {
+      // Not a URL trigger and no navigation context - clear booking
       if (STATE.currentBookingId) {
         BMA_LOG.log('Switching to Restaurant tab - clearing booking context for summary view');
       }
       STATE.currentBookingId = null;
-      chrome.storage.local.remove('currentBookingId');
+      chrome.storage.local.remove(['currentBookingId', 'isUrlTriggerBooking']);
     } else {
+      // Has navigation context (planner click) - preserve temporarily
       BMA_LOG.log('Switching to Restaurant tab - preserving booking context:', STATE.currentBookingId);
     }
 
@@ -5030,8 +5062,8 @@ function resetInactivityTimer() {
 }
 
 // Booking Detection Handler
-function handleBookingDetected(bookingId) {
-  BMA_LOG.log('Booking detected, updating sidepanel for booking:', bookingId);
+function handleBookingDetected(bookingId, isUrlTrigger = true) {
+  BMA_LOG.log('Booking detected, updating sidepanel for booking:', bookingId, 'isUrlTrigger:', isUrlTrigger);
 
   // Clear loadedBookingIds only if switching to a different booking
   if (STATE.currentBookingId !== bookingId) {
@@ -5041,6 +5073,17 @@ function handleBookingDetected(bookingId) {
   }
 
   STATE.currentBookingId = bookingId;
+  STATE.isUrlTriggerBooking = isUrlTrigger; // Mark based on trigger source
+  chrome.storage.local.set({
+    currentBookingId: bookingId,
+    isUrlTriggerBooking: isUrlTrigger
+  });
+
+  if (isUrlTrigger) {
+    BMA_LOG.log('Booking marked as URL trigger (sticky)');
+  } else {
+    BMA_LOG.log('Booking marked as planner/temporary trigger (non-sticky)');
+  }
 
   // Load both Restaurant and Checks tabs in parallel
   Promise.all([
@@ -5906,11 +5949,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.action === 'bookingDetected') {
     BMA_LOG.log('Processing bookingDetected message, source:', message.source);
-    handleBookingDetected(message.bookingId);
+    handleBookingDetected(message.bookingId, true); // URL trigger - sticky
   } else if (message.action === 'plannerClick') {
     if (STATE.settings?.enablePlannerClickUpdate) {
       BMA_LOG.log('Processing plannerClick message (setting enabled)');
-      handleBookingDetected(message.bookingId);
+      handleBookingDetected(message.bookingId, false); // Planner click - non-sticky
     } else {
       BMA_LOG.log('Ignoring plannerClick message (setting disabled)');
     }
@@ -5962,19 +6005,29 @@ async function loadSettings() {
 
 // Event Listeners
 document.querySelectorAll('.tab-button').forEach(button => {
-  button.addEventListener('click', () => {
+  button.addEventListener('click', async () => {
     const tabName = button.dataset.tab;
 
-    // Clear booking context when clicking Restaurant tab button directly
-    // BUT only if there's no navigation context (manual click, not URL trigger)
-    // This ensures we show the summary view for manual clicks
-    // But preserve booking for URL triggers/planner clicks
-    if (tabName === 'restaurant' && !STATE.navigationContext?.preserveBookingId) {
-      BMA_LOG.log('Restaurant tab button clicked manually - clearing booking context');
-      STATE.currentBookingId = null;
-      chrome.storage.local.remove('currentBookingId');
-    } else if (tabName === 'restaurant' && STATE.navigationContext?.preserveBookingId) {
-      BMA_LOG.log('Restaurant tab button clicked with navigation context - preserving booking');
+    // Handle Restaurant tab button clicks
+    if (tabName === 'restaurant') {
+      // Check if we're on a URL trigger pattern
+      const urlTrigger = await checkUrlTriggerPattern();
+
+      if (urlTrigger && urlTrigger.bookingId) {
+        // On a URL trigger - preserve the booking (sticky)
+        BMA_LOG.log('Restaurant tab clicked - on URL trigger, preserving booking:', urlTrigger.bookingId);
+        STATE.currentBookingId = urlTrigger.bookingId;
+        STATE.isUrlTriggerBooking = true;
+      } else if (!STATE.navigationContext?.preserveBookingId) {
+        // Not on URL trigger and no navigation context - clear booking
+        BMA_LOG.log('Restaurant tab button clicked manually - clearing booking context');
+        STATE.currentBookingId = null;
+        STATE.isUrlTriggerBooking = false;
+        chrome.storage.local.remove(['currentBookingId', 'isUrlTriggerBooking']);
+      } else {
+        // Has navigation context (planner click) - preserve temporarily
+        BMA_LOG.log('Restaurant tab button clicked with navigation context - preserving booking');
+      }
     }
 
     switchTab(tabName);
