@@ -4477,6 +4477,17 @@ function buildRestaurantCards(bookings, openingHours = [], date = '') {
     const restaurantNotes = booking.restaurantNotes || [];
     const comments = booking.comments || [];
 
+    // Debug allergies data
+    if (booking.allergies || booking.guest?.allergies) {
+      console.log('Allergies data for', guestName, ':', {
+        'booking.allergies': booking.allergies,
+        'booking.guest?.allergies': booking.guest?.allergies,
+        'allergies variable': allergies,
+        'type': typeof allergies,
+        'isArray': Array.isArray(allergies)
+      });
+    }
+
     // Title case helper
     const titleCase = (str) => str.split(/[\s-_]/).map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
 
