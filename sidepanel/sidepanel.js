@@ -5966,11 +5966,15 @@ document.querySelectorAll('.tab-button').forEach(button => {
     const tabName = button.dataset.tab;
 
     // Clear booking context when clicking Restaurant tab button directly
-    // This ensures we show the summary view instead of detail view
-    if (tabName === 'restaurant') {
-      BMA_LOG.log('Restaurant tab button clicked - clearing booking context');
+    // BUT only if there's no navigation context (manual click, not URL trigger)
+    // This ensures we show the summary view for manual clicks
+    // But preserve booking for URL triggers/planner clicks
+    if (tabName === 'restaurant' && !STATE.navigationContext?.preserveBookingId) {
+      BMA_LOG.log('Restaurant tab button clicked manually - clearing booking context');
       STATE.currentBookingId = null;
       chrome.storage.local.remove('currentBookingId');
+    } else if (tabName === 'restaurant' && STATE.navigationContext?.preserveBookingId) {
+      BMA_LOG.log('Restaurant tab button clicked with navigation context - preserving booking');
     }
 
     switchTab(tabName);
