@@ -3602,8 +3602,9 @@ function updateTimeSincePlaced(container) {
     const timeString = formatTimeSince(diffMinutes, isCancelled);
     timeSinceElement.textContent = timeString;
 
-    // Apply highlighting if within threshold (only for placed bookings)
-    if (!isCancelled && diffMinutes <= highlightThreshold) {
+    // Apply highlighting if within threshold (24 hours for both placed and cancelled)
+    const newThreshold = 24 * 60; // 24 hours in minutes
+    if (diffMinutes <= newThreshold) {
       card.classList.add('new-booking');
     } else {
       card.classList.remove('new-booking');
