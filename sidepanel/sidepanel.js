@@ -5991,7 +5991,8 @@ async function saveGroupConfiguration() {
   console.log('BMA: Selected lead booking ID:', leadBookingId);
 
   if (!leadBookingId) {
-    showToast('Please select a lead booking', 'error');
+    BMA_LOG.error('No lead booking selected');
+    alert('Please select a lead booking');
     return;
   }
 
@@ -6018,7 +6019,7 @@ async function saveGroupConfiguration() {
 
     if (!form) {
       BMA_LOG.error('Create form not found for date:', GROUP_MODAL_STATE.date);
-      showToast('Error: Form not found', 'error');
+      alert('Error: Form not found');
       return;
     }
 
@@ -6040,9 +6041,11 @@ async function saveGroupConfiguration() {
     }
 
     BMA_LOG.log('Stored group data:', { leadBookingId, groupMembers: groupValue });
+    console.log('BMA: Group data stored successfully, closing modal');
 
-    showToast(`Selected ${individualIds.length} group member(s)`, 'success');
+    // Success - close modal
     closeGroupModal();
+    console.log('BMA: Modal closed, group data saved to form');
     return;
   }
 
