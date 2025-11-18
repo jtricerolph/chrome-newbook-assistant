@@ -5149,6 +5149,18 @@ function initializeStayingCards() {
               const listPositionInContainer = stayingList.offsetTop;
               const cardPositionInContainer = listPositionInContainer + cardPositionInList;
 
+              console.log('STAYING SCROLL DEBUG:', {
+                card: card.querySelector('.guest-name')?.textContent,
+                cardPositionInList,
+                listPositionInContainer,
+                cardPositionInContainer,
+                datePickerHeight,
+                desiredGap: datePickerHeight + 4,
+                scrollTo: cardPositionInContainer - (datePickerHeight + 4),
+                'card.offsetParent': card.offsetParent?.className,
+                'stayingList.offsetParent': stayingList.offsetParent?.className
+              });
+
               // Position card (header is at top of card) 4px below the sticky datepicker
               const desiredGap = datePickerHeight + 4;
               const scrollTo = cardPositionInContainer - desiredGap;
