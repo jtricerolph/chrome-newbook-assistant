@@ -4849,6 +4849,12 @@ function handleBookingDetected(bookingId) {
     loadRestaurantTabSilently(),
     loadChecksTabSilently()
   ]).then(([restaurantData, checksData]) => {
+    // Set navigation context to preserve booking ID when switching tabs
+    // This prevents the tab switch from clearing the booking context
+    STATE.navigationContext = {
+      preserveBookingId: true
+    };
+
     // Determine which tab to switch to based on priority
     const restaurantCritical = restaurantData?.critical_count || 0;
     const restaurantWarning = restaurantData?.warning_count || 0;
