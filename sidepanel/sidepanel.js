@@ -3653,9 +3653,13 @@ function switchTab(tabName) {
     loadSummaryTab();
     resetInactivityTimer(); // Clear inactivity timer on Summary tab
   } else if (tabName === 'restaurant') {
-    // Clear booking context unless we have explicit navigation context
-    if (STATE.currentBookingId && !STATE.navigationContext?.preserveBookingId) {
-      BMA_LOG.log('Switching to Restaurant tab - clearing booking context for summary view');
+    // Always clear booking context when switching to Restaurant tab
+    // This ensures we show the summary view instead of detail view
+    // Exception: Only preserve if we have explicit navigation context
+    if (!STATE.navigationContext?.preserveBookingId) {
+      if (STATE.currentBookingId) {
+        BMA_LOG.log('Switching to Restaurant tab - clearing booking context for summary view');
+      }
       STATE.currentBookingId = null;
       chrome.storage.local.remove('currentBookingId');
     }
@@ -6397,9 +6401,15 @@ async function init() {
       loadStayingTabSilently();
 
       // Check if there's a current booking from storage
+      // Only restore if we're not already on the Restaurant tab (to avoid showing stale detail view)
       const result = await chrome.storage.local.get('currentBookingId');
-      if (result.currentBookingId) {
+      if (result.currentBookingId && STATE.currentTab !== 'restaurant') {
         STATE.currentBookingId = result.currentBookingId;
+        BMA_LOG.log('Restored booking ID from storage:', result.currentBookingId);
+      } else if (result.currentBookingId && STATE.currentTab === 'restaurant') {
+        // Clear stale booking ID if we're on Restaurant tab
+        BMA_LOG.log('Clearing stale booking ID from storage (already on Restaurant tab)');
+        chrome.storage.local.remove('currentBookingId');
       }
     }
   }
