@@ -585,7 +585,10 @@ function positionBookingsOnGrid(bookings, startHour, totalMinutes, bookingDurati
         guest: booking.guest, // Preserve guest object for name extraction
         guest_name: booking.guest_name, // Preserve guest_name field
         room: booking.room || 'Unknown',
-        is_resident: booking.is_resident || false,
+        room_number: booking.room_number, // Preserve room_number field
+        is_resident: booking.is_resident || booking.is_hotel_guest || false,
+        is_hotel_guest: booking.is_hotel_guest, // Preserve is_hotel_guest field
+        grouped_rooms: booking.grouped_rooms || [], // Preserve grouped rooms array
         status: booking.status, // Preserve status for color coding
         // Preserve ID fields for gantt bar data-booking-id attribute
         _id: booking._id,
@@ -944,8 +947,11 @@ function buildGanttChart(openingHours, specialEvents = [], availableTimes = [], 
     const status = booking.status || 'approved';
     const statusColor = getStatusColor(status);
     const borderColor = statusColor; // Use same color for border
+    const roomNumber = booking.room_number || '';
+    const groupedRooms = booking.grouped_rooms || [];
+    const groupedRoomsStr = groupedRooms.length > 0 ? groupedRooms.join(',') : '';
 
-    html += '<div class="' + barClass + '" data-booking-id="' + bookingId + '" data-name="' + guestName + '" data-people="' + booking.people + '" data-time="' + booking.time + '" data-status="' + status + '" data-is-resident="' + isResident + '" style="position: absolute; left: ' + leftPercent + '%; top: ' + yPosition + 'px; width: ' + widthPercent + '%; height: ' + barHeight + 'px; background: ' + statusColor + '; border-radius: 4px; border: 2px solid ' + borderColor + '; padding: 2px 6px; color: white; font-weight: 500; display: flex; align-items: center; gap: 4px; overflow: hidden; cursor: pointer; z-index: 5;">';
+    html += '<div class="' + barClass + '" data-booking-id="' + bookingId + '" data-name="' + guestName + '" data-people="' + booking.people + '" data-time="' + booking.time + '" data-status="' + status + '" data-is-resident="' + isResident + '" data-room="' + roomNumber + '" data-grouped-rooms="' + groupedRoomsStr + '" style="position: absolute; left: ' + leftPercent + '%; top: ' + yPosition + 'px; width: ' + widthPercent + '%; height: ' + barHeight + 'px; background: ' + statusColor + '; border-radius: 4px; border: 2px solid ' + borderColor + '; padding: 2px 6px; color: white; font-weight: 500; display: flex; align-items: center; gap: 4px; overflow: hidden; cursor: pointer; z-index: 5;">';
 
     // Guest name and room (only in full mode)
     if (displayText) {
@@ -1045,11 +1051,23 @@ function attachGanttTooltips() {
       const people = bar.getAttribute('data-people') || '?';
       const name = bar.getAttribute('data-name') || 'Guest';
       const isResident = bar.getAttribute('data-is-resident') === 'true';
+      const room = bar.getAttribute('data-room') || '';
+      const groupedRoomsStr = bar.getAttribute('data-grouped-rooms') || '';
 
-      BMA_LOG.log('Gantt tooltip - name:', name, 'isResident:', isResident, 'data-is-resident attr:', bar.getAttribute('data-is-resident'));
+      BMA_LOG.log('Gantt tooltip - name:', name, 'isResident:', isResident, 'room:', room, 'grouped:', groupedRoomsStr);
 
-      // Format: "({people}) {name} [hotel icon]" (Material Symbols hotel icon if resident)
+      // Format: "({people}) {name} - {rooms} [hotel icon]" (Material Symbols hotel icon if resident)
       let tooltipHTML = `(${people}) ${name}`;
+
+      // Add room numbers if resident
+      if (isResident && room) {
+        const rooms = [room];
+        if (groupedRoomsStr) {
+          rooms.push(...groupedRoomsStr.split(','));
+        }
+        tooltipHTML += ` - ${rooms.join(', ')}`;
+      }
+
       if (isResident) {
         tooltipHTML += ' <span class="material-symbols-outlined" style="font-size: 14px; vertical-align: middle;">hotel</span>';
         BMA_LOG.log('Adding hotel icon to tooltip');
