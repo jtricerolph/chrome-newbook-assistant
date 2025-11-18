@@ -3599,10 +3599,15 @@ async function loadSummaryTab(force_refresh = false) {
     const data = await api.fetchSummary(force_refresh);
 
     if (data.success && data.html_placed) {
-      // Check if data has changed (compare counts instead of HTML to avoid false positives)
-      const dataSignature = `${data.placed_count}-${data.cancelled_count}-${data.critical_count}-${data.warning_count}`;
+      // Check if data has changed (compare counts AND booking IDs to detect when bookings change even if count stays same)
+      const placedIds = data.placed_bookings?.map(b => b.booking_id).sort().join(',') || '';
+      const cancelledIds = data.cancelled_bookings?.map(b => b.booking_id).sort().join(',') || '';
+      const dataSignature = `${data.placed_count}-${placedIds}-${data.cancelled_count}-${cancelledIds}-${data.critical_count}-${data.warning_count}`;
+
+      const cachedPlacedIds = STATE.cache.summary?.placed_bookings?.map(b => b.booking_id).sort().join(',') || '';
+      const cachedCancelledIds = STATE.cache.summary?.cancelled_bookings?.map(b => b.booking_id).sort().join(',') || '';
       const cachedSignature = STATE.cache.summary
-        ? `${STATE.cache.summary.placed_count}-${STATE.cache.summary.cancelled_count}-${STATE.cache.summary.critical_count}-${STATE.cache.summary.warning_count}`
+        ? `${STATE.cache.summary.placed_count}-${cachedPlacedIds}-${STATE.cache.summary.cancelled_count}-${cachedCancelledIds}-${STATE.cache.summary.critical_count}-${STATE.cache.summary.warning_count}`
         : null;
 
       const hasChanged = !STATE.cache.summary || cachedSignature !== dataSignature;
