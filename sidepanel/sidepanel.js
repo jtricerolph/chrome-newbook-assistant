@@ -5985,13 +5985,8 @@ function attachGroupModalEventListeners() {
 
 // Save group configuration
 async function saveGroupConfiguration() {
-  console.log('BMA: Save Group button clicked');
-  BMA_LOG.log('saveGroupConfiguration called, GROUP_MODAL_STATE:', GROUP_MODAL_STATE);
-
   const leadRadios = document.querySelectorAll('.lead-radio');
   const groupCheckboxes = document.querySelectorAll('.group-checkbox');
-
-  console.log('BMA: Found lead radios:', leadRadios.length, 'group checkboxes:', groupCheckboxes.length);
 
   // Get lead booking ID
   let leadBookingId = null;
@@ -6000,8 +5995,6 @@ async function saveGroupConfiguration() {
       leadBookingId = radio.value;
     }
   });
-
-  console.log('BMA: Selected lead booking ID:', leadBookingId);
 
   if (!leadBookingId) {
     BMA_LOG.error('No lead booking selected');
@@ -6017,18 +6010,13 @@ async function saveGroupConfiguration() {
     }
   });
 
-  console.log('BMA: Selected group members:', individualIds);
-
   // CREATE MODE: Store in form, don't call API yet
   if (!GROUP_MODAL_STATE.resosBookingId) {
-    console.log('BMA: CREATE MODE detected (no resosBookingId)');
     BMA_LOG.log('GROUP modal in CREATE mode - storing selections in form');
 
     // Find the create form for this date
     const formId = `create-form-${GROUP_MODAL_STATE.date}`;
-    console.log('BMA: Looking for form with ID:', formId);
     const form = document.querySelector(`#${formId}`);
-    console.log('BMA: Form found?', !!form);
 
     if (!form) {
       BMA_LOG.error('Create form not found for date:', GROUP_MODAL_STATE.date);
@@ -6038,27 +6026,21 @@ async function saveGroupConfiguration() {
 
     // Store lead booking ID
     const leadField = form.querySelector('.form-lead-booking');
-    console.log('BMA: Lead field found?', !!leadField);
     if (leadField) {
       leadField.value = leadBookingId || '';
-      console.log('BMA: Set lead field value to:', leadField.value);
     }
 
     // Build and store group members (G-{id},G-{id},...)
     const groupValue = individualIds.map(id => 'G-' + id).join(',');
     const groupField = form.querySelector('.form-group-members');
-    console.log('BMA: Group field found?', !!groupField);
     if (groupField) {
       groupField.value = groupValue;
-      console.log('BMA: Set group field value to:', groupField.value);
     }
 
     BMA_LOG.log('Stored group data:', { leadBookingId, groupMembers: groupValue });
-    console.log('BMA: Group data stored successfully, closing modal');
 
     // Success - close modal
     closeGroupModal();
-    console.log('BMA: Modal closed, group data saved to form');
     return;
   }
 
