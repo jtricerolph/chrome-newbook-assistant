@@ -1898,9 +1898,9 @@ function attachSummaryEventListeners(container) {
               const tabNav = document.querySelector('.tab-nav');
               const tabNavHeight = tabNav ? tabNav.offsetHeight : 44; // fallback to ~44px
 
-              // Position card (tabNavHeight + 4px gap) from top of scroll container
+              // Position card (tabNavHeight + 7px gap) from top of scroll container
               // This ensures the card doesn't visually appear to go behind the tabs bar
-              const desiredGap = tabNavHeight + 4;
+              const desiredGap = tabNavHeight + 7;
               const scrollTo = card.offsetTop - desiredGap;
 
               activityContent.scrollTo({
