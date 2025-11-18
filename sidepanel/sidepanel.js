@@ -1789,8 +1789,11 @@ function attachSummaryEventListeners(container) {
           requestAnimationFrame(() => {
             const activityContent = card.closest('.summary-activity-content');
             if (activityContent) {
-              // Calculate scroll position to place card 4px from top of visible area
-              const scrollTo = card.offsetTop - 4;
+              // Account for the container's padding (16px) when calculating scroll position
+              // offsetTop is relative to the parent's padding box, but we want the card
+              // to be 4px from the top of the visible viewport (below tabs bar)
+              const contentPadding = 16; // .summary-activity-content has padding: 16px
+              const scrollTo = card.offsetTop - contentPadding - 4;
 
               activityContent.scrollTo({
                 top: scrollTo,
