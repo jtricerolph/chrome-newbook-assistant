@@ -5002,6 +5002,10 @@ async function loadStayingTab(date = null, force_refresh = false) {
             BMA_LOG.log('Smart refresh: First time showing Staying tab, displaying cached data');
             showData('staying', currentHtml);
             updateTabLastUpdated('staying', STATE.lastStayingUpdate);
+
+            // Initialize event listeners for cards
+            initializeGroupHover();
+            initializeStayingCards();
           }
 
           return; // Don't reload
