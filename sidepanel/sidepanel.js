@@ -5143,17 +5143,20 @@ function initializeStayingCards() {
               const datePicker = document.querySelector('.staying-date-picker');
               const datePickerHeight = datePicker ? datePicker.offsetHeight : 0;
 
-              // Walk offsetParent chain from header to tabContents to get absolute position
-              let headerPosition = 0;
-              let elem = header;
-              while (elem && elem !== tabContents) {
-                headerPosition += elem.offsetTop;
-                elem = elem.offsetParent;
-              }
+              // Use getBoundingClientRect to get precise viewport positions
+              const containerRect = tabContents.getBoundingClientRect();
+              const headerRect = header.getBoundingClientRect();
+
+              // Calculate header's position relative to the container's content
+              // headerRect.top = distance from viewport top to header top
+              // containerRect.top = distance from viewport top to container top
+              // currentScrollTop = how far we've already scrolled
+              const currentScrollTop = tabContents.scrollTop;
+              const headerPositionInContainer = (headerRect.top - containerRect.top) + currentScrollTop;
 
               // Position header 4px below the sticky datepicker
               const desiredGap = datePickerHeight + 4;
-              const scrollTo = headerPosition - desiredGap;
+              const scrollTo = headerPositionInContainer - desiredGap;
 
               tabContents.scrollTo({
                 top: scrollTo,
