@@ -4471,12 +4471,34 @@ function buildRestaurantCards(bookings, openingHours = [], date = '') {
     const people = booking.people || 0;
     const status = booking.status || 'confirmed';
     const source = booking.source || 'resos';
-    const allergies = booking.allergies || booking.guest?.allergies || '';
+    const duration = booking.duration || 0; // Duration in minutes
+    const allergies = booking.allergies || booking.guest?.allergies || [];
+    const otherAllergies = booking.otherAllergies || booking.other_allergies || '';
     const restaurantNotes = booking.restaurantNotes || [];
     const comments = booking.comments || [];
 
     // Title case helper
     const titleCase = (str) => str.split(/[\s-_]/).map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
+
+    // Duration formatter
+    const formatDuration = (minutes) => {
+      if (!minutes || minutes === 0) return '';
+      const hours = Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      if (mins === 0) {
+        return `${hours} hour${hours !== 1 ? 's' : ''}`;
+      } else if (hours === 0) {
+        return `${mins} mins`;
+      } else {
+        return `${hours} hour${hours !== 1 ? 's' : ''} ${mins} mins`;
+      }
+    };
+
+    // Check if allergies exist
+    const hasAllergies = () => {
+      const allergyArray = Array.isArray(allergies) ? allergies : (allergies ? [allergies] : []);
+      return allergyArray.length > 0 || otherAllergies;
+    };
 
     // Get room number from server-side matching (already enhanced by API)
     const room = booking.room_number || '';
@@ -4513,7 +4535,8 @@ function buildRestaurantCards(bookings, openingHours = [], date = '') {
             <span class="pax-badge">(${people})</span>
             <span class="source-icon material-symbols-outlined" title="${source}">${sourceIcon}</span>
             ${roomBadgesHtml}
-          </div>`;
+          </div>
+          ${hasAllergies() ? '<span class="allergy-icon material-symbols-outlined" title="Allergies">no_food</span>' : ''}`;
 
     // Add grouped rooms on second line if 3+ total rooms
     if (isResident && room && groupedRooms.length > 1) {
@@ -4536,17 +4559,28 @@ function buildRestaurantCards(bookings, openingHours = [], date = '') {
       }
     }
 
+    // Format allergies badges
+    const allergyArray = Array.isArray(allergies) ? allergies : (allergies ? [allergies] : []);
+    let allergiesBadgesHtml = '';
+    if (allergyArray.length > 0) {
+      allergiesBadgesHtml = allergyArray.map(a => `<span class="allergy-badge">${a}</span>`).join('');
+    } else {
+      allergiesBadgesHtml = '<span class="allergy-badge none-selected">None Selected</span>';
+    }
+
     html += `
           <span class="restaurant-expand-icon">▼</span>
         </div>
         <div class="restaurant-details">
           <div class="restaurant-details-inline">
-            <span class="detail-line"><strong>Status:</strong> ${titleCase(status)}</span>
             <span class="detail-line"><strong>Time:</strong> ${time}</span>
-            <span class="detail-line"><strong>Covers:</strong> ${people}</span>
+            <span class="detail-line">(${people}) pax</span>
             <span class="detail-line"><strong>Source:</strong> ${titleCase(source)}</span>
-            ${isResident ? `<span class="detail-line"><strong>Room(s):</strong> ${roomsDisplay}</span>` : ''}
-            ${allergies ? `<span class="detail-line"><strong>Allergies:</strong> ${allergies}</span>` : ''}
+            <span class="detail-line">${formatDuration(duration) || '<span style="color: #9ca3af;">No duration</span>'}</span>
+            <span class="detail-line"><strong>Status:</strong> ${titleCase(status)}</span>
+            <span class="detail-line">${isResident ? '<span class="material-symbols-outlined" style="font-size: 18px; vertical-align: middle;">bedroom_parent</span>' : ''}</span>
+            <span class="detail-line full-span"><strong>Allergies:</strong> <span class="allergy-badges">${allergiesBadgesHtml}</span></span>
+            ${otherAllergies ? `<span class="detail-line full-span"><strong>Other Allergies:</strong> <span class="other-allergies-badge">${otherAllergies}</span></span>` : ''}
           </div>
           ${restaurantNotes.length > 0 ? `
             <div class="restaurant-notes-section">

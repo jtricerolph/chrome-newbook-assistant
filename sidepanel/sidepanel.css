@@ -2104,15 +2104,19 @@ button[data-action].loading::after {
 
 /* Inline details layout */
 .restaurant-details-inline {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 16px;
   margin-bottom: 12px;
 }
 
 .restaurant-details-inline .detail-line {
-  font-size: 11px;
+  font-size: 13px;
   color: #374151;
+}
+
+.restaurant-details-inline .detail-line.full-span {
+  grid-column: 1 / -1;
 }
 
 .restaurant-details-inline .detail-line strong {
@@ -2154,7 +2158,7 @@ button[data-action].loading::after {
 }
 
 .restaurant-note-box .note-text {
-  font-size: 11px;
+  font-size: 13px;
   color: #1e40af;
   margin-bottom: 4px;
   line-height: 1.4;
@@ -2201,8 +2205,21 @@ button[data-action].loading::after {
   margin-top: 12px;
 }
 
-/* Chat-style message container */
+.restaurant-messages-section h4 {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 8px 0;
+}
+
+/* Chat-style message container wrapper */
 .messages-chat-container {
+  background: #fafafa;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -2210,7 +2227,7 @@ button[data-action].loading::after {
 
 /* Base message bubble styling */
 .message-bubble {
-  max-width: 80%;
+  width: 75%;
   border-radius: 8px;
   padding: 8px 12px;
   margin-bottom: 4px;
@@ -2233,7 +2250,7 @@ button[data-action].loading::after {
 }
 
 .message-bubble .message-text {
-  font-size: 11px;
+  font-size: 13px;
   color: #374151;
   margin-bottom: 4px;
   line-height: 1.4;
@@ -2244,6 +2261,50 @@ button[data-action].loading::after {
   font-size: 9px;
   color: #9ca3af;
   font-style: italic;
+}
+
+/* Allergy badges */
+.allergy-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.allergy-badge {
+  display: inline-block;
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.allergy-badge.none-selected {
+  background: #f3f4f6;
+  color: #6b7280;
+  border: 1px solid #d1d5db;
+}
+
+.other-allergies-badge {
+  display: inline-block;
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* Allergy icon in restaurant header */
+.allergy-icon {
+  color: #dc2626;
+  font-size: 18px !important;
+  margin-left: auto;
+  margin-right: 4px;
 }
 
 /* Restaurant Summary Updated Footer (fixed at bottom) */
