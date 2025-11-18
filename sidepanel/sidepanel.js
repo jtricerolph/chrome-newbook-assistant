@@ -582,8 +582,11 @@ function positionBookingsOnGrid(bookings, startHour, totalMinutes, bookingDurati
         time: booking.time,
         people: booking.people || 2,
         name: booking.name || 'Guest',
+        guest: booking.guest, // Preserve guest object for name extraction
+        guest_name: booking.guest_name, // Preserve guest_name field
         room: booking.room || 'Unknown',
         is_resident: booking.is_resident || false,
+        status: booking.status, // Preserve status for color coding
         // Preserve ID fields for gantt bar data-booking-id attribute
         _id: booking._id,
         id: booking.id,
@@ -1059,7 +1062,7 @@ function attachGanttTooltips() {
     bar.addEventListener('mousemove', (e) => {
       // Position tooltip above and to the right of cursor
       tooltip.style.left = (e.clientX + 15) + 'px';
-      tooltip.style.top = (e.clientY - 35) + 'px';
+      tooltip.style.top = (e.clientY - 25) + 'px';
     });
 
     bar.addEventListener('mouseleave', () => {
