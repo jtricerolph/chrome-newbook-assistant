@@ -918,13 +918,14 @@ body {
 
 .gantt-viewport-container {
   overflow-x: auto;
-  overflow-y: hidden;
+  overflow-y: auto;
   max-width: 100%;
   scroll-behavior: smooth;
 }
 
 .gantt-viewport-container::-webkit-scrollbar {
   height: 6px;
+  width: 6px;
 }
 
 .gantt-viewport-container::-webkit-scrollbar-track {
@@ -1839,7 +1840,7 @@ button[data-action].loading::after {
 .restaurant-gantt-section .gantt-viewport-container {
   flex: 1;
   overflow-x: auto;
-  overflow-y: hidden;
+  overflow-y: auto;
 }
 
 /* Restaurant Cards Section (scrollable, fills remaining space) */
