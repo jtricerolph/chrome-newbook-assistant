@@ -4471,6 +4471,12 @@ function buildRestaurantCards(bookings, openingHours = [], date = '') {
     const people = booking.people || 0;
     const status = booking.status || 'confirmed';
     const source = booking.source || 'resos';
+    const allergies = booking.allergies || booking.guest?.allergies || '';
+    const restaurantNotes = booking.restaurantNotes || [];
+    const comments = booking.comments || [];
+
+    // Title case helper
+    const titleCase = (str) => str.split(/[\s-_]/).map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
 
     // Get room number from server-side matching (already enhanced by API)
     const room = booking.room_number || '';
@@ -4519,38 +4525,51 @@ function buildRestaurantCards(bookings, openingHours = [], date = '') {
           </div>`;
     }
 
+    // Build room(s) display with + separator and lead underlined
+    let roomsDisplay = '';
+    if (isResident && room) {
+      if (groupedRooms.length > 0) {
+        const allRooms = [room, ...groupedRooms];
+        roomsDisplay = allRooms.map((r, i) => i === 0 ? `<u>${r}</u>` : r).join(' + ');
+      } else {
+        roomsDisplay = `<u>${room}</u>`;
+      }
+    }
+
     html += `
           <span class="restaurant-expand-icon">▼</span>
         </div>
         <div class="restaurant-details">
-          <div class="restaurant-details-grid">
-            <div class="restaurant-detail-item">
-              <span class="restaurant-detail-label">Status</span>
-              <span class="restaurant-detail-value">${status}</span>
-            </div>
-            <div class="restaurant-detail-item">
-              <span class="restaurant-detail-label">Covers</span>
-              <span class="restaurant-detail-value">${people}</span>
-            </div>
-            <div class="restaurant-detail-item">
-              <span class="restaurant-detail-label">Time</span>
-              <span class="restaurant-detail-value">${time}</span>
-            </div>
-            <div class="restaurant-detail-item">
-              <span class="restaurant-detail-label">Source</span>
-              <span class="restaurant-detail-value">${source}</span>
-            </div>
-            ${isResident ? `
-              <div class="restaurant-detail-item">
-                <span class="restaurant-detail-label">Room</span>
-                <span class="restaurant-detail-value">${room}</span>
-              </div>
-              <div class="restaurant-detail-item">
-                <span class="restaurant-detail-label">Hotel Guest</span>
-                <span class="restaurant-detail-value">Yes</span>
-              </div>
-            ` : ''}
+          <div class="restaurant-details-inline">
+            <span class="detail-line"><strong>Status:</strong> ${titleCase(status)}</span>
+            <span class="detail-line"><strong>Time:</strong> ${time}</span>
+            <span class="detail-line"><strong>Covers:</strong> ${people}</span>
+            <span class="detail-line"><strong>Source:</strong> ${titleCase(source)}</span>
+            ${isResident ? `<span class="detail-line"><strong>Room(s):</strong> ${roomsDisplay}</span>` : ''}
+            ${allergies ? `<span class="detail-line"><strong>Allergies:</strong> ${allergies}</span>` : ''}
           </div>
+          ${restaurantNotes.length > 0 ? `
+            <div class="restaurant-notes-section">
+              <h4>Internal Notes</h4>
+              ${restaurantNotes.map(note => `
+                <div class="restaurant-note-box">
+                  <div class="note-text">${note.restaurantNote || note.note || ''}</div>
+                  <div class="note-meta">${new Date(note.createdAt).toLocaleString()}</div>
+                </div>
+              `).join('')}
+            </div>
+          ` : ''}
+          ${comments.length > 0 ? `
+            <div class="restaurant-comments-section">
+              <h4>Guest Comments</h4>
+              ${comments.map(comment => `
+                <div class="restaurant-comment-box">
+                  <div class="comment-text">${comment.comment || ''}</div>
+                  <div class="comment-meta">${new Date(comment.createdAt).toLocaleString()}</div>
+                </div>
+              `).join('')}
+            </div>
+          ` : ''}
         </div>
       </div>
     `;
