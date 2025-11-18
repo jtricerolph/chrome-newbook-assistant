@@ -1055,7 +1055,7 @@ function attachGanttTooltips() {
  * @param {number} periodIndex - Index of the period to toggle
  */
 async function togglePeriodSection(date, periodIndex) {
-  const sectionsContainer = document.getElementById('service-period-sections-' + date);
+  const sectionsContainer = document.getElementById('time-slots-sections-' + date);
   if (!sectionsContainer) {
     BMA_LOG.warn('Sections container not found for date:', date);
     return;
@@ -2130,7 +2130,7 @@ function attachRestaurantEventListeners(container) {
       const openingHoursData = await fetchOpeningHours(date);
       BMA_LOG.log('Opening hours response:', openingHoursData);
 
-      const sectionsContainer = document.getElementById('service-period-sections-' + date);
+      const sectionsContainer = document.getElementById('time-slots-sections-' + date);
       BMA_LOG.log('Sections container found:', !!sectionsContainer);
 
       if (!sectionsContainer) {
@@ -2281,7 +2281,7 @@ function attachRestaurantEventListeners(container) {
       }
     } catch (error) {
       BMA_LOG.error('Error loading opening hours:', error);
-      const sectionsContainer = document.getElementById('service-period-sections-' + date);
+      const sectionsContainer = document.getElementById('time-slots-sections-' + date);
       if (sectionsContainer) {
         sectionsContainer.innerHTML = '<p style="color: #ef4444;">Error loading service periods</p>';
       }
@@ -2399,7 +2399,7 @@ function attachRestaurantEventListeners(container) {
     try {
       const timesData = await fetchAvailableTimes(date, people, periodId);
       BMA_LOG.log('DEBUG fetchAvailableTimes result:', {success: timesData.success, hasHtml: !!timesData.html, htmlLength: timesData.html?.length});
-      const sectionsContainer = document.getElementById('service-period-sections-' + date);
+      const sectionsContainer = document.getElementById('time-slots-sections-' + date);
       const periodTimes = sectionsContainer ? sectionsContainer.querySelector(`.period-times[data-period-index="${periodIndex}"]`) : null;
 
       if (!periodTimes) {
@@ -2550,7 +2550,7 @@ function attachRestaurantEventListeners(container) {
       }
     } catch (error) {
       BMA_LOG.error('Error loading available times:', error);
-      const sectionsContainer = document.getElementById('service-period-sections-' + date);
+      const sectionsContainer = document.getElementById('time-slots-sections-' + date);
       const periodTimes = sectionsContainer ? sectionsContainer.querySelector(`.period-times[data-period-index="${periodIndex}"]`) : null;
       if (periodTimes) {
         periodTimes.innerHTML = '<p style="color: #ef4444;">Error loading times</p>';
