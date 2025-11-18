@@ -1776,8 +1776,14 @@ function applyNewBookingClasses(container) {
     if (isNew) {
       card.classList.add('new-booking');
       BMA_LOG.log('[New Booking Classes] Added new-booking class to', bookingId);
+      // Verify it was actually added
+      BMA_LOG.log('[New Booking Classes] Verification - classList after add:', Array.from(card.classList));
     }
   });
+
+  // Final verification: check how many cards have the class
+  const newBookingCards = container.querySelectorAll('.booking-card.new-booking');
+  BMA_LOG.log('[New Booking Classes] FINAL CHECK: Found', newBookingCards.length, 'cards with new-booking class');
 }
 
 function showSummaryData(activityHtml, activityCount) {
