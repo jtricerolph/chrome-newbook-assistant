@@ -1048,8 +1048,8 @@ function attachGanttTooltips() {
 
       BMA_LOG.log('Gantt tooltip - name:', name, 'isResident:', isResident, 'data-is-resident attr:', bar.getAttribute('data-is-resident'));
 
-      // Format: "{people} pax {name} [hotel icon]" (Material Symbols hotel icon if resident)
-      let tooltipHTML = `${people} pax ${name}`;
+      // Format: "({people}) {name} [hotel icon]" (Material Symbols hotel icon if resident)
+      let tooltipHTML = `(${people}) ${name}`;
       if (isResident) {
         tooltipHTML += ' <span class="material-symbols-outlined" style="font-size: 14px; vertical-align: middle;">hotel</span>';
         BMA_LOG.log('Adding hotel icon to tooltip');
@@ -4431,11 +4431,11 @@ function buildRestaurantCards(bookings, openingHours = [], date = '') {
           </div>
           <div class="period-badges">
             <span class="period-badge bookings-badge" title="${bookingCount} booking(s)">
-              <span class="material-symbols-outlined">restaurant_menu</span>
+              <span class="material-symbols-outlined">table_bar</span>
               ${bookingCount}
             </span>
             <span class="period-badge pax-badge" title="${totalPax} people">
-              <span class="material-symbols-outlined">group</span>
+              <span class="material-symbols-outlined">airline_seat_recline_normal</span>
               ${totalPax}
             </span>
           </div>
