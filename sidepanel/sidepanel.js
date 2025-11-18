@@ -5142,15 +5142,22 @@ function initializeStayingCards() {
               const datePicker = document.querySelector('.staying-date-picker');
               const datePickerHeight = datePicker ? datePicker.offsetHeight : 0;
 
-              // Position card header 4px below the sticky datepicker
-              // Use getBoundingClientRect for accurate positioning across nested containers
-              const cardRect = card.getBoundingClientRect();
-              const containerRect = tabContents.getBoundingClientRect();
+              // Calculate cumulative offsetTop from card up to scroll container
+              // Structure: .tab-contents > .tab-content > .tab-data > .staying-list > .staying-card
+              const tabContent = card.closest('.tab-content');
+              const tabData = card.closest('.tab-data');
+              const stayingList = card.closest('.staying-list');
 
+              const tabContentTop = tabContent ? tabContent.offsetTop : 0;
+              const tabDataTop = tabData ? tabData.offsetTop : 0;
+              const stayingListTop = stayingList ? stayingList.offsetTop : 0;
+              const cardTop = card.offsetTop;
+
+              const totalOffset = tabContentTop + tabDataTop + stayingListTop + cardTop;
+
+              // Position card header 4px below the sticky datepicker
               const desiredGap = datePickerHeight + 4;
-              const currentScrollTop = tabContents.scrollTop;
-              const cardTopRelativeToContainer = cardRect.top - containerRect.top + currentScrollTop;
-              const scrollTo = cardTopRelativeToContainer - desiredGap;
+              const scrollTo = totalOffset - desiredGap;
 
               tabContents.scrollTo({
                 top: scrollTo,
