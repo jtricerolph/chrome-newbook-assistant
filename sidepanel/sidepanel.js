@@ -1782,13 +1782,18 @@ function attachSummaryEventListeners(container) {
         icon.textContent = '▲';
         card.classList.add('expanded');
 
-        // Auto-scroll the pane so the card aligns to the top
+        // Auto-scroll the pane so the card aligns to the top (with offset to avoid tabs bar)
         // Use setTimeout to allow the details to render first
         setTimeout(() => {
-          card.scrollIntoView({
-            behavior: 'smooth',
-            block: 'start' // Align to top of scrollable container
-          });
+          const activityContent = card.closest('.summary-activity-content');
+          if (activityContent) {
+            const cardTop = card.offsetTop;
+            const offset = 4; // 4px offset to prevent border from going behind tabs bar
+            activityContent.scrollTo({
+              top: cardTop - offset,
+              behavior: 'smooth'
+            });
+          }
         }, 50);
       }
     });
@@ -3423,7 +3428,7 @@ function updateTimeSincePlaced(container) {
 function formatTimeSince(minutes, isCancelled = false) {
   const prefix = isCancelled ? 'Cancelled' : 'Placed';
 
-  if (minutes < 1) {
+  if (minutes < 5) {
     return `${prefix} just now`;
   } else if (minutes < 60) {
     return `${prefix} ${minutes}m ago`;

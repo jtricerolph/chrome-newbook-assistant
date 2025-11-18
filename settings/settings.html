@@ -121,11 +121,14 @@
         <div class="form-group">
           <label for="cancelledHours">Show cancelled bookings from last</label>
           <select id="cancelledHours">
-            <option value="24">24 hours</option>
-            <option value="48">48 hours</option>
-            <option value="72">72 hours</option>
+            <option value="24">24 hours (1 day)</option>
+            <option value="48">48 hours (2 days)</option>
+            <option value="72">72 hours (3 days)</option>
+            <option value="96">96 hours (4 days)</option>
+            <option value="120">120 hours (5 days)</option>
+            <option value="168">168 hours (7 days)</option>
           </select>
-          <small>Display cancelled bookings from the last X hours in the Summary tab</small>
+          <small>Display cancelled bookings from the last X hours in the Activity tab. Cancelled bookings with warnings/flags will show even past this threshold.</small>
         </div>
 
         <div class="form-group">
