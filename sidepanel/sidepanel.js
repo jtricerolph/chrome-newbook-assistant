@@ -1740,6 +1740,37 @@ function showData(tabName, html) {
   checkForStaleDataAndScheduleRefresh(tabName, dataElement);
 }
 
+/**
+ * Apply new-booking class to booking cards placed or cancelled within 24 hours
+ */
+function applyNewBookingClasses(container) {
+  const bookingCards = container.querySelectorAll('.booking-card');
+  const now = Date.now();
+  const newThreshold = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+
+  bookingCards.forEach(card => {
+    const isCancelled = card.classList.contains('cancelled-booking');
+    const placedTime = card.dataset.bookingPlaced;
+    const cancelledTime = card.dataset.bookingCancelled;
+
+    let isNew = false;
+
+    if (isCancelled && cancelledTime) {
+      // Check if recently cancelled
+      const cancelledTimestamp = new Date(cancelledTime.replace(' ', 'T')).getTime();
+      isNew = (now - cancelledTimestamp) <= newThreshold;
+    } else if (!isCancelled && placedTime) {
+      // Check if recently placed
+      const placedTimestamp = new Date(placedTime.replace(' ', 'T')).getTime();
+      isNew = (now - placedTimestamp) <= newThreshold;
+    }
+
+    if (isNew) {
+      card.classList.add('new-booking');
+    }
+  });
+}
+
 function showSummaryData(activityHtml, activityCount) {
   BMA_LOG.log('[Activity] showSummaryData called:', { activityCount });
 
@@ -1755,6 +1786,9 @@ function showSummaryData(activityHtml, activityCount) {
 
   if (activityContent) {
     activityContent.innerHTML = activityHtml || '<div class="bma-summary-empty"><p>No recent activity</p></div>';
+
+    // Apply new-booking class to recently placed/cancelled bookings (24 hour threshold)
+    applyNewBookingClasses(activityContent);
   }
 
   BMA_LOG.log('[Activity] Content injected successfully');
