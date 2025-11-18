@@ -103,7 +103,8 @@ function navigateToRestaurantDate(date, bookingId = null, resosBookingId = null)
     targetDate: date,
     expandCreateForm: resosBookingId ? false : true, // Expand create form only if not viewing a comparison
     expandComparisonRow: resosBookingId ? { resosBookingId, date } : null, // Expand comparison row if resosBookingId provided
-    scrollAfterLoad: true
+    scrollAfterLoad: true,
+    preserveBookingId: !!bookingId // Flag explicit navigation with booking ID
   };
 
   // Update current booking ID if provided
@@ -3545,6 +3546,18 @@ function switchTab(tabName) {
     loadSummaryTab();
     resetInactivityTimer(); // Clear inactivity timer on Summary tab
   } else if (tabName === 'restaurant') {
+    // Clear booking context unless we have explicit navigation context
+    if (STATE.currentBookingId && !STATE.navigationContext?.preserveBookingId) {
+      BMA_LOG.log('Switching to Restaurant tab - clearing booking context for summary view');
+      STATE.currentBookingId = null;
+      chrome.storage.local.remove('currentBookingId');
+    }
+
+    // Clear the preserveBookingId flag after using it (one-time use)
+    if (STATE.navigationContext?.preserveBookingId) {
+      STATE.navigationContext.preserveBookingId = false;
+    }
+
     loadRestaurantTab();
     startInactivityTimer();
   } else if (tabName === 'checks') {
