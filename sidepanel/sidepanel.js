@@ -2006,6 +2006,50 @@ function attachRestaurantEventListeners(container) {
           );
           break;
 
+        case 'open-group-create':
+          // GROUP button in create booking form
+          {
+            const formId = 'create-form-' + button.dataset.date;
+            const form = document.getElementById(formId);
+            if (!form) {
+              BMA_LOG.error('Create form not found:', formId);
+              showToast('Form not found', 'error');
+              break;
+            }
+
+            // Get current form values
+            const guestName = form.querySelector('.form-guest-name')?.value || 'New Booking';
+            const people = form.querySelector('.form-people')?.value || '2';
+            const timeSelected = form.querySelector('.form-time-selected')?.value || '';
+            const groupMembers = form.querySelector('.form-group-members')?.value || '';
+
+            BMA_LOG.log('Opening GROUP modal in CREATE mode:', {
+              formId,
+              hotelBookingId: form.dataset.bookingId,
+              date: button.dataset.date,
+              time: timeSelected,
+              guestName,
+              people
+            });
+
+            if (typeof window.openGroupManagementModal === 'function') {
+              await window.openGroupManagementModal(
+                null,                      // No Resos booking ID (CREATE mode)
+                form.dataset.bookingId,    // Hotel booking ID
+                button.dataset.date,       // Date
+                timeSelected,              // Selected time
+                guestName,                 // Guest name
+                people,                    // Number of people
+                form.dataset.bookingId,    // Use hotel booking as temp lead ID
+                groupMembers               // Existing group selections
+              );
+            } else {
+              BMA_LOG.error('openGroupManagementModal function not found');
+              showToast('Group management feature not available', 'error');
+            }
+          }
+          break;
+
         case 'manage-group':
           if (typeof window.openGroupManagementModal === 'function') {
             console.log('BMA: Manage Group button clicked, data attributes:', {
