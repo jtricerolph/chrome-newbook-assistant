@@ -5137,26 +5137,24 @@ function initializeStayingCards() {
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
             const tabContents = document.querySelector('.tab-contents');
-            const header = this; // The .staying-header element that was clicked
-            if (tabContents && header) {
+            if (tabContents) {
               // Get height of sticky datepicker (stats row scrolls with content, so don't include it)
               const datePicker = document.querySelector('.staying-date-picker');
               const datePickerHeight = datePicker ? datePicker.offsetHeight : 0;
 
-              // Use getBoundingClientRect to get precise viewport positions
-              const containerRect = tabContents.getBoundingClientRect();
-              const headerRect = header.getBoundingClientRect();
-
-              // Calculate header's position relative to the container's content
-              // headerRect.top = distance from viewport top to header top
-              // containerRect.top = distance from viewport top to container top
-              // currentScrollTop = how far we've already scrolled
-              const currentScrollTop = tabContents.scrollTop;
-              const headerPositionInContainer = (headerRect.top - containerRect.top) + currentScrollTop;
-
-              // Position header 4px below the sticky datepicker
+              // Use exact same pattern as Activity tab - just card.offsetTop
+              // card.offsetTop should be relative to its offsetParent
               const desiredGap = datePickerHeight + 4;
-              const scrollTo = headerPositionInContainer - desiredGap;
+              const scrollTo = card.offsetTop - desiredGap;
+
+              console.log('STAYING SCROLL:', {
+                guest: card.querySelector('.guest-name')?.textContent,
+                cardOffsetTop: card.offsetTop,
+                datePickerHeight,
+                desiredGap,
+                scrollTo,
+                offsetParent: card.offsetParent?.className
+              });
 
               tabContents.scrollTo({
                 top: scrollTo,
