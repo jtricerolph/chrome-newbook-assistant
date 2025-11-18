@@ -5130,6 +5130,34 @@ function initializeStayingCards() {
 
       // Toggle current card
       card.classList.toggle('expanded');
+
+      // Auto-scroll if card was just expanded
+      if (!isExpanded) {
+        // Use requestAnimationFrame twice to ensure layout is fully recalculated
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            const tabContents = document.querySelector('.tab-contents');
+            if (tabContents) {
+              // Get heights of sticky elements above the cards
+              const datePicker = document.querySelector('.staying-date-picker');
+              const statsRow = document.querySelector('.staying-stats-row');
+
+              const datePickerHeight = datePicker ? datePicker.offsetHeight : 0;
+              const statsRowHeight = statsRow ? statsRow.offsetHeight : 0;
+
+              // Position card (datepicker height + stats row height + 4px gap) from top
+              // This ensures the card appears with a clear visual gap below the stats bar
+              const desiredGap = datePickerHeight + statsRowHeight + 4;
+              const scrollTo = card.offsetTop - desiredGap;
+
+              tabContents.scrollTo({
+                top: scrollTo,
+                behavior: 'smooth'
+              });
+            }
+          });
+        });
+      }
     });
   });
 
