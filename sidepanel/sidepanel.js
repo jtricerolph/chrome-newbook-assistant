@@ -1421,6 +1421,22 @@ const AuthManager = {
     return cookie.expirationDate * 1000 < Date.now();
   },
 
+  // Check if user is currently on the login page
+  async checkCurrentPageUrl() {
+    try {
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tabs && tabs[0] && tabs[0].url) {
+        const url = tabs[0].url;
+        const isLoginPage = url.includes('login.newbook.cloud');
+        BMA_LOG.log('Current page URL check:', url, 'isLoginPage:', isLoginPage);
+        return { url, isLoginPage };
+      }
+    } catch (error) {
+      BMA_LOG.error('Error checking current page URL:', error);
+    }
+    return { url: null, isLoginPage: false };
+  },
+
   // Show lock screen overlay
   showLockScreen() {
     const existingLock = document.getElementById('newbook-lock-screen');
@@ -1470,12 +1486,20 @@ const AuthManager = {
     if (STATE.newbookAuth.checking) return;
 
     STATE.newbookAuth.checking = true;
+
+    // Check if on login page
+    const { isLoginPage } = await this.checkCurrentPageUrl();
+
+    // Check authentication
     const isAuthenticated = await this.checkNewBookAuth();
     STATE.newbookAuth.isAuthenticated = isAuthenticated;
     STATE.newbookAuth.checking = false;
 
-    // Show lock screen if either not authenticated OR session is locked
-    if (isAuthenticated && !STATE.sessionLocked) {
+    // Show lock screen if:
+    // 1. Not authenticated OR
+    // 2. Session is locked OR
+    // 3. On login page (not logged in yet)
+    if (isAuthenticated && !STATE.sessionLocked && !isLoginPage) {
       this.hideLockScreen();
     } else {
       this.showLockScreen();
@@ -1645,31 +1669,24 @@ function showData(tabName, html) {
   checkForStaleDataAndScheduleRefresh(tabName, dataElement);
 }
 
-function showSummaryData(placedHtml, cancelledHtml, placedCount, cancelledCount) {
-  BMA_LOG.log('[Split-Pane] showSummaryData called:', { placedCount, cancelledCount });
+function showSummaryData(activityHtml, activityCount) {
+  BMA_LOG.log('[Activity] showSummaryData called:', { activityCount });
 
   const tabContent = document.querySelector('[data-content="summary"]');
   const dataElement = tabContent.querySelector('.tab-data');
 
-  // Inject HTML into split panes
-  const placedContent = dataElement.querySelector('.summary-placed-pane .summary-pane-content');
-  const cancelledContent = dataElement.querySelector('.summary-cancelled-pane .summary-pane-content');
-  const placedCountBadge = dataElement.querySelector('.summary-placed-pane .pane-count');
-  const cancelledCountBadge = dataElement.querySelector('.summary-cancelled-pane .pane-count');
+  // Inject HTML into single activity content area
+  const activityContent = dataElement.querySelector('.summary-activity-content');
 
-  BMA_LOG.log('[Split-Pane] Found elements:', {
-    placedContent: !!placedContent,
-    cancelledContent: !!cancelledContent,
-    placedCountBadge: !!placedCountBadge,
-    cancelledCountBadge: !!cancelledCountBadge
+  BMA_LOG.log('[Activity] Found elements:', {
+    activityContent: !!activityContent
   });
 
-  if (placedContent) placedContent.innerHTML = placedHtml || '<div class="bma-summary-empty"><p>No recent bookings</p></div>';
-  if (cancelledContent) cancelledContent.innerHTML = cancelledHtml || '<div class="bma-summary-empty"><p>No cancelled bookings</p></div>';
-  if (placedCountBadge) placedCountBadge.textContent = placedCount || '0';
-  if (cancelledCountBadge) cancelledCountBadge.textContent = cancelledCount || '0';
+  if (activityContent) {
+    activityContent.innerHTML = activityHtml || '<div class="bma-summary-empty"><p>No recent activity</p></div>';
+  }
 
-  BMA_LOG.log('[Split-Pane] Content injected successfully');
+  BMA_LOG.log('[Activity] Content injected successfully');
 
   // Show data container
   dataElement.classList.remove('hidden');
@@ -1681,9 +1698,6 @@ function showSummaryData(placedHtml, cancelledHtml, placedCount, cancelledCount)
 
   // Check for stale cache indicators and schedule auto-refresh if enabled
   checkForStaleDataAndScheduleRefresh('summary', dataElement);
-
-  // Initialize resizable divider
-  initializeResizableSummary();
 }
 
 // Check for stale cache indicators and schedule auto-refresh
@@ -3598,38 +3612,36 @@ async function loadSummaryTab(force_refresh = false) {
     const api = new APIClient(STATE.settings);
     const data = await api.fetchSummary(force_refresh);
 
-    if (data.success && data.html_placed) {
-      // Check if data has changed (compare counts AND booking IDs to detect when bookings change even if count stays same)
-      const placedIds = data.placed_bookings?.map(b => b.booking_id).sort().join(',') || '';
-      const cancelledIds = data.cancelled_bookings?.map(b => b.booking_id).sort().join(',') || '';
-      const dataSignature = `${data.placed_count}-${placedIds}-${data.cancelled_count}-${cancelledIds}-${data.critical_count}-${data.warning_count}`;
+    if (data.success && data.html_activity) {
+      // Check if data has changed (compare activity count AND booking IDs to detect when bookings change)
+      const activityIds = data.activity_bookings?.map(b => b.booking_id).sort().join(',') || '';
+      const dataSignature = `${data.activity_count}-${activityIds}-${data.critical_count}-${data.warning_count}`;
 
-      const cachedPlacedIds = STATE.cache.summary?.placed_bookings?.map(b => b.booking_id).sort().join(',') || '';
-      const cachedCancelledIds = STATE.cache.summary?.cancelled_bookings?.map(b => b.booking_id).sort().join(',') || '';
+      const cachedActivityIds = STATE.cache.summary?.activity_bookings?.map(b => b.booking_id).sort().join(',') || '';
       const cachedSignature = STATE.cache.summary
-        ? `${STATE.cache.summary.placed_count}-${cachedPlacedIds}-${STATE.cache.summary.cancelled_count}-${cachedCancelledIds}-${STATE.cache.summary.critical_count}-${STATE.cache.summary.warning_count}`
+        ? `${STATE.cache.summary.activity_count}-${cachedActivityIds}-${STATE.cache.summary.critical_count}-${STATE.cache.summary.warning_count}`
         : null;
 
       const hasChanged = !STATE.cache.summary || cachedSignature !== dataSignature;
 
-      BMA_LOG.log(`Summary check: cached="${cachedSignature}", new="${dataSignature}", changed=${hasChanged}, isAutoRefresh=${isAutoRefresh}`);
+      BMA_LOG.log(`Activity check: cached="${cachedSignature}", new="${dataSignature}", changed=${hasChanged}, isAutoRefresh=${isAutoRefresh}`);
 
       // Always show data if:
       // 1. Data has changed, OR
       // 2. This is NOT an auto-refresh (manual tab switch or first load)
       if (hasChanged || !isAutoRefresh) {
-        showSummaryData(data.html_placed, data.html_cancelled, data.placed_count, data.cancelled_count);
+        showSummaryData(data.html_activity, data.activity_count);
         updateBadge('summary', data.critical_count || 0, data.warning_count || 0);
         STATE.cache.summary = data;
         STATE.loadedBookingIds.summary = true;
         STATE.lastSummaryUpdate = Date.now(); // Track update time only when data changes
-        BMA_LOG.log(hasChanged ? 'Summary updated with new data' : 'Summary displayed (no change but manual load)');
+        BMA_LOG.log(hasChanged ? 'Activity updated with new data' : 'Activity displayed (no change but manual load)');
 
         // Initialize group hover functionality
         initializeGroupHover();
       } else {
         // Only skip display during auto-refresh when nothing changed
-        BMA_LOG.log('Summary unchanged during auto-refresh - showing no changes message');
+        BMA_LOG.log('Activity unchanged during auto-refresh - showing no changes message');
         updateBadge('summary', data.critical_count || 0, data.warning_count || 0);
         // Don't update lastSummaryUpdate - keep the original timestamp
         showNoChangesMessage();
@@ -5998,79 +6010,6 @@ function initializeGroupModal() {
   if (saveBtn) saveBtn.addEventListener('click', saveGroupConfiguration);
 
   BMA_LOG.log('GROUP modal event listeners initialized');
-}
-
-function initializeResizableSummary() {
-  const divider = document.querySelector('.summary-divider');
-  const container = document.querySelector('.summary-split-container');
-  const placedPane = document.querySelector('.summary-placed-pane');
-  const cancelledPane = document.querySelector('.summary-cancelled-pane');
-
-  if (!divider || !container || !placedPane || !cancelledPane) {
-    BMA_LOG.log('Summary split-pane elements not found, skipping resize initialization');
-    return;
-  }
-
-  // Load saved split ratio from chrome storage
-  chrome.storage.sync.get(['summarySplitRatio'], (result) => {
-    if (result.summarySplitRatio) {
-      const ratio = parseFloat(result.summarySplitRatio);
-      if (ratio >= 20 && ratio <= 80) {
-        placedPane.style.flexBasis = `${ratio}%`;
-        BMA_LOG.log(`Summary split ratio restored: ${ratio}%`);
-      }
-    }
-  });
-
-  let isDragging = false;
-  let startY = 0;
-  let startPlacedHeight = 0;
-  let containerHeight = 0;
-
-  const onMouseDown = (e) => {
-    isDragging = true;
-    startY = e.clientY;
-    containerHeight = container.offsetHeight;
-    startPlacedHeight = placedPane.offsetHeight;
-
-    document.body.style.cursor = 'row-resize';
-    document.body.style.userSelect = 'none';
-
-    BMA_LOG.log('Summary resize started');
-  };
-
-  const onMouseMove = (e) => {
-    if (!isDragging) return;
-
-    const deltaY = e.clientY - startY;
-    const newPlacedHeight = startPlacedHeight + deltaY;
-    const newRatio = (newPlacedHeight / containerHeight) * 100;
-
-    // Constrain between 20% and 80%
-    if (newRatio >= 20 && newRatio <= 80) {
-      placedPane.style.flexBasis = `${newRatio}%`;
-    }
-  };
-
-  const onMouseUp = () => {
-    if (!isDragging) return;
-
-    isDragging = false;
-    document.body.style.cursor = '';
-    document.body.style.userSelect = '';
-
-    // Save the new ratio
-    const finalRatio = (placedPane.offsetHeight / container.offsetHeight) * 100;
-    chrome.storage.sync.set({ summarySplitRatio: finalRatio.toFixed(2) }, () => {
-      BMA_LOG.log(`Summary split ratio saved: ${finalRatio.toFixed(2)}%`);
-    });
-  };
-
-  divider.addEventListener('mousedown', onMouseDown);
-  document.addEventListener('mousemove', onMouseMove);
-  document.addEventListener('mouseup', onMouseUp);
-
-  BMA_LOG.log('Summary resizable divider initialized');
 }
 
 // ============================================
