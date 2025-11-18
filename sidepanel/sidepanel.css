@@ -2304,7 +2304,8 @@ button[data-action].loading::after {
   color: #dc2626;
   font-size: 18px !important;
   margin-left: auto;
-  margin-right: 4px;
+  margin-right: 8px;
+  order: 1;
 }
 
 /* Restaurant Summary Updated Footer (fixed at bottom) */
