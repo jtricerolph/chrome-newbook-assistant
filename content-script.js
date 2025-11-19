@@ -680,5 +680,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     BMA_LOG.log('Sidepanel closed, showing button');
     sidepanelOpen = false;
     setTimeout(createOpenButton, 500);
+  } else if (message.action === 'getSessionLockStatus') {
+    // Respond with current session lock status
+    const lockDialog = document.getElementById('locked_session_dialog');
+    const isLocked = lockDialog && lockDialog.style.display !== 'none';
+    BMA_LOG.log('Returning current session lock status:', isLocked ? 'LOCKED' : 'UNLOCKED');
+    sendResponse({ isLocked: isLocked });
+    return true; // Keep message channel open for async response
   }
 });

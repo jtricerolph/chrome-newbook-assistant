@@ -6508,6 +6508,36 @@ function initializeGroupModal() {
 // INITIALIZATION
 // ============================================
 
+/**
+ * Query the content script for the current session lock status
+ * This ensures we know the actual lock state before deciding to show/hide the lock screen
+ * @returns {Promise<boolean>} True if session is locked, false otherwise
+ */
+async function queryCurrentSessionLockStatus() {
+  try {
+    // Get the active tab
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab) {
+      BMA_LOG.log('No active tab found for lock status query');
+      return false;
+    }
+
+    // Send message to content script asking for current lock status
+    const response = await chrome.tabs.sendMessage(tab.id, {
+      action: 'getSessionLockStatus'
+    });
+
+    const isLocked = response?.isLocked ?? false;
+    BMA_LOG.log('Queried session lock status from content script:', isLocked ? 'LOCKED' : 'UNLOCKED');
+
+    return isLocked;
+  } catch (error) {
+    BMA_LOG.log('Could not query session lock status:', error);
+    // Default to false if query fails
+    return false;
+  }
+}
+
 // Initialize
 async function init() {
   const settingsLoaded = await loadSettings();
@@ -6519,6 +6549,12 @@ async function init() {
 
     // Start cookie monitoring for NewBook auth
     AuthManager.startCookieMonitoring();
+
+    // Query current session lock status from content script FIRST
+    // This prevents race condition where sidepanel unlocks on reopen while lock dialog is still visible
+    const currentLockStatus = await queryCurrentSessionLockStatus();
+    STATE.sessionLocked = currentLockStatus;
+    BMA_LOG.log('Initialized STATE.sessionLocked from content script:', STATE.sessionLocked);
 
     // Check NewBook authentication status
     const isAuthenticated = await AuthManager.updateAuthState();
