@@ -285,12 +285,10 @@ async function processNavigationContext(retryCount = 0) {
       setTimeout(() => {
         let targetElement;
 
-        // If we expanded a comparison row, scroll to it; otherwise scroll to the date section
+        // If we expanded a comparison row, scroll to the date section for better context
         if (expandComparisonRow) {
-          const { resosBookingId, date } = expandComparisonRow;
-          const containerId = 'comparison-' + date + '-' + resosBookingId;
-          const comparisonContainer = document.getElementById(containerId);
-          targetElement = comparisonContainer || dateSection.querySelector('.bma-night') || dateSection;
+          // Scroll to the outer bma-date-section instead of the comparison container
+          targetElement = dateSection;
         } else {
           // Try to find the bma-night element within the date section for more precise scrolling
           const nightSection = dateSection.querySelector('.bma-night');
