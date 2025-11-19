@@ -1533,8 +1533,26 @@ const AuthManager = {
 
     // Add event listeners
     document.getElementById('open-newbook-btn').addEventListener('click', async () => {
-      // Open NewBook in a new tab
-      await chrome.tabs.create({ url: 'https://appeu.newbook.cloud' });
+      // Check if current tab is already on NewBook
+      const [currentTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+      if (currentTab?.url) {
+        const isOnNewBook = currentTab.url.includes('login.newbook.cloud') ||
+                           currentTab.url.includes('appeu.newbook.cloud');
+
+        if (isOnNewBook) {
+          // Already on NewBook, just focus the tab (it's already active, but ensure it)
+          BMA_LOG.log('Already on NewBook, focusing current tab');
+          await chrome.tabs.update(currentTab.id, { active: true });
+        } else {
+          // Navigate current tab to NewBook instead of opening new tab
+          BMA_LOG.log('Navigating current tab to NewBook');
+          await chrome.tabs.update(currentTab.id, { url: 'https://appeu.newbook.cloud' });
+        }
+      } else {
+        // Fallback: create new tab if no current tab found
+        await chrome.tabs.create({ url: 'https://appeu.newbook.cloud' });
+      }
     });
 
     document.getElementById('check-auth-btn').addEventListener('click', async () => {
