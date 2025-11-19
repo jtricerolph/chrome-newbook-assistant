@@ -4533,9 +4533,13 @@ function buildRestaurantCards(bookings, openingHours = [], date = '') {
       timeRange = `${openTime} - ${closeTime}`;
     }
 
+    // Last group (typically dinner) should be expanded by default
+    const isLastGroup = groupIndex === groups.length - 1;
+    const expandedClass = isLastGroup ? ' expanded' : '';
+
     // Build header with badges
     html += `
-      <div class="service-period-section" data-period-id="${group._id || groupIndex}">
+      <div class="service-period-section${expandedClass}" data-period-id="${group._id || groupIndex}">
         <div class="period-header">
           <div class="period-info">
             <h3 class="period-name">${group.name}</h3>
