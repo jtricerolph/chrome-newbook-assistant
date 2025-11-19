@@ -2,6 +2,7 @@
 const STATE = {
   currentTab: 'summary',
   currentBookingId: null,
+  currentTabId: null, // Track which browser tab owns this sidepanel
   isUrlTriggerBooking: false, // Track if current booking loaded from URL trigger (sticky)
   settings: null,
   badges: {
@@ -6576,6 +6577,22 @@ async function queryCurrentSessionLockStatus() {
   return false;
 }
 
+/**
+ * Get the browser tab context for this sidepanel
+ * Stores the tab ID so we can notify the correct tab when sidepanel closes
+ */
+async function getTabContext() {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab) {
+      STATE.currentTabId = tab.id;
+      BMA_LOG.log('Sidepanel tab context initialized:', STATE.currentTabId);
+    }
+  } catch (error) {
+    BMA_LOG.log('Could not get tab context:', error);
+  }
+}
+
 // Initialize
 async function init() {
   const settingsLoaded = await loadSettings();
@@ -6584,6 +6601,9 @@ async function init() {
     // Initialize global API client for use by injected template content
     window.apiClient = new APIClient(STATE.settings);
     BMA_LOG.log('Global apiClient initialized');
+
+    // Get tab context so we know which tab owns this sidepanel
+    await getTabContext();
 
     // Start cookie monitoring for NewBook auth
     AuthManager.startCookieMonitoring();
@@ -6670,8 +6690,11 @@ window.reloadRestaurantTab = function() {
 
 // Notify background when sidepanel is closing
 window.addEventListener('pagehide', () => {
-  BMA_LOG.log('Sidepanel closing, notifying background');
-  chrome.runtime.sendMessage({ action: 'sidepanelClosed' }).catch(() => {
+  BMA_LOG.log('Sidepanel closing, notifying background for tab:', STATE.currentTabId);
+  chrome.runtime.sendMessage({
+    action: 'sidepanelClosed',
+    tabId: STATE.currentTabId
+  }).catch(() => {
     // Background might not be available during unload
   });
 });

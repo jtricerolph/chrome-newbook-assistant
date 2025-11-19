@@ -172,20 +172,34 @@ async function handleTabUpdate(tabId, url) {
   }
 }
 
-// Toolbar icon click handler
+// Toolbar icon click handler - WITH TOGGLE SUPPORT
 chrome.action.onClicked.addListener(async (tab) => {
   BMA_LOG.log('Toolbar icon clicked for tab:', tab.id);
 
+  const isCurrentlyOpen = sidepanelOpenTabs.has(tab.id);
+
   try {
-    // Open sidepanel for the current tab
-    await chrome.sidePanel.open({ tabId: tab.id });
-    // Track that sidepanel is open for this tab
-    sidepanelOpenTabs.add(tab.id);
-    chrome.storage.local.set({ sidepanelOpenTabs: Array.from(sidepanelOpenTabs) });
-    // Notify content script that sidepanel was opened
-    chrome.tabs.sendMessage(tab.id, { action: 'sidepanelOpened' }).catch(() => {});
+    if (isCurrentlyOpen) {
+      // Close the sidepanel
+      await chrome.sidePanel.close({ tabId: tab.id });
+      sidepanelOpenTabs.delete(tab.id);
+      chrome.storage.local.set({ sidepanelOpenTabs: Array.from(sidepanelOpenTabs) });
+      BMA_LOG.log('Sidepanel closed via toolbar icon for tab:', tab.id);
+
+      // Notify content script to show button
+      chrome.tabs.sendMessage(tab.id, { action: 'showOpenButton' }).catch(() => {});
+    } else {
+      // Open sidepanel
+      await chrome.sidePanel.open({ tabId: tab.id });
+      sidepanelOpenTabs.add(tab.id);
+      chrome.storage.local.set({ sidepanelOpenTabs: Array.from(sidepanelOpenTabs) });
+      BMA_LOG.log('Sidepanel opened via toolbar icon for tab:', tab.id);
+
+      // Notify content script that sidepanel was opened
+      chrome.tabs.sendMessage(tab.id, { action: 'sidepanelOpened' }).catch(() => {});
+    }
   } catch (error) {
-    BMA_LOG.error('Failed to open sidepanel:', error);
+    BMA_LOG.error('Failed to toggle sidepanel:', error);
   }
 });
 
@@ -240,14 +254,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       });
   } else if (message.action === 'sidepanelClosed') {
     // Sidepanel was closed, notify content script to show button
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs[0]) {
-        // Track that sidepanel is closed for this tab
-        sidepanelOpenTabs.delete(tabs[0].id);
-        chrome.storage.local.set({ sidepanelOpenTabs: Array.from(sidepanelOpenTabs) });
-        chrome.tabs.sendMessage(tabs[0].id, { action: 'showOpenButton' }).catch(() => {});
-      }
-    });
+    // Use the tab ID from the message instead of querying active tab
+    const tabId = message.tabId;
+
+    if (tabId) {
+      // Track that sidepanel is closed for this tab
+      sidepanelOpenTabs.delete(tabId);
+      chrome.storage.local.set({ sidepanelOpenTabs: Array.from(sidepanelOpenTabs) });
+      BMA_LOG.log('Sidepanel closed for tab:', tabId);
+
+      // Send to the specific tab that owned the sidepanel
+      chrome.tabs.sendMessage(tabId, { action: 'showOpenButton' }).catch((error) => {
+        BMA_LOG.log('Could not notify tab', tabId, 'to show button:', error.message);
+      });
+    } else {
+      BMA_LOG.log('sidepanelClosed message missing tabId, cannot notify content script');
+    }
   } else if (message.action === 'isSidepanelOpen' && sender.tab?.id) {
     // Query if sidepanel is open for this tab
     const isOpen = sidepanelOpenTabs.has(sender.tab.id);
