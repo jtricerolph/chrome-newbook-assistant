@@ -5338,6 +5338,13 @@ async function loadStayingTab(date = null, force_refresh = false) {
             // Initialize event listeners for cards
             initializeGroupHover();
             initializeStayingCards();
+
+            // Apply default filter if setting enabled
+            if (STATE.settings.stayingDefaultOccupiedFilter) {
+              BMA_LOG.log('Applying default occupied filter to Staying tab');
+              filterStayingByStat('in-house');
+              updateStatFilterUI('in-house');
+            }
           }
 
           return; // Don't reload
@@ -5382,6 +5389,13 @@ async function loadStayingTab(date = null, force_refresh = false) {
 
       // Initialize card expand/collapse
       initializeStayingCards();
+
+      // Apply default filter if setting enabled
+      if (STATE.settings.stayingDefaultOccupiedFilter) {
+        BMA_LOG.log('Applying default occupied filter to Staying tab');
+        filterStayingByStat('in-house');
+        updateStatFilterUI('in-house');
+      }
     } else if (data.success && (!data.html || data.html.trim() === '')) {
       showEmpty('staying');
       STATE.loadedBookingIds.staying = null;
