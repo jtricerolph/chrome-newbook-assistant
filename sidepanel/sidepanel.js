@@ -1578,7 +1578,7 @@ const AuthManager = {
   },
 
   // Handle session lock status from content script
-  handleSessionLock(isLocked) {
+  async handleSessionLock(isLocked) {
     BMA_LOG.log('Session lock status updated:', isLocked ? 'LOCKED' : 'UNLOCKED');
     STATE.sessionLocked = isLocked;
 
@@ -1586,8 +1586,16 @@ const AuthManager = {
     if (isLocked) {
       this.showLockScreen();
     } else if (STATE.newbookAuth.isAuthenticated) {
-      // Only hide if also authenticated
-      this.hideLockScreen();
+      // Check current URL before hiding - don't unlock if still on login page
+      const { isLoginPage } = await this.checkCurrentPageUrl();
+
+      if (!isLoginPage) {
+        BMA_LOG.log('Session unlocked and not on login page, hiding lock screen');
+        this.hideLockScreen();
+      } else {
+        BMA_LOG.log('Session unlocked but still on login page, keeping lock screen visible');
+        this.showLockScreen();
+      }
     }
   },
 
