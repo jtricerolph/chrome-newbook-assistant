@@ -2110,7 +2110,7 @@ function attachRestaurantEventListeners(container) {
           break;
 
         case 'submit-suggestions':
-          console.log('BMA: submit-suggestions action caught, calling submitSuggestions');
+          BMA_LOG.log('submit-suggestions action caught, calling submitSuggestions');
           await submitSuggestions(
             button.dataset.date,
             button.dataset.resosBookingId,
@@ -2165,7 +2165,7 @@ function attachRestaurantEventListeners(container) {
 
         case 'manage-group':
           if (typeof window.openGroupManagementModal === 'function') {
-            console.log('BMA: Manage Group button clicked, data attributes:', {
+            BMA_LOG.log('Manage Group button clicked, data attributes:', {
               resosBookingId: button.dataset.resosBookingId,
               hotelBookingId: button.dataset.hotelBookingId,
               date: button.dataset.date,
@@ -2875,13 +2875,13 @@ function attachRestaurantEventListeners(container) {
     const groupMembersField = form.querySelector('.form-group-members');
     if (groupMembersField && groupMembersField.value) {
       formData.group_members = groupMembersField.value;
-      console.log('BMA: Including group_members in create booking:', groupMembersField.value);
+      BMA_LOG.log('Including group_members in create booking:', groupMembersField.value);
     }
 
     const leadBookingField = form.querySelector('.form-lead-booking');
     if (leadBookingField && leadBookingField.value) {
       formData.lead_booking_id = leadBookingField.value;
-      console.log('BMA: Including lead_booking_id in create booking:', leadBookingField.value);
+      BMA_LOG.log('Including lead_booking_id in create booking:', leadBookingField.value);
     }
 
     BMA_LOG.log('Starting create booking operation with data:', formData);
@@ -3450,18 +3450,18 @@ function attachRestaurantEventListeners(container) {
 
   // Submit selected suggestions from comparison checkboxes
   async function submitSuggestions(date, resosBookingId, hotelBookingId, isConfirmed) {
-    console.log('BMA: submitSuggestions called with:', { date, resosBookingId, hotelBookingId, isConfirmed });
+    BMA_LOG.log('submitSuggestions called with:', { date, resosBookingId, hotelBookingId, isConfirmed });
 
     const containerId = 'comparison-' + date + '-' + resosBookingId;
     const container = document.getElementById(containerId);
     if (!container) {
-      console.error('BMA: Container not found:', containerId);
+      BMA_LOG.error('Container not found:', containerId);
       return;
     }
 
     // Find all checked suggestion checkboxes in this comparison container
     const checkboxes = container.querySelectorAll('.suggestion-checkbox:checked');
-    console.log('BMA: Found', checkboxes.length, 'checked suggestion checkboxes');
+    BMA_LOG.log('Found', checkboxes.length, 'checked suggestion checkboxes');
 
     if (checkboxes.length === 0) {
       showToast('Please select at least one suggestion to update', 'error');
@@ -3496,7 +3496,7 @@ function attachRestaurantEventListeners(container) {
       }
     });
 
-    console.log('BMA: Submitting updates:', { booking_id: resosBookingId, updates: updates });
+    BMA_LOG.log('Submitting updates:', { booking_id: resosBookingId, updates: updates });
 
     // Find the submit button to show loading state
     const submitBtn = container.querySelector('.btn-confirm-match');
@@ -4014,65 +4014,25 @@ function showNoChangesMessage() {
 
 // Restaurant Tab
 async function loadRestaurantTab(force_refresh = false) {
-  console.log('🍽️ loadRestaurantTab called - booking ID:', STATE.currentBookingId, 'force_refresh:', force_refresh);
   BMA_LOG.log('loadRestaurantTab called, booking ID:', STATE.currentBookingId, 'force_refresh:', force_refresh);
 
   if (!STATE.settings) {
-    console.error('❌ Settings not configured!');
+    BMA_LOG.error('Settings not configured!');
     showError('restaurant', 'Please configure settings first');
     return;
   }
 
   // Determine view mode: summary (no booking ID) vs detail (has booking ID)
   if (!STATE.currentBookingId) {
-    console.log('➡️ No booking ID - showing restaurant summary view');
     BMA_LOG.log('No booking ID - showing restaurant summary view');
     // Show restaurant summary view (date-based view)
     loadRestaurantSummaryView(STATE.restaurantDate, force_refresh);
     return;
   }
 
-  console.log('➡️ Has booking ID - showing restaurant detail view');
   BMA_LOG.log('Has booking ID - showing restaurant detail view');
   // Show restaurant detail view (booking-specific view)
   showRestaurantDetailView();
-
-  // Smart refresh: Check if we're already showing the same booking
-  // Skip smart refresh if force_refresh is true
-  const isRestaurantTabActive = STATE.currentTab === 'restaurant';
-  const isSameBooking = STATE.loadedBookingIds.restaurant === STATE.currentBookingId;
-  const hasExistingData = STATE.cache.restaurant && STATE.cache.restaurant.html;
-
-  // TEMP: Disable cache for testing GROUP button
-  if (false && !force_refresh && isRestaurantTabActive && isSameBooking && hasExistingData) {
-    BMA_LOG.log('Smart refresh: Same booking already loaded, checking for changes...');
-
-    try {
-      // Fetch data silently in background
-      const api = new APIClient(STATE.settings);
-      const newData = await api.fetchRestaurantMatch(STATE.currentBookingId, force_refresh);
-
-      if (newData.success && newData.html) {
-        // Compare HTML content
-        const currentHtml = STATE.cache.restaurant.html;
-        const newHtml = newData.html;
-
-        if (currentHtml === newHtml) {
-          // No changes detected
-          BMA_LOG.log('Smart refresh: No changes detected, keeping current view');
-          // Update badge in case counts changed (though HTML is same)
-          updateBadge('restaurant', newData.critical_count || 0, newData.warning_count || 0);
-          return; // Don't reload
-        } else {
-          // Changes detected, proceed with refresh
-          BMA_LOG.log('Smart refresh: Changes detected, refreshing content');
-        }
-      }
-    } catch (error) {
-      BMA_LOG.error('Smart refresh check failed, proceeding with normal load:', error);
-      // Fall through to normal load on error
-    }
-  }
 
   try {
     showLoading('restaurant');
@@ -4124,13 +4084,12 @@ async function loadRestaurantTab(force_refresh = false) {
 
 // Restaurant Summary View (date-based view)
 async function loadRestaurantSummaryView(date, force_refresh = false) {
-  console.log('🍴 Loading restaurant summary view for date:', date);
   BMA_LOG.log('Loading restaurant summary view for date:', date);
 
   // Increment request ID to track this request
   STATE.restaurantRequestId++;
   const thisRequestId = STATE.restaurantRequestId;
-  console.log('🔖 Restaurant request ID:', thisRequestId);
+  BMA_LOG.log('Restaurant request ID:', thisRequestId);
 
   try {
     // Show summary view, hide detail view
@@ -4140,9 +4099,8 @@ async function loadRestaurantSummaryView(date, force_refresh = false) {
     const dateInput = document.getElementById('restaurant-date-input');
     if (dateInput) {
       dateInput.value = date;
-      console.log('✓ Date input set to:', date);
     } else {
-      console.error('❌ Date input element not found!');
+      BMA_LOG.error('Date input element not found!');
     }
 
     // Update state
@@ -4151,23 +4109,20 @@ async function loadRestaurantSummaryView(date, force_refresh = false) {
 
     // Try to get bookings from cache first
     let bookings = STATE.restaurantBookings[date] || [];
-    console.log('📦 Cached bookings for', date, ':', bookings.length, 'bookings');
+    BMA_LOG.log('Cached bookings for', date, ':', bookings.length, 'bookings');
 
     // If no cached data or force refresh, fetch from API
     if (bookings.length === 0 || force_refresh) {
-      console.log('🌐 Fetching restaurant bookings from API for date:', date);
-      BMA_LOG.log('Fetching restaurant bookings for date:', date);
+      BMA_LOG.log('Fetching restaurant bookings from API for date:', date);
       try {
         const api = new APIClient(STATE.settings);
         const data = await api.fetchRestaurantBookings(date, force_refresh);
 
         // Check if this is still the latest request
         if (thisRequestId !== STATE.restaurantRequestId) {
-          console.log('⚠️ Request superseded (ID', thisRequestId, 'vs current', STATE.restaurantRequestId, ') - ignoring results');
+          BMA_LOG.log('Request superseded (ID', thisRequestId, 'vs current', STATE.restaurantRequestId, ') - ignoring results');
           return;
         }
-
-        console.log('✓ API Response:', data);
 
         BMA_LOG.log('Restaurant bookings API response:', data);
 
@@ -4175,22 +4130,19 @@ async function loadRestaurantSummaryView(date, force_refresh = false) {
         // The response might have bookings_by_date or bookings array
         if (data.bookings_by_date && data.bookings_by_date[date]) {
           bookings = data.bookings_by_date[date];
-          console.log('✓ Extracted bookings from bookings_by_date[' + date + ']:', bookings.length);
           // Cache all bookings by date
           STATE.restaurantBookings = data.bookings_by_date;
         } else if (data.bookings && Array.isArray(data.bookings)) {
           bookings = data.bookings;
-          console.log('✓ Extracted bookings from bookings array:', bookings.length);
           // Cache for this date
           if (!STATE.restaurantBookings) STATE.restaurantBookings = {};
           STATE.restaurantBookings[date] = bookings;
         } else {
-          console.warn('⚠️ API response has no bookings_by_date or bookings array');
+          BMA_LOG.warn('API response has no bookings_by_date or bookings array');
         }
 
-        BMA_LOG.log('Extracted bookings:', bookings);
+        BMA_LOG.log('Extracted bookings:', bookings.length);
       } catch (error) {
-        console.error('❌ Error fetching restaurant bookings:', error);
         BMA_LOG.error('Error fetching restaurant bookings:', error);
         // Continue with empty bookings array
       }
@@ -4201,7 +4153,7 @@ async function loadRestaurantSummaryView(date, force_refresh = false) {
     const validBookings = bookings.filter(b =>
       !EXCLUDED_STATUSES.includes(b.status?.toLowerCase())
     );
-    console.log('✅ Valid bookings after filtering:', validBookings.length, 'of', bookings.length);
+    BMA_LOG.log('Valid bookings after filtering:', validBookings.length, 'of', bookings.length);
 
     // Sort by arrival time
     validBookings.sort((a, b) => {
@@ -4210,10 +4162,7 @@ async function loadRestaurantSummaryView(date, force_refresh = false) {
       return timeA.localeCompare(timeB);
     });
 
-    BMA_LOG.log('Valid bookings for Gantt:', validBookings);
-
     // Fetch opening hours and special events in parallel
-    console.log('🕐 Fetching opening hours and special events for date:', date);
     let openingHours = [];
     let specialEvents = [];
     let onlineBookingAvailable = true;
@@ -4226,24 +4175,24 @@ async function loadRestaurantSummaryView(date, force_refresh = false) {
 
       // Check if this is still the latest request
       if (thisRequestId !== STATE.restaurantRequestId) {
-        console.log('⚠️ Request superseded (ID', thisRequestId, 'vs current', STATE.restaurantRequestId, ') - ignoring results');
+        BMA_LOG.log('Request superseded - ignoring results');
         return;
       }
 
       openingHours = (hoursData.success && hoursData.data) ? hoursData.data : [];
-      console.log('✓ Fetched opening hours:', openingHours.length, 'periods');
+      BMA_LOG.log('Fetched opening hours:', openingHours.length, 'periods');
 
       specialEvents = (eventsData.success && eventsData.data) ? eventsData.data : [];
       onlineBookingAvailable = eventsData.onlineBookingAvailable !== false;
-      console.log('✓ Fetched special events:', specialEvents.length, 'events, online booking:', onlineBookingAvailable);
+      BMA_LOG.log('Fetched special events:', specialEvents.length, 'events');
     } catch (error) {
-      console.error('❌ Error fetching opening hours/special events:', error);
+      BMA_LOG.error('Error fetching opening hours/special events:', error);
       // Continue with empty arrays
     }
 
     // Final check before building UI - ensure this is still the latest request
     if (thisRequestId !== STATE.restaurantRequestId) {
-      console.log('⚠️ Request superseded (ID', thisRequestId, 'vs current', STATE.restaurantRequestId, ') - skipping UI update');
+      BMA_LOG.log('Request superseded - skipping UI update');
       return;
     }
 
@@ -4270,10 +4219,10 @@ async function loadRestaurantSummaryView(date, force_refresh = false) {
 
     // Build Gantt chart with special events for grey overlays
     if (validBookings.length > 0) {
-      console.log('📊 Building Gantt chart with', validBookings.length, 'bookings');
+      BMA_LOG.log('Building Gantt chart with', validBookings.length, 'bookings');
       buildRestaurantGanttChart(validBookings, date, openingHours, specialEvents);
     } else {
-      console.log('📭 No valid bookings - showing empty state');
+      BMA_LOG.log('No valid bookings - showing empty state');
       // Clear gantt chart
       const ganttContainer = document.getElementById('restaurant-summary-gantt');
       if (ganttContainer) {
@@ -4282,7 +4231,7 @@ async function loadRestaurantSummaryView(date, force_refresh = false) {
     }
 
     // Build booking cards with opening hours grouping
-    console.log('🎴 Building booking cards with accordion grouping');
+    BMA_LOG.log('Building booking cards with accordion grouping');
     buildRestaurantCards(validBookings, openingHours, date);
 
     // Update badge
@@ -4375,7 +4324,7 @@ function groupBookingsByOpeningHours(bookings, openingHours) {
           group.bookings.push(booking);
           assigned = true;
           matchMethod = 'time-based (fallback)';
-          console.warn('⚠️ Booking', booking._id || booking.id, 'matched using time-based fallback (no openingHourId). This may be incorrect for long bookings.');
+          BMA_LOG.warn('Booking', booking._id || booking.id, 'matched using time-based fallback (no openingHourId). This may be incorrect for long bookings.');
           break;
         }
       }
@@ -4385,10 +4334,10 @@ function groupBookingsByOpeningHours(bookings, openingHours) {
     if (!assigned) {
       OTHER_GROUP.bookings.push(booking);
       if (booking.openingHourId) {
-        console.warn('⚠️ Booking', booking._id || booking.id, 'has openingHourId:', booking.openingHourId, 'but no matching period found');
+        BMA_LOG.warn('Booking', booking._id || booking.id, 'has openingHourId:', booking.openingHourId, 'but no matching period found');
       }
     } else {
-      console.log('✓ Booking', booking._id || booking.id, 'matched to period using:', matchMethod);
+      BMA_LOG.log('Booking', booking._id || booking.id, 'matched to period using:', matchMethod);
     }
   });
 
@@ -4438,7 +4387,7 @@ function buildRestaurantGanttChart(bookings, date, openingHours = [], specialEve
 
   if (!ganttOpeningHours || ganttOpeningHours.length === 0) {
     // Fallback: Full day view if no opening hours available
-    console.warn('⚠️ No opening hours available, using full day view (00:00-23:59)');
+    BMA_LOG.warn('No opening hours available, using full day view (00:00-23:59)');
     ganttOpeningHours = [{
       open: 0,     // 12:00 AM (midnight)
       close: 2359, // 11:59 PM
@@ -4446,7 +4395,7 @@ function buildRestaurantGanttChart(bookings, date, openingHours = [], specialEve
       duration: 120
     }];
   } else {
-    console.log('✓ Using opening hours for gantt:', ganttOpeningHours.length, 'periods');
+    BMA_LOG.log('Using opening hours for gantt:', ganttOpeningHours.length, 'periods');
   }
 
   const availableTimes = []; // No availability indication needed for summary view
@@ -4474,7 +4423,7 @@ function buildRestaurantGanttChart(bookings, date, openingHours = [], specialEve
 
     if (date === today) {
       // Today: scroll to current time
-      console.log('📍 Auto-scrolling gantt to current time');
+      BMA_LOG.log('Auto-scrolling gantt to current time');
       scrollGanttToTime('restaurant-summary-gantt', 'now', false);
     } else if (bookings.length > 0) {
       // Future date: scroll to first booking + 60 minutes
@@ -4492,7 +4441,7 @@ function buildRestaurantGanttChart(bookings, date, openingHours = [], specialEve
             targetHours += 1;
           }
           const targetTime = (targetHours * 100) + targetMinutes;
-          console.log('📍 Auto-scrolling gantt to first booking +60min:', firstBooking.time, '→', `${targetHours}:${String(targetMinutes).padStart(2, '0')}`);
+          BMA_LOG.log('Auto-scrolling gantt to first booking +60min:', firstBooking.time, '→', `${targetHours}:${String(targetMinutes).padStart(2, '0')}`);
           scrollGanttToTime('restaurant-summary-gantt', targetTime, false);
         }
       }
@@ -4583,7 +4532,7 @@ function buildRestaurantCards(bookings, openingHours = [], date = '') {
     const comments = booking.comments || [];
 
     // Debug allergies extraction
-    console.log('🍎 Allergies for', guestName, ':', {
+    BMA_LOG.log('Allergies for', guestName, ':', {
       dietaryField,
       allergies,
       otherDietaryField,
@@ -6212,16 +6161,16 @@ async function openGroupManagementModal(resosBookingId, hotelBookingId, date, re
   GROUP_MODAL_STATE.resosBooking = { time: resosTime, guest_name: resosGuest, people: resosPeople };
   GROUP_MODAL_STATE.leadBookingId = resosBookingRef; // The booking ID from ResOS "Booking #" field
 
-  console.log('BMA: openGroupManagementModal - resosBookingRef (lead):', resosBookingRef);
-  console.log('BMA: openGroupManagementModal - groupExcludeField raw:', groupExcludeField);
+  BMA_LOG.log('openGroupManagementModal - resosBookingRef (lead):', resosBookingRef);
+  BMA_LOG.log('openGroupManagementModal - groupExcludeField raw:', groupExcludeField);
   GROUP_MODAL_STATE.groupExcludeData = parseGroupExcludeField(groupExcludeField);
-  console.log('BMA: openGroupManagementModal - parsed groupExcludeData:', GROUP_MODAL_STATE.groupExcludeData);
+  BMA_LOG.log('openGroupManagementModal - parsed groupExcludeData:', GROUP_MODAL_STATE.groupExcludeData);
 
   // Show modal
   modal.classList.remove('hidden');
 
   // Show ResOS booking info
-  console.log('BMA: ResOS data - time:', resosTime, 'guest:', resosGuest, 'people:', resosPeople);
+  BMA_LOG.log('ResOS data - time:', resosTime, 'guest:', resosGuest, 'people:', resosPeople);
   const time = (resosTime && resosTime.trim()) || 'N/A';
   const guestName = (resosGuest && resosGuest.trim()) || 'Unknown';
   const people = resosPeople || '0';
@@ -6281,7 +6230,7 @@ function parseGroupExcludeField(fieldValue) {
     }
   });
 
-  console.log('BMA: parseGroupExcludeField - input:', fieldValue, 'output:', result);
+  BMA_LOG.log('parseGroupExcludeField - input:', fieldValue, 'output:', result);
   return result;
 }
 
@@ -6342,7 +6291,7 @@ function renderBookingsTable(bookings) {
     const isLeadBooking = String(booking.booking_id) === String(GROUP_MODAL_STATE.leadBookingId);
     const checkedAttr = isLeadBooking ? ' checked' : '';
     if (isLeadBooking) {
-      console.log('BMA: Booking', booking.booking_id, 'matches ResOS Booking # field, pre-selected as lead');
+      BMA_LOG.log('Booking', booking.booking_id, 'matches ResOS Booking # field, pre-selected as lead');
     }
     html += `<input type="radio" name="lead-booking" value="${booking.booking_id}" class="lead-radio"${checkedAttr}>`;
     html += '</td>';
@@ -6351,7 +6300,7 @@ function renderBookingsTable(bookings) {
     html += '<td>';
     const isInGroupField = groupExcludeData.groups.includes(String(booking.booking_id));
     if (isInGroupField) {
-      console.log('BMA: Booking', booking.booking_id, 'is in GROUP/EXCLUDE field, should be pre-selected');
+      BMA_LOG.log('Booking', booking.booking_id, 'is in GROUP/EXCLUDE field, should be pre-selected');
     }
     const autoChecked = isLeadBooking || isInGroupField;
     const groupCheckedAttr = autoChecked ? ' checked' : '';

@@ -27,7 +27,7 @@ const BMA_LOG = {
   }
 };
 
-BMA_LOG.log('NewBook Assistant content script loaded');
+// Content script loaded (silent - only log important events)
 
 // Load settings
 async function loadSettings() {
@@ -178,7 +178,7 @@ function handlePlannerBlockClick(event) {
 }
 
 function setupPlannerClickListeners() {
-  BMA_LOG.log('Setting up planner click listeners...');
+  BMA_LOG.log('Setting up planner click listeners');
 
   // Attach click listeners to booking blocks
   const attachListenersToBlocks = () => {
@@ -186,7 +186,7 @@ function setupPlannerClickListeners() {
     // This avoids attaching to links, spans, or other elements
     const bookingBlocks = document.querySelectorAll('div[booking_id], div[data-booking-id]');
 
-    BMA_LOG.log(`Found ${bookingBlocks.length} planner booking blocks`);
+    BMA_LOG.log('Found', bookingBlocks.length, 'planner booking blocks');
 
     bookingBlocks.forEach(block => {
       // Skip if already has listener
@@ -259,15 +259,8 @@ function detectEasyToolTipPopup() {
 }
 
 function handleEasyToolTipPopup(popupElement) {
-  BMA_LOG.log('EasyToolTip element detected:', {
-    id: popupElement.id,
-    classes: popupElement.className,
-    hasPermanent: popupElement.classList.contains('permanent')
-  });
-
   // Check if already processed
   if (popupElement.dataset.nbAssistantProcessed) {
-    BMA_LOG.log('Already processed this tooltip');
     return;
   }
 
@@ -326,15 +319,8 @@ function handleEasyToolTipPopup(popupElement) {
 const processedPopupBookings = new Set();
 
 function handleBookingPopup(popupElement) {
-  BMA_LOG.log('handleBookingPopup called, element:', {
-    tagName: popupElement.tagName,
-    classList: popupElement.className,
-    display: popupElement.style.display
-  });
-
   // Check if we've already processed this popup element
   if (popupElement.dataset.nbAssistantProcessed) {
-    BMA_LOG.log('Already processed this popup element');
     return;
   }
 
@@ -349,7 +335,6 @@ function handleBookingPopup(popupElement) {
   }
 
   if (!bookingId) {
-    BMA_LOG.log('No booking ID found in popup class name');
     return;
   }
 
@@ -633,8 +618,6 @@ function setupSessionLockDetection() {
     attributes: true,
     attributeFilter: ['style', 'class']
   });
-
-  BMA_LOG.log('Session lock observer active');
 }
 
 // Check if sidepanel is already open on initialization
@@ -677,7 +660,7 @@ async function init() {
   // Show floating button to prompt user to open sidepanel (only if not already open)
   setTimeout(createOpenButton, 1000); // Small delay to let page load
 
-  BMA_LOG.log('NewBook Assistant ready');
+  BMA_LOG.log('NewBook Assistant content script ready');
 }
 
 // Start
