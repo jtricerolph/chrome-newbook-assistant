@@ -6511,31 +6511,51 @@ function initializeGroupModal() {
 /**
  * Query the content script for the current session lock status
  * This ensures we know the actual lock state before deciding to show/hide the lock screen
+ * Uses retry logic to handle race conditions where content script isn't ready yet
  * @returns {Promise<boolean>} True if session is locked, false otherwise
  */
 async function queryCurrentSessionLockStatus() {
-  try {
-    // Get the active tab
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab) {
-      BMA_LOG.log('No active tab found for lock status query');
+  const maxRetries = 3;
+  const retryDelay = 100; // ms
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      // Get the active tab
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!tab) {
+        BMA_LOG.log('No active tab found for lock status query');
+        return false;
+      }
+
+      // Small delay on first attempt to let content script initialize
+      if (attempt === 1) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+
+      // Send message to content script asking for current lock status
+      const response = await chrome.tabs.sendMessage(tab.id, {
+        action: 'getSessionLockStatus'
+      });
+
+      const isLocked = response?.isLocked ?? false;
+      BMA_LOG.log(`Queried session lock status from content script (attempt ${attempt}):`, isLocked ? 'LOCKED' : 'UNLOCKED');
+
+      return isLocked;
+    } catch (error) {
+      // If content script isn't ready yet, retry
+      if (error.message?.includes('Receiving end does not exist') && attempt < maxRetries) {
+        BMA_LOG.log(`Content script not ready (attempt ${attempt}/${maxRetries}), retrying...`);
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        continue;
+      }
+
+      // Other errors or max retries reached
+      BMA_LOG.log(`Could not query session lock status after ${attempt} attempts:`, error.message);
       return false;
     }
-
-    // Send message to content script asking for current lock status
-    const response = await chrome.tabs.sendMessage(tab.id, {
-      action: 'getSessionLockStatus'
-    });
-
-    const isLocked = response?.isLocked ?? false;
-    BMA_LOG.log('Queried session lock status from content script:', isLocked ? 'LOCKED' : 'UNLOCKED');
-
-    return isLocked;
-  } catch (error) {
-    BMA_LOG.log('Could not query session lock status:', error);
-    // Default to false if query fails
-    return false;
   }
+
+  return false;
 }
 
 // Initialize
