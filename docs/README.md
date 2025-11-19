@@ -127,6 +127,35 @@ Quick reference guide for commonly used functions.
 
 ---
 
+### [CSS_STYLING_GUIDE.md](CSS_STYLING_GUIDE.md)
+Complete CSS styling guide for all UI components and booking creation enhancements.
+
+**Contents:**
+- Core component styles (date sections, booking headers, collapsible sections)
+- Gantt chart container and elements
+- Time slot button grid
+- Form feedback messages and validation
+- Navigation links and buttons
+- Enhanced form rows and inputs
+- Color palette reference
+- Animation and timing specifications
+- Responsive design patterns
+- Accessibility enhancements
+- Testing guidelines
+- Performance considerations
+- Print styles and dark mode support
+
+**Best for:**
+- Understanding UI component styling
+- Implementing new UI elements
+- Maintaining design consistency
+- Accessibility compliance
+- Responsive layout adjustments
+- Debugging styling issues
+- Learning the color palette and design system
+
+---
+
 ## Quick Start Guide
 
 ### For New Developers
@@ -134,8 +163,9 @@ Quick reference guide for commonly used functions.
 1. **Start with [ARCHITECTURE.md](ARCHITECTURE.md)** to understand the overall system
 2. **Read [MESSAGE_PASSING_REFERENCE.md](MESSAGE_PASSING_REFERENCE.md)** to understand component communication
 3. **Review [STATE_MANAGEMENT.md](STATE_MANAGEMENT.md)** to understand state patterns
-4. **Keep [FUNCTION_CHEAT_SHEET.md](FUNCTION_CHEAT_SHEET.md)** open for quick reference
-5. **Use [FUNCTION_REFERENCE.md](FUNCTION_REFERENCE.md)** for detailed function documentation
+4. **Read [CSS_STYLING_GUIDE.md](CSS_STYLING_GUIDE.md)** to understand UI styling and design system
+5. **Keep [FUNCTION_CHEAT_SHEET.md](FUNCTION_CHEAT_SHEET.md)** open for quick reference
+6. **Use [FUNCTION_REFERENCE.md](FUNCTION_REFERENCE.md)** for detailed function documentation
 
 ### For Experienced Developers
 
@@ -143,13 +173,15 @@ Quick reference guide for commonly used functions.
 2. **Refer to [FUNCTION_REFERENCE.md](FUNCTION_REFERENCE.md)** for detailed specs
 3. **Check [MESSAGE_PASSING_REFERENCE.md](MESSAGE_PASSING_REFERENCE.md)** for message protocols
 4. **Review [STATE_MANAGEMENT.md](STATE_MANAGEMENT.md)** for state patterns
+5. **Consult [CSS_STYLING_GUIDE.md](CSS_STYLING_GUIDE.md)** for UI styling
 
 ### For Debugging
 
 1. **[MESSAGE_PASSING_REFERENCE.md](MESSAGE_PASSING_REFERENCE.md)** - Message flow issues
 2. **[STATE_MANAGEMENT.md](STATE_MANAGEMENT.md)** - State synchronization issues
 3. **[FUNCTION_REFERENCE.md](FUNCTION_REFERENCE.md)** - Function behavior
-4. **[ARCHITECTURE.md](ARCHITECTURE.md)** - System-level issues
+4. **[CSS_STYLING_GUIDE.md](CSS_STYLING_GUIDE.md)** - Styling and UI issues
+5. **[ARCHITECTURE.md](ARCHITECTURE.md)** - System-level issues
 
 ---
 
@@ -185,7 +217,8 @@ docs/
 ├── FUNCTION_REFERENCE.md         # Function documentation
 ├── MESSAGE_PASSING_REFERENCE.md  # Message passing guide
 ├── STATE_MANAGEMENT.md           # State management guide
-└── FUNCTION_CHEAT_SHEET.md       # Quick reference
+├── FUNCTION_CHEAT_SHEET.md       # Quick reference
+└── CSS_STYLING_GUIDE.md          # CSS styling guide
 ```
 
 ---
