@@ -3689,6 +3689,16 @@ function switchTab(tabName) {
     STATE.scrollPositions[STATE.currentTab] = currentContent.scrollTop;
   }
 
+  // Clear non-sticky bookings when leaving Restaurant/Checks tabs
+  const leavingRestaurantOrChecks = (STATE.currentTab === 'restaurant' || STATE.currentTab === 'checks') &&
+                                    (tabName !== 'restaurant' && tabName !== 'checks');
+  if (leavingRestaurantOrChecks && !STATE.isUrlTriggerBooking && STATE.currentBookingId) {
+    BMA_LOG.log('Leaving Restaurant/Checks tab - clearing non-sticky booking:', STATE.currentBookingId);
+    STATE.currentBookingId = null;
+    STATE.isUrlTriggerBooking = false;
+    chrome.storage.local.remove(['currentBookingId', 'isUrlTriggerBooking']);
+  }
+
   // Update state
   STATE.currentTab = tabName;
 
@@ -6047,21 +6057,26 @@ document.querySelectorAll('.tab-button').forEach(button => {
     if (tabName === 'restaurant') {
       // Check if we're on a URL trigger pattern
       const urlTrigger = await checkUrlTriggerPattern();
+      const isAlreadyOnRestaurant = STATE.currentTab === 'restaurant';
+      const hasCurrentBooking = !!STATE.currentBookingId;
 
       if (urlTrigger && urlTrigger.bookingId) {
         // On a URL trigger - preserve the booking (sticky)
         BMA_LOG.log('Restaurant tab clicked - on URL trigger, preserving booking:', urlTrigger.bookingId);
         STATE.currentBookingId = urlTrigger.bookingId;
         STATE.isUrlTriggerBooking = true;
-      } else if (!STATE.navigationContext?.preserveBookingId) {
-        // Not on URL trigger and no navigation context - clear booking
-        BMA_LOG.log('Restaurant tab button clicked manually - clearing booking context');
+      } else if (STATE.navigationContext?.preserveBookingId) {
+        // Has navigation context (active planner/popup click) - preserve temporarily
+        BMA_LOG.log('Restaurant tab button clicked with navigation context - preserving booking:', STATE.currentBookingId);
+      } else if (isAlreadyOnRestaurant && hasCurrentBooking) {
+        // Already on Restaurant tab with a booking loaded - preserve it (don't clear on re-click)
+        BMA_LOG.log('Restaurant tab re-clicked - preserving current booking:', STATE.currentBookingId);
+      } else {
+        // Clicking from another tab with no active trigger - clear booking to show summary
+        BMA_LOG.log('Restaurant tab button clicked from another tab - clearing booking context');
         STATE.currentBookingId = null;
         STATE.isUrlTriggerBooking = false;
         chrome.storage.local.remove(['currentBookingId', 'isUrlTriggerBooking']);
-      } else {
-        // Has navigation context (planner click) - preserve temporarily
-        BMA_LOG.log('Restaurant tab button clicked with navigation context - preserving booking');
       }
     }
 
