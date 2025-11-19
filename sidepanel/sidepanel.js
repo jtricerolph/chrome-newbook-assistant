@@ -5117,9 +5117,22 @@ function checkForActiveWork() {
     return { type: 'expanded-booking', element: expandedCards[0] };
   }
 
-  // Check for open create booking form
+  // Check for open create booking form (state flag)
   if (STATE.createFormOpen) {
     return { type: 'create-form-open' };
+  }
+
+  // Check for open create booking form (DOM check as backup)
+  const createForms = document.querySelectorAll('[id^="create-form-"]');
+  for (const form of createForms) {
+    if (form.style.display === 'block') {
+      // Update state flag if out of sync
+      if (!STATE.createFormOpen) {
+        BMA_LOG.log('Warning: create form open in DOM but state flag was false - correcting');
+        STATE.createFormOpen = true;
+      }
+      return { type: 'create-form-open', element: form };
+    }
   }
 
   // Check for open comparison rows
