@@ -233,6 +233,94 @@ function setupPlannerClickListeners() {
   });
 }
 
+// Setup click listeners for planner date header cells
+function setupPlannerDateHeaderListeners() {
+  BMA_LOG.log('Setting up planner date header click listeners');
+
+  // Only run on bookings_chart page
+  if (!window.location.pathname.includes('bookings_chart')) {
+    return;
+  }
+
+  const attachListenersToHeaders = () => {
+    // Find all th elements with chart_date attribute
+    const dateHeaders = document.querySelectorAll('th[chart_date]');
+
+    BMA_LOG.log('Found', dateHeaders.length, 'planner date headers');
+
+    dateHeaders.forEach(header => {
+      // Skip if already has listener
+      if (header.dataset.nbAssistantDateListener) return;
+
+      header.addEventListener('click', (e) => {
+        // Don't interfere with any existing functionality
+        const chartDate = header.getAttribute('chart_date');
+        if (!chartDate) return;
+
+        BMA_LOG.log('Planner date header clicked:', chartDate);
+
+        // Parse the date (format: "Sat 29 Nov 2025")
+        try {
+          const date = new Date(chartDate);
+          if (isNaN(date.getTime())) {
+            BMA_LOG.log('Could not parse date:', chartDate);
+            return;
+          }
+
+          // Format as YYYY-MM-DD
+          const formattedDate = date.toISOString().split('T')[0];
+          BMA_LOG.log('Opening staying tab for date:', formattedDate);
+
+          // Send message to sidepanel to open staying tab with this date
+          chrome.runtime.sendMessage({
+            action: 'openStayingTab',
+            date: formattedDate,
+            source: 'planner-date-header'
+          }).catch(error => {
+            BMA_LOG.log('Could not send planner date header click message:', error);
+          });
+        } catch (error) {
+          BMA_LOG.log('Error parsing date from header:', error);
+        }
+      });
+
+      header.dataset.nbAssistantDateListener = 'true';
+      // Add visual feedback that it's clickable
+      header.style.cursor = 'pointer';
+    });
+  };
+
+  // Setup listeners for existing headers
+  attachListenersToHeaders();
+
+  // Watch for new headers being added (planner navigation, etc.)
+  let debounceTimer = null;
+  const headerListenerObserver = new MutationObserver((mutations) => {
+    let hasNewHeaders = false;
+    for (const mutation of mutations) {
+      for (const node of mutation.addedNodes) {
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          if (node.matches && (node.matches('th[chart_date]') || node.querySelector('th[chart_date]'))) {
+            hasNewHeaders = true;
+            break;
+          }
+        }
+      }
+      if (hasNewHeaders) break;
+    }
+
+    if (hasNewHeaders) {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(attachListenersToHeaders, 100);
+    }
+  });
+
+  headerListenerObserver.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+}
+
 // EasyToolTip Popup Detection (Preview Popup)
 // Note: easyToolTip is NewBook's preview popup that opens on double-click
 // This is NOT a hover tooltip - it's a full popup dialog
@@ -647,6 +735,9 @@ async function init() {
 
   // Set up planner click detection with dynamic listeners
   setupPlannerClickListeners();
+
+  // Set up planner date header click listeners
+  setupPlannerDateHeaderListeners();
 
   // NOTE: easyToolTip detection disabled - it triggers on hover tooltips too
   // detectEasyToolTipPopup();

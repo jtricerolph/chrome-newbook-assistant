@@ -6042,6 +6042,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     } else {
       BMA_LOG.log('Ignoring plannerClick message (setting disabled)');
     }
+  } else if (message.action === 'openStayingTab') {
+    BMA_LOG.log('Processing openStayingTab message for date:', message.date);
+    // Switch to staying tab and load the specified date
+    switchTab('staying');
+    // Load staying data for the clicked date
+    if (message.date && typeof window.loadStayingTab === 'function') {
+      // Set a small timeout to ensure tab switch completes first
+      setTimeout(() => {
+        window.loadStayingTab(message.date);
+      }, 100);
+    }
   } else if (message.action === 'sessionLockChanged') {
     BMA_LOG.log('Processing sessionLockChanged message:', message.isLocked);
     AuthManager.handleSessionLock(message.isLocked);
