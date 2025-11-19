@@ -1931,13 +1931,17 @@ function attachSummaryEventListeners(container) {
       const bookingId = this.dataset.bookingId;
       const date = this.dataset.date;
       const resosId = this.dataset.resosId;
-      BMA_LOG.log('Suggested match clicked - navigating to Restaurant tab:', { bookingId, date, resosId });
+      BMA_LOG.log('Clickable issue clicked - navigating to Restaurant tab:', { bookingId, date, resosId });
 
-      // Navigate to Restaurant tab with date and expand comparison row
+      // Navigate to Restaurant tab with date and expand comparison row OR create form
       if (date && resosId) {
+        // Has both date and resosId - expand comparison row
         navigateToRestaurantDate(date, parseInt(bookingId), resosId);
+      } else if (date) {
+        // Has date but no resosId - expand create form
+        navigateToRestaurantDate(date, parseInt(bookingId));
       } else {
-        // Fallback if data attributes not available (shouldn't happen with updated templates)
+        // Fallback if no date (shouldn't happen with updated templates)
         STATE.currentBookingId = bookingId;
         switchTab('restaurant');
       }
