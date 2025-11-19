@@ -1604,17 +1604,10 @@ const AuthManager = {
     // Update lock screen visibility
     if (isLocked) {
       this.showLockScreen();
-    } else if (STATE.newbookAuth.isAuthenticated) {
-      // Check current URL before hiding - don't unlock if still on login page
-      const { isLoginPage } = await this.checkCurrentPageUrl();
-
-      if (!isLoginPage) {
-        BMA_LOG.log('Session unlocked and not on login page, hiding lock screen');
-        this.hideLockScreen();
-      } else {
-        BMA_LOG.log('Session unlocked but still on login page, keeping lock screen visible');
-        this.showLockScreen();
-      }
+    } else {
+      // Session unlocked - re-verify authentication and URL
+      // This ensures we stay locked if user was logged out (timeout redirect to login page)
+      await this.updateAuthState();
     }
   },
 
