@@ -5106,9 +5106,61 @@ function resetInactivityTimer() {
   }
 }
 
+/**
+ * Check if user has active work in progress that shouldn't be interrupted
+ * @returns {Object|null} Returns interrupt info if user has active work, null otherwise
+ */
+function checkForActiveWork() {
+  // Check for expanded booking cards in Summary tab
+  const expandedCards = document.querySelectorAll('.booking-card.expanded');
+  if (expandedCards.length > 0) {
+    return { type: 'expanded-booking', element: expandedCards[0] };
+  }
+
+  // Check for open create booking form
+  if (STATE.createFormOpen) {
+    return { type: 'create-form-open' };
+  }
+
+  // Check for open comparison rows
+  const comparisonContainers = document.querySelectorAll('[id^="comparison-"]');
+  for (const container of comparisonContainers) {
+    if (container.style.display === 'block') {
+      return { type: 'comparison-open', element: container };
+    }
+  }
+
+  return null; // No active work
+}
+
 // Booking Detection Handler
 function handleBookingDetected(bookingId, isUrlTrigger = true) {
   BMA_LOG.log('Booking detected, updating sidepanel for booking:', bookingId, 'isUrlTrigger:', isUrlTrigger);
+
+  // Check if user has active work in progress
+  const activeWork = checkForActiveWork();
+  if (activeWork) {
+    BMA_LOG.log('Interrupt prevented - user has active work:', activeWork.type);
+    BMA_LOG.log('Booking', bookingId, 'detection deferred until user completes current task');
+
+    // Store the booking ID but don't switch tabs yet
+    STATE.currentBookingId = bookingId;
+    STATE.isUrlTriggerBooking = isUrlTrigger;
+    chrome.storage.local.set({
+      currentBookingId: bookingId,
+      isUrlTriggerBooking: isUrlTrigger
+    });
+
+    // Load data silently in background for badges but don't switch tabs
+    Promise.all([
+      loadRestaurantTabSilently(),
+      loadChecksTabSilently()
+    ]).then(() => {
+      BMA_LOG.log('Booking data loaded silently - badges updated, waiting for user to finish current task');
+    });
+
+    return; // Don't proceed with tab switching
+  }
 
   // Clear loadedBookingIds only if switching to a different booking
   if (STATE.currentBookingId !== bookingId) {
