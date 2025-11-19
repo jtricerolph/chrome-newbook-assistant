@@ -10,12 +10,18 @@ body {
   color: #1f2937;
   line-height: 1.6;
   overflow: hidden;
+  zoom: 90%; /* Set sidepanel zoom to 90% */
+}
+
+/* Utility Classes */
+.hidden {
+  display: none !important;
 }
 
 .sidepanel-container {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 111.11vh; /* Compensate for 90% zoom (100 / 0.9 = 111.11) */
 }
 
 /* Tab Navigation */
@@ -93,9 +99,20 @@ body {
 /* Tab Contents */
 .tab-contents {
   flex: 1;
-  overflow-y: auto;
+  overflow-y: scroll; /* Always show scrollbar to prevent content shift */
   overflow-x: visible; /* Allow timeline indicators to show beyond edges */
-  scrollbar-gutter: stable; /* Reserve space for scrollbar to prevent width jumping */
+}
+
+/* Disable scrolling when Summary tab is active - panes handle their own scrolling */
+.tab-contents:has([data-content="summary"].active) {
+  overflow: hidden !important;
+}
+
+/* Disable scrolling when Restaurant tab is active AND summary view is visible - restaurant-cards-section handles scrolling */
+.tab-contents:has([data-content="restaurant"].active):has(.restaurant-summary-view:not(.hidden)) {
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
 }
 
 .tab-content {
@@ -106,7 +123,8 @@ body {
 .tab-content.active {
   display: flex;
   flex-direction: column;
-  min-height: 100%;
+  flex: 1; /* Fill available space */
+  min-height: 0; /* Allow flex shrinking */
 }
 
 /* Tab data area - grows to fill space, pushing last-updated to bottom */
@@ -163,6 +181,28 @@ body {
 /* Add bottom padding to restaurant tab to allow last night to scroll to top */
 [data-content="restaurant"] .tab-data {
   padding-bottom: 60vh;
+}
+
+/* Activity Tab (formerly Summary) - Single scrollable list */
+[data-content="summary"].tab-content.active {
+  display: grid;
+  grid-template-rows: 1fr auto; /* Data fills space, countdown is auto-sized */
+  height: 100%; /* Fill parent height */
+}
+
+[data-content="summary"] .tab-data {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.summary-activity-content {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 16px;
 }
 
 /* Error State */
@@ -238,25 +278,38 @@ body {
 .summary-countdown {
   position: sticky;
   bottom: 0;
+  flex-shrink: 0;
   background-color: #f3f4f6;
   border-top: 1px solid #e5e7eb;
-  padding: 8px 16px;
+  padding: 6px 12px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 4px;
-  font-size: 13px;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
   color: #6b7280;
   z-index: 50;
-  flex-wrap: wrap;
 }
 
 .summary-countdown.hidden {
   display: none;
 }
 
+.countdown-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.countdown-text {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .summary-countdown .material-symbols-outlined {
-  font-size: 18px;
+  font-size: 16px;
 }
 
 .countdown-text strong {
@@ -265,10 +318,8 @@ body {
 }
 
 .last-updated-text {
-  font-size: 11px;
+  font-size: 10px;
   color: #9ca3af;
-  width: 100%;
-  text-align: center;
 }
 
 /* Tab Last Updated (for Restaurant, Checks, Staying tabs) */
@@ -326,6 +377,11 @@ body {
 
 .tab-refresh-btn.refreshing .material-symbols-outlined {
   animation: spin 1s linear infinite;
+}
+
+.tab-refresh-btn.hard-refreshing .material-symbols-outlined {
+  animation: spin 1s linear infinite;
+  color: #f97316; /* Orange color to indicate "hard" refresh */
 }
 
 /* Footer */
@@ -868,6 +924,7 @@ body {
 
 .gantt-viewport-container::-webkit-scrollbar {
   height: 6px;
+  width: 6px;
 }
 
 .gantt-viewport-container::-webkit-scrollbar-track {
@@ -956,6 +1013,14 @@ body {
   border-right-style: dashed;
 }
 
+.gantt-booking-bar.gantt-bar-highlighted {
+  border: 3px solid #fbbf24 !important;
+  box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.3), 0 4px 6px rgba(0, 0, 0, 0.2) !important;
+  z-index: 50 !important;
+  transform: scale(1.05);
+  transition: all 0.2s ease;
+}
+
 /* Tooltip for booking bar hover */
 .gantt-booking-tooltip {
   position: fixed;
@@ -998,29 +1063,111 @@ body {
 
 .period-header {
   width: 100%;
-  padding: 8px 12px;
+  padding: 12px 16px;
   background: #f9fafb;
   border: none;
   border-bottom: 1px solid #e5e7eb;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
+  gap: 12px;
   font-size: 12px;
   font-weight: 600;
   color: #374151;
   text-align: left;
-  transition: background-color 0.2s ease;
+  transition: all 0.2s ease;
 }
 
 .period-header:hover {
   background: #f3f4f6;
 }
 
-.period-header.expanded {
+.service-period-section.expanded .period-header {
   background: #eff6ff;
   color: #1e40af;
   border-bottom-color: #3b82f6;
+}
+
+.period-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.period-name {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.service-period-section.expanded .period-name {
+  color: #1e40af;
+}
+
+.period-times {
+  font-size: 11px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.period-badges {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.period-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.period-badge .material-symbols-outlined {
+  font-size: 14px;
+}
+
+.period-badge.bookings-badge {
+  color: #3b82f6;
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
+
+.period-badge.pax-badge {
+  color: #10b981;
+  border-color: #10b981;
+  background: #ecfdf5;
+}
+
+.period-expand-icon {
+  font-size: 16px;
+  color: #6b7280;
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.service-period-section.expanded .period-expand-icon {
+  transform: rotate(180deg);
+  color: #3b82f6;
+}
+
+.period-bookings {
+  display: none;
+  padding: 8px;
+  background: white;
+}
+
+.service-period-section.expanded .period-bookings {
+  display: block;
 }
 
 .period-header .collapse-icon {
@@ -1571,6 +1718,710 @@ button[data-action].loading::after {
 }
 
 /* Staying tab CSS has been moved to API template (chrome-staying-response.php) for centralized maintenance */
+
+/* ========================================
+   RESTAURANT TAB STYLES
+   ======================================== */
+
+/* Restaurant Summary View Layout */
+.restaurant-summary-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.restaurant-summary-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1; /* Fill available space in flex parent (.tab-content.active) */
+  min-height: 0; /* Critical: Allow flex shrinking for scroll */
+  overflow: hidden; /* Prevent overflow from breaking layout */
+}
+
+.restaurant-detail-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Restaurant Date Picker (fixed at top) */
+.restaurant-date-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0; /* Don't shrink - stay fixed at top */
+  z-index: 10;
+}
+
+.restaurant-date-picker .gantt-scroll-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  margin-left: auto; /* Push to right side */
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.restaurant-date-picker .gantt-scroll-btn:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.restaurant-date-picker .gantt-scroll-btn .material-symbols-outlined {
+  font-size: 16px;
+}
+
+/* Restaurant Gantt Section (auto-expands to fit bookings) */
+.restaurant-gantt-section {
+  min-height: 200px;
+  border-bottom: 1px solid #e5e7eb;
+  background: white;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0; /* Don't shrink - stay fixed at top */
+}
+
+.restaurant-gantt-section .bma-gantt-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.restaurant-gantt-section .bma-gantt-header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.restaurant-gantt-section .bma-gantt-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.restaurant-gantt-section .gantt-scroll-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.restaurant-gantt-section .gantt-scroll-btn:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.restaurant-gantt-section .gantt-scroll-btn .material-symbols-outlined {
+  font-size: 16px;
+}
+
+.restaurant-gantt-section .gantt-viewport-container {
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* Restaurant Cards Section (scrollable, fills remaining space) */
+.restaurant-cards-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0; /* Critical for flex scrolling */
+}
+
+.restaurant-cards-container {
+  flex: 1;
+  min-height: 0; /* Critical: Allow flex to constrain height for scrolling */
+  overflow-y: scroll; /* Always show scrollbar to prevent content shift */
+  padding: 8px 0 100px 0; /* Bottom padding for scroll space */
+  margin: 0 -16px; /* Extend to edges */
+  overflow-x: clip;
+}
+
+.restaurant-cards-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: #9ca3af;
+  text-align: center;
+  flex: 1;
+}
+
+.restaurant-cards-empty .material-symbols-outlined {
+  font-size: 48px;
+  margin-bottom: 12px;
+  opacity: 0.5;
+}
+
+/* Restaurant Booking Card */
+.restaurant-card {
+  background: white;
+  border: 2px solid #d1d5db;
+  border-radius: 8px;
+  margin: 0 23px 5px 23px;
+  transition: all 0.2s;
+  position: relative;
+  overflow: visible;
+}
+
+.restaurant-card:hover {
+  border-color: #9ca3af;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* Status-based colored left borders */
+.restaurant-card[data-status="approved"] {
+  border-left: 4px solid #10b981; /* Green - Confirmed/Approved */
+}
+
+.restaurant-card[data-status="request"] {
+  border-left: 4px solid #f59e0b; /* Orange - Pending Request */
+}
+
+.restaurant-card[data-status="arrived"] {
+  border-left: 4px solid #fb923c; /* Light Red - Guest Arrived */
+}
+
+.restaurant-card[data-status="seated"] {
+  border-left: 4px solid #dc2626; /* Dark Red - Guest Seated */
+}
+
+.restaurant-card[data-status="left"] {
+  border-left: 4px solid #8b5cf6; /* Purple - Completed/Left */
+}
+
+.restaurant-card[data-status="waitlist"] {
+  border-left: 4px solid #eab308; /* Yellow - Waitlist */
+}
+
+.restaurant-card[data-status="declined"] {
+  border-left: 4px solid #4b5563; /* Dark Gray - Declined */
+}
+
+.restaurant-card[data-status="canceled"],
+.restaurant-card[data-status="cancelled"] {
+  border-left: 4px solid #94a3b8; /* Light Gray - Cancelled */
+}
+
+/* Restaurant Card Header (clickable) */
+.restaurant-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap; /* Allow wrapped content (for grouped rooms) */
+  gap: 8px;
+  padding: 8px;
+  cursor: pointer;
+  background: white;
+  border-radius: 6px;
+  transition: background-color 0.15s;
+}
+
+.restaurant-header:hover {
+  background-color: #f9fafb;
+}
+
+/* Status-based hover colors */
+.restaurant-card[data-status="approved"] .restaurant-header:hover {
+  background-color: rgba(16, 185, 129, 0.1); /* Green */
+}
+
+.restaurant-card[data-status="request"] .restaurant-header:hover {
+  background-color: rgba(245, 158, 11, 0.1); /* Orange */
+}
+
+.restaurant-card[data-status="arrived"] .restaurant-header:hover {
+  background-color: rgba(251, 146, 60, 0.1); /* Light Red */
+}
+
+.restaurant-card[data-status="seated"] .restaurant-header:hover {
+  background-color: rgba(220, 38, 38, 0.1); /* Dark Red */
+}
+
+.restaurant-card[data-status="left"] .restaurant-header:hover {
+  background-color: rgba(139, 92, 246, 0.1); /* Purple */
+}
+
+.restaurant-card[data-status="waitlist"] .restaurant-header:hover {
+  background-color: rgba(234, 179, 8, 0.1); /* Yellow */
+}
+
+.restaurant-card[data-status="declined"] .restaurant-header:hover {
+  background-color: rgba(75, 85, 99, 0.1); /* Dark Gray */
+}
+
+.restaurant-card[data-status="canceled"] .restaurant-header:hover,
+.restaurant-card[data-status="cancelled"] .restaurant-header:hover {
+  background-color: rgba(148, 163, 184, 0.1); /* Light Gray */
+}
+
+.restaurant-card.expanded .restaurant-header {
+  background-color: #eff6ff;
+  border-bottom: 1px solid #e5e7eb;
+  border-radius: 6px 6px 0 0;
+}
+
+/* Status-based expanded colors */
+.restaurant-card[data-status="approved"].expanded .restaurant-header {
+  background-color: rgba(16, 185, 129, 0.15); /* Green */
+}
+
+.restaurant-card[data-status="request"].expanded .restaurant-header {
+  background-color: rgba(245, 158, 11, 0.15); /* Orange */
+}
+
+.restaurant-card[data-status="arrived"].expanded .restaurant-header {
+  background-color: rgba(251, 146, 60, 0.15); /* Light Red */
+}
+
+.restaurant-card[data-status="seated"].expanded .restaurant-header {
+  background-color: rgba(220, 38, 38, 0.15); /* Dark Red */
+}
+
+.restaurant-card[data-status="left"].expanded .restaurant-header {
+  background-color: rgba(139, 92, 246, 0.15); /* Purple */
+}
+
+.restaurant-card[data-status="waitlist"].expanded .restaurant-header {
+  background-color: rgba(234, 179, 8, 0.15); /* Yellow */
+}
+
+.restaurant-card[data-status="declined"].expanded .restaurant-header {
+  background-color: rgba(75, 85, 99, 0.15); /* Dark Gray */
+}
+
+.restaurant-card[data-status="canceled"].expanded .restaurant-header,
+.restaurant-card[data-status="cancelled"].expanded .restaurant-header {
+  background-color: rgba(148, 163, 184, 0.15); /* Light Gray */
+}
+
+/* Restaurant Header Content */
+.restaurant-main-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  flex-wrap: wrap;
+  order: 1; /* First on line */
+}
+
+/* Grouped rooms (for booking groups) */
+.restaurant-grouped-rooms {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-basis: 100%; /* Force to new line */
+  padding-left: 16px;
+  margin-top: 4px;
+  font-size: 12px;
+  order: 3; /* After expand icon, wraps to second line */
+}
+
+.restaurant-grouped-rooms .grouped-label {
+  color: #6b7280;
+  font-style: italic;
+}
+
+.booking-time {
+  font-weight: 600;
+  font-size: 14px;
+  color: #1f2937;
+  min-width: 50px;
+}
+
+.restaurant-card .guest-name {
+  font-size: 14px;
+  color: #374151;
+  font-weight: 500;
+}
+
+.pax-badge {
+  font-size: 13px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.source-icon.material-symbols-outlined {
+  font-size: 16px !important;
+  color: #9ca3af;
+}
+
+.room-badge {
+  background: #dbeafe;
+  color: #1e40af;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Room badges for details section */
+.room-badge-lead {
+  display: inline-block;
+  background: #1e40af;
+  color: white;
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-right: 4px;
+}
+
+.room-badge-grouped {
+  display: inline-block;
+  background: #93c5fd;
+  color: #1e3a8a;
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-right: 4px;
+}
+
+.restaurant-expand-icon {
+  margin-left: auto;
+  transition: transform 0.2s;
+  font-size: 16px;
+  color: #6b7280;
+  order: 2; /* After main-info, before grouped rooms */
+}
+
+.restaurant-card.expanded .restaurant-expand-icon {
+  transform: rotate(180deg);
+}
+
+/* Restaurant Card Details (expandable) */
+.restaurant-details {
+  display: none;
+  padding: 12px;
+  background: #fafafa;
+  border-radius: 0 0 6px 6px;
+}
+
+.restaurant-card.expanded .restaurant-details {
+  display: block;
+}
+
+/* Inline details layout */
+.restaurant-details-inline {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 16px;
+  margin-bottom: 12px;
+}
+
+.restaurant-details-inline .detail-line {
+  font-size: 13px;
+  color: #374151;
+}
+
+.restaurant-details-inline .detail-line.full-span {
+  grid-column: 1 / -1;
+}
+
+.restaurant-details-inline .detail-line strong {
+  font-weight: 600;
+  color: #6b7280;
+  margin-right: 4px;
+}
+
+.restaurant-details-inline .detail-line u {
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 2px;
+}
+
+/* Restaurant notes section */
+.restaurant-notes-section {
+  margin-top: 12px;
+}
+
+.restaurant-notes-section h4,
+.restaurant-comments-section h4 {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 8px 0;
+}
+
+.restaurant-note-box {
+  background: #eff6ff;
+  border: 1px solid #93c5fd;
+  border-radius: 4px;
+  padding: 8px;
+  margin-bottom: 6px;
+}
+
+.restaurant-note-box:last-child {
+  margin-bottom: 0;
+}
+
+.restaurant-note-box .note-text {
+  font-size: 13px;
+  color: #1e40af;
+  margin-bottom: 4px;
+  line-height: 1.4;
+}
+
+.restaurant-note-box .note-meta {
+  font-size: 9px;
+  color: #60a5fa;
+  font-style: italic;
+}
+
+/* Guest comments section */
+.restaurant-comments-section {
+  margin-top: 12px;
+}
+
+.restaurant-comment-box {
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  border-radius: 4px;
+  padding: 8px;
+  margin-bottom: 6px;
+}
+
+.restaurant-comment-box:last-child {
+  margin-bottom: 0;
+}
+
+.restaurant-comment-box .comment-text {
+  font-size: 11px;
+  color: #15803d;
+  margin-bottom: 4px;
+  line-height: 1.4;
+}
+
+.restaurant-comment-box .comment-meta {
+  font-size: 9px;
+  color: #4ade80;
+  font-style: italic;
+}
+
+/* Restaurant messages section (grey boxes) */
+.restaurant-messages-section {
+  margin-top: 12px;
+}
+
+.restaurant-messages-section h4 {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 8px 0;
+}
+
+/* Chat-style message container wrapper */
+.messages-chat-container {
+  background: #fafafa;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Base message bubble styling */
+.message-bubble {
+  width: 75%;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 4px;
+}
+
+/* Guest messages (right-aligned, green) */
+.message-bubble.message-guest {
+  align-self: flex-end;
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  margin-left: auto;
+}
+
+/* Restaurant messages (left-aligned, grey) */
+.message-bubble.message-restaurant {
+  align-self: flex-start;
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+  margin-right: auto;
+}
+
+.message-bubble .message-text {
+  font-size: 13px;
+  color: #374151;
+  margin-bottom: 4px;
+  line-height: 1.4;
+  word-wrap: break-word;
+}
+
+.message-bubble .message-meta {
+  font-size: 9px;
+  color: #9ca3af;
+  font-style: italic;
+}
+
+/* Allergy badges */
+.allergy-badges {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.allergy-badge {
+  display: inline-block;
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.allergy-badge.none-selected {
+  background: #f3f4f6;
+  color: #6b7280;
+  border: 1px solid #d1d5db;
+}
+
+.other-allergies-badge {
+  display: inline-block;
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* Allergy icon in restaurant header */
+.allergy-icon {
+  color: #dc2626;
+  font-size: 18px !important;
+  margin-left: auto;
+  margin-right: 8px;
+  order: 1;
+}
+
+/* Restaurant action buttons */
+.restaurant-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.restaurant-btn-resos,
+.restaurant-btn-newbook {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.restaurant-btn-resos {
+  background: #667eea;
+  color: white;
+}
+
+.restaurant-btn-resos:hover {
+  background: #5568d3;
+}
+
+.restaurant-btn-newbook {
+  background: #10b981;
+  color: white;
+}
+
+.restaurant-btn-newbook:hover {
+  background: #059669;
+}
+
+.restaurant-btn-resos .material-symbols-outlined,
+.restaurant-btn-newbook .material-symbols-outlined {
+  font-size: 18px !important;
+}
+
+/* Restaurant Summary Updated Footer (fixed at bottom) */
+.restaurant-summary-updated {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #f9fafb;
+  border-top: 1px solid #e5e7eb;
+  font-size: 12px;
+  color: #6b7280;
+  flex-shrink: 0; /* Don't shrink - stay fixed at bottom */
+  z-index: 10;
+}
+
+.restaurant-summary-updated .material-symbols-outlined {
+  font-size: 16px;
+}
+
+.restaurant-summary-updated .last-updated-text {
+  flex: 1;
+}
+
+.restaurant-summary-updated .tab-refresh-btn {
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.restaurant-summary-updated .tab-refresh-btn:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.restaurant-summary-updated .tab-refresh-btn .material-symbols-outlined {
+  font-size: 18px;
+  color: #374151;
+}
 
 /* ============================================
    GROUP MANAGEMENT MODAL

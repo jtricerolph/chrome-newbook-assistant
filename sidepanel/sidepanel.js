@@ -2,6 +2,8 @@
 const STATE = {
   currentTab: 'summary',
   currentBookingId: null,
+  currentTabId: null, // Track which browser tab owns this sidepanel
+  isUrlTriggerBooking: false, // Track if current booking loaded from URL trigger (sticky)
   settings: null,
   badges: {
     summary: { critical: 0, warning: 0 },
@@ -46,6 +48,8 @@ const STATE = {
     staying: 0
   }, // Track scroll positions per tab/date
   restaurantBookings: {}, // Store restaurant bookings by date: { '2026-01-31': [{time, people, name, room}, ...] }
+  restaurantDate: new Date().toISOString().split('T')[0], // Current date for restaurant summary view
+  restaurantRequestId: 0, // Track latest restaurant summary request to prevent race conditions
   stayingDate: new Date().toISOString().split('T')[0] // Current date for staying tab
   // activeGroupFilter moved to window.activeGroupFilter (managed by inline API template script)
 };
@@ -77,6 +81,31 @@ const BMA_LOG = {
 window.apiClient = null;
 
 // =============================================================================
+// URL Pattern Helper Functions
+// =============================================================================
+
+/**
+ * Check if current page URL matches a booking trigger pattern
+ * Trigger patterns: /bookings_view/{id} or /bookings_checkin/{id}
+ * @returns {Object|null} { bookingId: string } if match, null otherwise
+ */
+async function checkUrlTriggerPattern() {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab || !tab.url) return null;
+
+    const urlMatch = tab.url.match(/\/bookings_(?:view|checkin)\/(\d+)/i);
+    if (urlMatch && urlMatch[1]) {
+      return { bookingId: urlMatch[1] };
+    }
+    return null;
+  } catch (error) {
+    BMA_LOG.error('Error checking URL trigger pattern:', error);
+    return null;
+  }
+}
+
+// =============================================================================
 // Navigation Helper Functions
 // =============================================================================
 
@@ -101,7 +130,8 @@ function navigateToRestaurantDate(date, bookingId = null, resosBookingId = null)
     targetDate: date,
     expandCreateForm: resosBookingId ? false : true, // Expand create form only if not viewing a comparison
     expandComparisonRow: resosBookingId ? { resosBookingId, date } : null, // Expand comparison row if resosBookingId provided
-    scrollAfterLoad: true
+    scrollAfterLoad: true,
+    preserveBookingId: !!bookingId // Flag explicit navigation with booking ID
   };
 
   // Update current booking ID if provided
@@ -256,12 +286,10 @@ async function processNavigationContext(retryCount = 0) {
       setTimeout(() => {
         let targetElement;
 
-        // If we expanded a comparison row, scroll to it; otherwise scroll to the date section
+        // If we expanded a comparison row, scroll to the date section for better context
         if (expandComparisonRow) {
-          const { resosBookingId, date } = expandComparisonRow;
-          const containerId = 'comparison-' + date + '-' + resosBookingId;
-          const comparisonContainer = document.getElementById(containerId);
-          targetElement = comparisonContainer || dateSection.querySelector('.bma-night') || dateSection;
+          // Scroll to the outer bma-date-section instead of the comparison container
+          targetElement = dateSection;
         } else {
           // Try to find the bma-night element within the date section for more precise scrolling
           const nightSection = dateSection.querySelector('.bma-night');
@@ -495,21 +523,31 @@ function scrollGanttToTime(chartId, time, smooth = true) {
 
   // Convert to HHMM format if needed
   let targetTime;
-  if (typeof time === 'string' && time.includes(':')) {
+  if (time === 'now') {
+    // Get current time
+    const now = new Date();
+    targetTime = (now.getHours() * 100) + now.getMinutes();
+  } else if (typeof time === 'string' && time.includes(':')) {
     const parts = time.split(':');
     targetTime = parseInt(parts[0]) * 100 + parseInt(parts[1]);
   } else {
     targetTime = parseInt(time);
   }
 
-  // Check if chart is in a scrollable viewport
-  const viewport = chart.closest('.gantt-viewport');
-  if (!viewport) {
-    // No viewport, chart is not scrollable
-    return;
+  // Check if chart element itself is the viewport, or find parent viewport
+  let viewport = chart;
+  let chartContainer = chart.querySelector('.gantt-chart-container');
+
+  // If no chart container inside, check if this element is inside a viewport
+  if (!chartContainer) {
+    viewport = chart.closest('.gantt-viewport-container') || chart.closest('.gantt-viewport');
+    chartContainer = chart;
   }
 
-  const chartContainer = chart.querySelector('.gantt-chart-container') || chart;
+  if (!viewport) {
+    BMA_LOG.warn('No scrollable viewport found for chart:', chartId);
+    return;
+  }
 
   // Read time range from data attributes (set by buildGanttChart)
   const startHour = parseInt(chartContainer.dataset.startHour);
@@ -569,8 +607,19 @@ function positionBookingsOnGrid(bookings, startHour, totalMinutes, bookingDurati
         time: booking.time,
         people: booking.people || 2,
         name: booking.name || 'Guest',
+        guest: booking.guest, // Preserve guest object for name extraction
+        guest_name: booking.guest_name, // Preserve guest_name field
         room: booking.room || 'Unknown',
-        is_resident: booking.is_resident || false,
+        room_number: booking.room_number, // Preserve room_number field
+        is_resident: booking.is_resident || booking.is_hotel_guest || false,
+        is_hotel_guest: booking.is_hotel_guest, // Preserve is_hotel_guest field
+        grouped_rooms: booking.grouped_rooms || [], // Preserve grouped rooms array
+        status: booking.status, // Preserve status for color coding
+        // Preserve ID fields for gantt bar data-booking-id attribute
+        _id: booking._id,
+        id: booking.id,
+        resos_id: booking.resos_id,
+        booking_id: booking.booking_id,
         hours: hours,
         minutes: minutes,
         minutesFromStart: minutesFromStart
@@ -666,6 +715,22 @@ function buildGanttChart(openingHours, specialEvents = [], availableTimes = [], 
     return '<p style="padding: 20px; text-align: center; color: #999;">No opening hours available</p>';
   }
 
+  // Get status-based color for gantt bar
+  function getStatusColor(status) {
+    const colors = {
+      'approved': '#10b981',      // Green
+      'request': '#f59e0b',        // Orange
+      'arrived': '#fb923c',        // Light Red
+      'seated': '#dc2626',         // Dark Red
+      'left': '#8b5cf6',           // Purple
+      'waitlist': '#eab308',       // Yellow
+      'declined': '#4b5563',       // Dark Gray
+      'canceled': '#94a3b8',       // Light Gray
+      'cancelled': '#94a3b8'       // Light Gray
+    };
+    return colors[status?.toLowerCase()] || '#667eea'; // Default to purple-blue
+  }
+
   // Display mode configuration
   const modeConfig = {
     full: {
@@ -711,7 +776,7 @@ function buildGanttChart(openingHours, specialEvents = [], availableTimes = [], 
   const topMargin = 20; // Space for time labels
   const bottomMargin = 40; // Extra space below last booking bar for visibility
   const totalGridRows = positionedBookings.length > 0 ? positionedBookings[0].total_grid_rows : 0;
-  const minChartHeight = 150; // Minimum height to fill viewport even with few bookings
+  const minChartHeight = 250; // Minimum height to fill 30vh viewport better
   const calculatedHeight = totalGridRows > 0 ? topMargin + (totalGridRows * config.gridRowHeight) + bottomMargin : 100;
   const chartHeight = Math.max(calculatedHeight, minChartHeight);
 
@@ -889,10 +954,13 @@ function buildGanttChart(openingHours, specialEvents = [], availableTimes = [], 
     const actualBookingWidth = bookingEndMinutes - booking.minutesFromStart;
     const widthPercent = (actualBookingWidth / totalMinutes) * 100;
 
+    // Extract guest name from various possible fields (same as restaurant card rendering)
+    const guestName = booking.guest?.name || booking.guest_name || booking.name || 'Guest';
+
     // Display text based on config
     let displayText = '';
     if (config.showNames) {
-      displayText = booking.name;
+      displayText = guestName;
       if (config.showRoomNumbers && booking.room !== 'Non-Resident') {
         displayText += ' - ' + booking.room;
       }
@@ -900,8 +968,15 @@ function buildGanttChart(openingHours, specialEvents = [], availableTimes = [], 
 
     const barClass = 'gantt-booking-bar' + (isCapped ? ' gantt-bar-capped' : '');
     const isResident = booking.is_resident ? 'true' : 'false';
+    const bookingId = booking._id || booking.id || booking.resos_id || booking.booking_id || '';
+    const status = booking.status || 'approved';
+    const statusColor = getStatusColor(status);
+    const borderColor = statusColor; // Use same color for border
+    const roomNumber = booking.room_number || '';
+    const groupedRooms = booking.grouped_rooms || [];
+    const groupedRoomsStr = groupedRooms.length > 0 ? groupedRooms.join(',') : '';
 
-    html += '<div class="' + barClass + '" data-name="' + booking.name + '" data-people="' + booking.people + '" data-time="' + booking.time + '" data-is-resident="' + isResident + '" style="position: absolute; left: ' + leftPercent + '%; top: ' + yPosition + 'px; width: ' + widthPercent + '%; height: ' + barHeight + 'px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 4px; border: 2px solid #5568d3; padding: 2px 6px; color: white; font-weight: 500; display: flex; align-items: center; gap: 4px; overflow: hidden; cursor: pointer; z-index: 5;">';
+    html += '<div class="' + barClass + '" data-booking-id="' + bookingId + '" data-name="' + guestName + '" data-people="' + booking.people + '" data-time="' + booking.time + '" data-status="' + status + '" data-is-resident="' + isResident + '" data-room="' + roomNumber + '" data-grouped-rooms="' + groupedRoomsStr + '" style="position: absolute; left: ' + leftPercent + '%; top: ' + yPosition + 'px; width: ' + widthPercent + '%; height: ' + barHeight + 'px; background: ' + statusColor + '; border-radius: 4px; border: 2px solid ' + borderColor + '; padding: 2px 6px; color: white; font-weight: 500; display: flex; align-items: center; gap: 4px; overflow: hidden; cursor: pointer; z-index: 5;">';
 
     // Guest name and room (only in full mode)
     if (displayText) {
@@ -1001,11 +1076,23 @@ function attachGanttTooltips() {
       const people = bar.getAttribute('data-people') || '?';
       const name = bar.getAttribute('data-name') || 'Guest';
       const isResident = bar.getAttribute('data-is-resident') === 'true';
+      const room = bar.getAttribute('data-room') || '';
+      const groupedRoomsStr = bar.getAttribute('data-grouped-rooms') || '';
 
-      BMA_LOG.log('Gantt tooltip - name:', name, 'isResident:', isResident, 'data-is-resident attr:', bar.getAttribute('data-is-resident'));
+      BMA_LOG.log('Gantt tooltip - name:', name, 'isResident:', isResident, 'room:', room, 'grouped:', groupedRoomsStr);
 
-      // Format: "{people} pax {name} [hotel icon]" (Material Symbols hotel icon if resident)
-      let tooltipHTML = `${people} pax ${name}`;
+      // Format: "({people}) {name} - {rooms} [hotel icon]" (Material Symbols hotel icon if resident)
+      let tooltipHTML = `(${people}) ${name}`;
+
+      // Add room numbers if resident
+      if (isResident && room) {
+        const rooms = [room];
+        if (groupedRoomsStr) {
+          rooms.push(...groupedRoomsStr.split(','));
+        }
+        tooltipHTML += ` - ${rooms.join(', ')}`;
+      }
+
       if (isResident) {
         tooltipHTML += ' <span class="material-symbols-outlined" style="font-size: 14px; vertical-align: middle;">hotel</span>';
         BMA_LOG.log('Adding hotel icon to tooltip');
@@ -1016,8 +1103,9 @@ function attachGanttTooltips() {
     });
 
     bar.addEventListener('mousemove', (e) => {
-      tooltip.style.left = (e.clientX + 10) + 'px';
-      tooltip.style.top = (e.clientY + 10) + 'px';
+      // Position tooltip above and to the right of cursor
+      tooltip.style.left = (e.clientX + 15) + 'px';
+      tooltip.style.top = (e.clientY - 25) + 'px';
     });
 
     bar.addEventListener('mouseleave', () => {
@@ -1036,7 +1124,7 @@ function attachGanttTooltips() {
  * @param {number} periodIndex - Index of the period to toggle
  */
 async function togglePeriodSection(date, periodIndex) {
-  const sectionsContainer = document.getElementById('service-period-sections-' + date);
+  const sectionsContainer = document.getElementById('time-slots-sections-' + date);
   if (!sectionsContainer) {
     BMA_LOG.warn('Sections container not found for date:', date);
     return;
@@ -1403,6 +1491,22 @@ const AuthManager = {
     return cookie.expirationDate * 1000 < Date.now();
   },
 
+  // Check if user is currently on the login page
+  async checkCurrentPageUrl() {
+    try {
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tabs && tabs[0] && tabs[0].url) {
+        const url = tabs[0].url;
+        const isLoginPage = url.includes('login.newbook.cloud');
+        BMA_LOG.log('Current page URL check:', url, 'isLoginPage:', isLoginPage);
+        return { url, isLoginPage };
+      }
+    } catch (error) {
+      BMA_LOG.error('Error checking current page URL:', error);
+    }
+    return { url: null, isLoginPage: false };
+  },
+
   // Show lock screen overlay
   showLockScreen() {
     const existingLock = document.getElementById('newbook-lock-screen');
@@ -1430,8 +1534,26 @@ const AuthManager = {
 
     // Add event listeners
     document.getElementById('open-newbook-btn').addEventListener('click', async () => {
-      // Open NewBook in a new tab
-      await chrome.tabs.create({ url: 'https://appeu.newbook.cloud' });
+      // Check if current tab is already on NewBook
+      const [currentTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+      if (currentTab?.url) {
+        const isOnNewBook = currentTab.url.includes('login.newbook.cloud') ||
+                           currentTab.url.includes('appeu.newbook.cloud');
+
+        if (isOnNewBook) {
+          // Already on NewBook, just focus the tab (it's already active, but ensure it)
+          BMA_LOG.log('Already on NewBook, focusing current tab');
+          await chrome.tabs.update(currentTab.id, { active: true });
+        } else {
+          // Navigate current tab to NewBook instead of opening new tab
+          BMA_LOG.log('Navigating current tab to NewBook');
+          await chrome.tabs.update(currentTab.id, { url: 'https://appeu.newbook.cloud' });
+        }
+      } else {
+        // Fallback: create new tab if no current tab found
+        await chrome.tabs.create({ url: 'https://appeu.newbook.cloud' });
+      }
     });
 
     document.getElementById('check-auth-btn').addEventListener('click', async () => {
@@ -1452,12 +1574,20 @@ const AuthManager = {
     if (STATE.newbookAuth.checking) return;
 
     STATE.newbookAuth.checking = true;
+
+    // Check if on login page
+    const { isLoginPage } = await this.checkCurrentPageUrl();
+
+    // Check authentication
     const isAuthenticated = await this.checkNewBookAuth();
     STATE.newbookAuth.isAuthenticated = isAuthenticated;
     STATE.newbookAuth.checking = false;
 
-    // Show lock screen if either not authenticated OR session is locked
-    if (isAuthenticated && !STATE.sessionLocked) {
+    // Show lock screen if:
+    // 1. Not authenticated OR
+    // 2. Session is locked OR
+    // 3. On login page (not logged in yet)
+    if (isAuthenticated && !STATE.sessionLocked && !isLoginPage) {
       this.hideLockScreen();
     } else {
       this.showLockScreen();
@@ -1467,16 +1597,17 @@ const AuthManager = {
   },
 
   // Handle session lock status from content script
-  handleSessionLock(isLocked) {
+  async handleSessionLock(isLocked) {
     BMA_LOG.log('Session lock status updated:', isLocked ? 'LOCKED' : 'UNLOCKED');
     STATE.sessionLocked = isLocked;
 
     // Update lock screen visibility
     if (isLocked) {
       this.showLockScreen();
-    } else if (STATE.newbookAuth.isAuthenticated) {
-      // Only hide if also authenticated
-      this.hideLockScreen();
+    } else {
+      // Session unlocked - re-verify authentication and URL
+      // This ensures we stay locked if user was logged out (timeout redirect to login page)
+      await this.updateAuthState();
     }
   },
 
@@ -1509,12 +1640,17 @@ class APIClient {
 
   async fetchSummary(force_refresh = false) {
     const limit = this.settings.recentBookingsCount || 10;
+    const cancelledHours = this.settings.cancelledHours || 24;
+    const includeFlaggedCancelled = this.settings.includeFlaggedCancelled !== false;
+
     BMA_LOG.log('fetchSummary - settings:', this.settings);
     BMA_LOG.log('fetchSummary - recentBookingsCount:', this.settings.recentBookingsCount);
     BMA_LOG.log('fetchSummary - limit:', limit);
+    BMA_LOG.log('fetchSummary - cancelledHours:', cancelledHours);
+    BMA_LOG.log('fetchSummary - includeFlaggedCancelled:', includeFlaggedCancelled);
     BMA_LOG.log('fetchSummary - force_refresh:', force_refresh);
 
-    const url = `${this.baseUrl}/summary?context=chrome-summary&limit=${limit}&force_refresh=${force_refresh}`;
+    const url = `${this.baseUrl}/summary?context=chrome-summary&limit=${limit}&force_refresh=${force_refresh}&cancelled_hours=${cancelledHours}&include_flagged_cancelled=${includeFlaggedCancelled}`;
     BMA_LOG.log('fetchSummary - URL:', url);
 
     const response = await fetch(url, {
@@ -1568,6 +1704,22 @@ class APIClient {
 
     return response.json();
   }
+
+  async fetchRestaurantBookings(date, force_refresh = false) {
+    const response = await fetch(`${this.baseUrl}/staying?date=${date}&force_refresh=${force_refresh}&context=chrome-restaurant`, {
+      method: 'GET',
+      headers: {
+        'Authorization': this.authHeader,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
 }
 
 // UI Helper Functions
@@ -1606,6 +1758,72 @@ function showData(tabName, html) {
   checkForStaleDataAndScheduleRefresh(tabName, dataElement);
 }
 
+/**
+ * Apply new-booking class to booking cards placed or cancelled within threshold
+ */
+function applyNewBookingClasses(container) {
+  const bookingCards = container.querySelectorAll('.booking-card');
+  const now = Date.now();
+  const highlightThreshold = STATE.settings.highlightNewestMinutes || 60;
+  const newThreshold = highlightThreshold * 60 * 1000; // Convert minutes to milliseconds
+
+  bookingCards.forEach(card => {
+    const isCancelled = card.classList.contains('cancelled-booking');
+    const placedTime = card.dataset.bookingPlaced;
+    const cancelledTime = card.dataset.bookingCancelled;
+
+    let isNew = false;
+
+    if (isCancelled && cancelledTime) {
+      // Check if recently cancelled
+      const cancelledTimestamp = new Date(cancelledTime.replace(' ', 'T')).getTime();
+      isNew = (now - cancelledTimestamp) <= newThreshold;
+    } else if (!isCancelled && placedTime) {
+      // Check if recently placed
+      const placedTimestamp = new Date(placedTime.replace(' ', 'T')).getTime();
+      isNew = (now - placedTimestamp) <= newThreshold;
+    }
+
+    if (isNew) {
+      card.classList.add('new-booking');
+    }
+  });
+}
+
+function showSummaryData(activityHtml, activityCount) {
+  BMA_LOG.log('[Activity] showSummaryData called:', { activityCount });
+
+  const tabContent = document.querySelector('[data-content="summary"]');
+  const dataElement = tabContent.querySelector('.tab-data');
+
+  // Inject HTML into single activity content area
+  const activityContent = dataElement.querySelector('.summary-activity-content');
+
+  BMA_LOG.log('[Activity] Found elements:', {
+    activityContent: !!activityContent
+  });
+
+  if (activityContent) {
+    activityContent.innerHTML = activityHtml || '<div class="bma-summary-empty"><p>No recent activity</p></div>';
+
+    // Apply new-booking class to recently placed/cancelled bookings (24 hour threshold)
+    applyNewBookingClasses(activityContent);
+  }
+
+  BMA_LOG.log('[Activity] Content injected successfully');
+
+  // Show data container
+  dataElement.classList.remove('hidden');
+  tabContent.querySelector('.tab-loading').classList.add('hidden');
+  tabContent.querySelector('.tab-error').classList.add('hidden');
+
+  // Attach event listeners for Summary tab accordion
+  attachSummaryEventListeners(dataElement);
+
+  // Check for stale cache indicators and schedule auto-refresh if enabled
+  checkForStaleDataAndScheduleRefresh('summary', dataElement);
+}
+
 // Check for stale cache indicators and schedule auto-refresh
 function checkForStaleDataAndScheduleRefresh(tabName, dataElement) {
   // Check if stale indicators exist
@@ -1639,13 +1857,13 @@ function checkForStaleDataAndScheduleRefresh(tabName, dataElement) {
 
     // Trigger refresh based on tab type
     if (tabName === 'summary') {
-      loadSummaryData(true); // Force refresh
+      loadSummaryTab(true); // Force refresh
     } else if (tabName === 'staying') {
-      loadStayingData(STATE.stayingDate, true); // Force refresh
+      loadStayingTab(STATE.stayingDate, true); // Force refresh
     } else if (tabName === 'restaurant') {
-      reloadRestaurantTab(); // Refresh restaurant tab
+      loadRestaurantTab(true); // Force refresh
     } else if (tabName === 'checks') {
-      loadChecksData(STATE.currentBookingId, true); // Force refresh
+      loadChecksTab(true); // Force refresh
     }
 
     STATE.timers.staleRefresh = null;
@@ -1663,17 +1881,53 @@ function attachSummaryEventListeners(container) {
 
       const card = this.closest('.booking-card');
       const bookingId = card.dataset.bookingId;
-      const details = document.getElementById('details-' + bookingId);
+      const details = card.querySelector('.booking-details');
       const icon = card.querySelector('.expand-icon');
+      const isCurrentlyExpanded = details.style.display === 'block';
 
-      if (details.style.display === 'none' || !details.style.display) {
+      // Close all other expanded booking cards across both panes (accordion behavior)
+      const allDetails = container.querySelectorAll('.booking-details');
+      const allIcons = container.querySelectorAll('.expand-icon');
+      const allCards = container.querySelectorAll('.booking-card');
+
+      allDetails.forEach(detail => {
+        detail.style.display = 'none';
+      });
+      allIcons.forEach(ic => {
+        ic.textContent = '▼';
+      });
+      allCards.forEach(c => {
+        c.classList.remove('expanded');
+      });
+
+      // If this card wasn't expanded, expand it and scroll to top
+      if (!isCurrentlyExpanded) {
         details.style.display = 'block';
         icon.textContent = '▲';
         card.classList.add('expanded');
-      } else {
-        details.style.display = 'none';
-        icon.textContent = '▼';
-        card.classList.remove('expanded');
+
+        // Auto-scroll the pane so the card appears with a gap at top (preventing visual overlap with tabs)
+        // Use requestAnimationFrame twice to ensure layout is fully recalculated after expansion/collapse
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            const activityContent = card.closest('.summary-activity-content');
+            if (activityContent) {
+              // Get the tab-nav height to ensure card appears below it visually
+              const tabNav = document.querySelector('.tab-nav');
+              const tabNavHeight = tabNav ? tabNav.offsetHeight : 44; // fallback to ~44px
+
+              // Position card (tabNavHeight + 7px gap) from top of scroll container
+              // This ensures the card doesn't visually appear to go behind the tabs bar
+              const desiredGap = tabNavHeight + 7;
+              const scrollTo = card.offsetTop - desiredGap;
+
+              activityContent.scrollTo({
+                top: scrollTo,
+                behavior: 'smooth'
+              });
+            }
+          });
+        });
       }
     });
   });
@@ -1697,13 +1951,17 @@ function attachSummaryEventListeners(container) {
       const bookingId = this.dataset.bookingId;
       const date = this.dataset.date;
       const resosId = this.dataset.resosId;
-      BMA_LOG.log('Suggested match clicked - navigating to Restaurant tab:', { bookingId, date, resosId });
+      BMA_LOG.log('Clickable issue clicked - navigating to Restaurant tab:', { bookingId, date, resosId });
 
-      // Navigate to Restaurant tab with date and expand comparison row
+      // Navigate to Restaurant tab with date and expand comparison row OR create form
       if (date && resosId) {
+        // Has both date and resosId - expand comparison row
         navigateToRestaurantDate(date, parseInt(bookingId), resosId);
+      } else if (date) {
+        // Has date but no resosId - expand create form
+        navigateToRestaurantDate(date, parseInt(bookingId));
       } else {
-        // Fallback if data attributes not available (shouldn't happen with updated templates)
+        // Fallback if no date (shouldn't happen with updated templates)
         STATE.currentBookingId = bookingId;
         switchTab('restaurant');
       }
@@ -1872,7 +2130,7 @@ function attachRestaurantEventListeners(container) {
           break;
 
         case 'submit-suggestions':
-          console.log('BMA: submit-suggestions action caught, calling submitSuggestions');
+          BMA_LOG.log('submit-suggestions action caught, calling submitSuggestions');
           await submitSuggestions(
             button.dataset.date,
             button.dataset.resosBookingId,
@@ -1881,9 +2139,53 @@ function attachRestaurantEventListeners(container) {
           );
           break;
 
+        case 'open-group-create':
+          // GROUP button in create booking form
+          {
+            const formId = 'create-form-' + button.dataset.date;
+            const form = document.getElementById(formId);
+            if (!form) {
+              BMA_LOG.error('Create form not found:', formId);
+              showToast('Form not found', 'error');
+              break;
+            }
+
+            // Get current form values
+            const guestName = form.querySelector('.form-guest-name')?.value || 'New Booking';
+            const people = form.querySelector('.form-people')?.value || '2';
+            const timeSelected = form.querySelector('.form-time-selected')?.value || '';
+            const groupMembers = form.querySelector('.form-group-members')?.value || '';
+
+            BMA_LOG.log('Opening GROUP modal in CREATE mode:', {
+              formId,
+              hotelBookingId: form.dataset.bookingId,
+              date: button.dataset.date,
+              time: timeSelected,
+              guestName,
+              people
+            });
+
+            if (typeof window.openGroupManagementModal === 'function') {
+              await window.openGroupManagementModal(
+                null,                      // No Resos booking ID (CREATE mode)
+                form.dataset.bookingId,    // Hotel booking ID
+                button.dataset.date,       // Date
+                timeSelected,              // Selected time
+                guestName,                 // Guest name
+                people,                    // Number of people
+                form.dataset.bookingId,    // Use hotel booking as temp lead ID
+                groupMembers               // Existing group selections
+              );
+            } else {
+              BMA_LOG.error('openGroupManagementModal function not found');
+              showToast('Group management feature not available', 'error');
+            }
+          }
+          break;
+
         case 'manage-group':
           if (typeof window.openGroupManagementModal === 'function') {
-            console.log('BMA: Manage Group button clicked, data attributes:', {
+            BMA_LOG.log('Manage Group button clicked, data attributes:', {
               resosBookingId: button.dataset.resosBookingId,
               hotelBookingId: button.dataset.hotelBookingId,
               date: button.dataset.date,
@@ -2005,7 +2307,7 @@ function attachRestaurantEventListeners(container) {
       const openingHoursData = await fetchOpeningHours(date);
       BMA_LOG.log('Opening hours response:', openingHoursData);
 
-      const sectionsContainer = document.getElementById('service-period-sections-' + date);
+      const sectionsContainer = document.getElementById('time-slots-sections-' + date);
       BMA_LOG.log('Sections container found:', !!sectionsContainer);
 
       if (!sectionsContainer) {
@@ -2156,7 +2458,7 @@ function attachRestaurantEventListeners(container) {
       }
     } catch (error) {
       BMA_LOG.error('Error loading opening hours:', error);
-      const sectionsContainer = document.getElementById('service-period-sections-' + date);
+      const sectionsContainer = document.getElementById('time-slots-sections-' + date);
       if (sectionsContainer) {
         sectionsContainer.innerHTML = '<p style="color: #ef4444;">Error loading service periods</p>';
       }
@@ -2274,7 +2576,7 @@ function attachRestaurantEventListeners(container) {
     try {
       const timesData = await fetchAvailableTimes(date, people, periodId);
       BMA_LOG.log('DEBUG fetchAvailableTimes result:', {success: timesData.success, hasHtml: !!timesData.html, htmlLength: timesData.html?.length});
-      const sectionsContainer = document.getElementById('service-period-sections-' + date);
+      const sectionsContainer = document.getElementById('time-slots-sections-' + date);
       const periodTimes = sectionsContainer ? sectionsContainer.querySelector(`.period-times[data-period-index="${periodIndex}"]`) : null;
 
       if (!periodTimes) {
@@ -2425,7 +2727,7 @@ function attachRestaurantEventListeners(container) {
       }
     } catch (error) {
       BMA_LOG.error('Error loading available times:', error);
-      const sectionsContainer = document.getElementById('service-period-sections-' + date);
+      const sectionsContainer = document.getElementById('time-slots-sections-' + date);
       const periodTimes = sectionsContainer ? sectionsContainer.querySelector(`.period-times[data-period-index="${periodIndex}"]`) : null;
       if (periodTimes) {
         periodTimes.innerHTML = '<p style="color: #ef4444;">Error loading times</p>';
@@ -2587,6 +2889,19 @@ function attachRestaurantEventListeners(container) {
     const bookingRef = form.dataset.bookingId;
     if (bookingRef) {
       formData.booking_ref = bookingRef;
+    }
+
+    // Add group data from hidden fields
+    const groupMembersField = form.querySelector('.form-group-members');
+    if (groupMembersField && groupMembersField.value) {
+      formData.group_members = groupMembersField.value;
+      BMA_LOG.log('Including group_members in create booking:', groupMembersField.value);
+    }
+
+    const leadBookingField = form.querySelector('.form-lead-booking');
+    if (leadBookingField && leadBookingField.value) {
+      formData.lead_booking_id = leadBookingField.value;
+      BMA_LOG.log('Including lead_booking_id in create booking:', leadBookingField.value);
     }
 
     BMA_LOG.log('Starting create booking operation with data:', formData);
@@ -3155,18 +3470,18 @@ function attachRestaurantEventListeners(container) {
 
   // Submit selected suggestions from comparison checkboxes
   async function submitSuggestions(date, resosBookingId, hotelBookingId, isConfirmed) {
-    console.log('BMA: submitSuggestions called with:', { date, resosBookingId, hotelBookingId, isConfirmed });
+    BMA_LOG.log('submitSuggestions called with:', { date, resosBookingId, hotelBookingId, isConfirmed });
 
     const containerId = 'comparison-' + date + '-' + resosBookingId;
     const container = document.getElementById(containerId);
     if (!container) {
-      console.error('BMA: Container not found:', containerId);
+      BMA_LOG.error('Container not found:', containerId);
       return;
     }
 
     // Find all checked suggestion checkboxes in this comparison container
     const checkboxes = container.querySelectorAll('.suggestion-checkbox:checked');
-    console.log('BMA: Found', checkboxes.length, 'checked suggestion checkboxes');
+    BMA_LOG.log('Found', checkboxes.length, 'checked suggestion checkboxes');
 
     if (checkboxes.length === 0) {
       showToast('Please select at least one suggestion to update', 'error');
@@ -3201,7 +3516,7 @@ function attachRestaurantEventListeners(container) {
       }
     });
 
-    console.log('BMA: Submitting updates:', { booking_id: resosBookingId, updates: updates });
+    BMA_LOG.log('Submitting updates:', { booking_id: resosBookingId, updates: updates });
 
     // Find the submit button to show loading state
     const submitBtn = container.querySelector('.btn-confirm-match');
@@ -3277,23 +3592,25 @@ function updateTimeSincePlaced(container) {
   const highlightThreshold = STATE.settings.highlightNewestMinutes || 60;
 
   bookingCards.forEach(card => {
-    const placedTime = card.dataset.bookingPlaced;
-    if (!placedTime) return;
-
     const timeSinceElement = card.querySelector('.time-since-placed');
     if (!timeSinceElement) return;
 
+    // For cancelled bookings, use the timestamp from the element's data attribute
+    const isCancelled = card.classList.contains('cancelled-booking');
+    const timestamp = timeSinceElement.dataset.placedTime || card.dataset.bookingPlaced;
+    if (!timestamp) return;
+
     // Calculate time difference
-    const placed = new Date(placedTime);
+    const eventTime = new Date(timestamp);
     const now = new Date();
-    const diffMs = now - placed;
+    const diffMs = now - eventTime;
     const diffMinutes = Math.floor(diffMs / 60000);
 
-    // Format time since placed
-    const timeString = formatTimeSince(diffMinutes);
+    // Format time since placed/cancelled
+    const timeString = formatTimeSince(diffMinutes, isCancelled);
     timeSinceElement.textContent = timeString;
 
-    // Apply highlighting if within threshold
+    // Apply highlighting if within threshold (for both placed and cancelled)
     if (diffMinutes <= highlightThreshold) {
       card.classList.add('new-booking');
     } else {
@@ -3302,25 +3619,27 @@ function updateTimeSincePlaced(container) {
   });
 }
 
-function formatTimeSince(minutes) {
-  if (minutes < 1) {
-    return 'Just now';
+function formatTimeSince(minutes, isCancelled = false) {
+  const prefix = isCancelled ? 'Cancelled' : 'Placed';
+
+  if (minutes < 5) {
+    return `${prefix} just now`;
   } else if (minutes < 60) {
-    return `${minutes}m ago`;
+    return `${prefix} ${minutes}m ago`;
   } else if (minutes < 1440) {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
     if (mins === 0) {
-      return `${hours}h ago`;
+      return `${prefix} ${hours}h ago`;
     }
-    return `${hours}h ${mins}m ago`;
+    return `${prefix} ${hours}h ${mins}m ago`;
   } else {
     const days = Math.floor(minutes / 1440);
     const hours = Math.floor((minutes % 1440) / 60);
     if (hours === 0) {
-      return `${days}d ago`;
+      return `${prefix} ${days}d ago`;
     }
-    return `${days}d ${hours}h ago`;
+    return `${prefix} ${days}d ${hours}h ago`;
   }
 }
 
@@ -3392,6 +3711,16 @@ function switchTab(tabName) {
     STATE.scrollPositions[STATE.currentTab] = currentContent.scrollTop;
   }
 
+  // Clear non-sticky bookings when leaving Restaurant/Checks tabs
+  const leavingRestaurantOrChecks = (STATE.currentTab === 'restaurant' || STATE.currentTab === 'checks') &&
+                                    (tabName !== 'restaurant' && tabName !== 'checks');
+  if (leavingRestaurantOrChecks && !STATE.isUrlTriggerBooking && STATE.currentBookingId) {
+    BMA_LOG.log('Leaving Restaurant/Checks tab - clearing non-sticky booking:', STATE.currentBookingId);
+    STATE.currentBookingId = null;
+    STATE.isUrlTriggerBooking = false;
+    chrome.storage.local.remove(['currentBookingId', 'isUrlTriggerBooking']);
+  }
+
   // Update state
   STATE.currentTab = tabName;
 
@@ -3417,6 +3746,28 @@ function switchTab(tabName) {
     loadSummaryTab();
     resetInactivityTimer(); // Clear inactivity timer on Summary tab
   } else if (tabName === 'restaurant') {
+    // Handle booking context based on URL trigger status
+    // URL triggers are "sticky" - they persist even when switching tabs
+    // Navigation context (planner clicks) and manual clicks are temporary
+
+    if (STATE.isUrlTriggerBooking) {
+      // URL trigger is sticky - preserve booking even when switching tabs
+      BMA_LOG.log('Switching to Restaurant tab - URL trigger is sticky, preserving booking:', STATE.currentBookingId);
+    } else if (!STATE.navigationContext?.preserveBookingId) {
+      // Not a URL trigger and no navigation context - clear booking
+      if (STATE.currentBookingId) {
+        BMA_LOG.log('Switching to Restaurant tab - clearing booking context for summary view');
+      }
+      STATE.currentBookingId = null;
+      chrome.storage.local.remove(['currentBookingId', 'isUrlTriggerBooking']);
+    } else {
+      // Has navigation context (planner click) - preserve temporarily
+      BMA_LOG.log('Switching to Restaurant tab - preserving booking context:', STATE.currentBookingId);
+    }
+
+    // Don't clear the preserveBookingId flag yet - let loadRestaurantTab handle it
+    // This ensures navigation works even when already on the Restaurant tab
+
     loadRestaurantTab();
     startInactivityTimer();
   } else if (tabName === 'checks') {
@@ -3449,7 +3800,7 @@ async function loadSummaryTab(force_refresh = false) {
   // Smart refresh: Check if we're already showing Summary tab content
   // Skip smart refresh if force_refresh is true
   const isSummaryTabActive = STATE.currentTab === 'summary';
-  const hasExistingData = STATE.loadedBookingIds.summary && STATE.cache.summary && STATE.cache.summary.html;
+  const hasExistingData = STATE.loadedBookingIds.summary && STATE.cache.summary && STATE.cache.summary.html_placed;
 
   if (!force_refresh && !isAutoRefresh && isSummaryTabActive && hasExistingData) {
     BMA_LOG.log('Smart refresh: Summary already loaded, checking for changes...');
@@ -3459,15 +3810,20 @@ async function loadSummaryTab(force_refresh = false) {
       const api = new APIClient(STATE.settings);
       const newData = await api.fetchSummary(force_refresh);
 
-      if (newData.success && newData.html) {
+      if (newData.success && newData.html_placed) {
         // Compare HTML content
-        const currentHtml = STATE.cache.summary.html;
-        const newHtml = newData.html;
+        const currentPlacedHtml = STATE.cache.summary.html_placed;
+        const currentCancelledHtml = STATE.cache.summary.html_cancelled;
+        const newPlacedHtml = newData.html_placed;
+        const newCancelledHtml = newData.html_cancelled;
 
-        if (currentHtml === newHtml) {
+        if (currentPlacedHtml === newPlacedHtml && currentCancelledHtml === newCancelledHtml) {
           // No changes detected
           BMA_LOG.log('Smart refresh: No changes detected in Summary, keeping current view');
           updateBadge('summary', newData.critical_count || 0, newData.warning_count || 0);
+
+          // Show "No changes detected" message to user
+          showNoChangesMessage();
           return; // Don't reload
         } else {
           // Changes detected, proceed with refresh
@@ -3489,33 +3845,36 @@ async function loadSummaryTab(force_refresh = false) {
     const api = new APIClient(STATE.settings);
     const data = await api.fetchSummary(force_refresh);
 
-    if (data.success && data.html) {
-      // Check if data has changed (compare counts instead of HTML to avoid false positives)
-      const dataSignature = `${data.bookings_count}-${data.critical_count}-${data.warning_count}`;
+    if (data.success && data.html_activity) {
+      // Check if data has changed (compare activity count AND booking IDs to detect when bookings change)
+      const activityIds = data.activity_bookings?.map(b => b.booking_id).sort().join(',') || '';
+      const dataSignature = `${data.activity_count}-${activityIds}-${data.critical_count}-${data.warning_count}`;
+
+      const cachedActivityIds = STATE.cache.summary?.activity_bookings?.map(b => b.booking_id).sort().join(',') || '';
       const cachedSignature = STATE.cache.summary
-        ? `${STATE.cache.summary.bookings_count}-${STATE.cache.summary.critical_count}-${STATE.cache.summary.warning_count}`
+        ? `${STATE.cache.summary.activity_count}-${cachedActivityIds}-${STATE.cache.summary.critical_count}-${STATE.cache.summary.warning_count}`
         : null;
 
       const hasChanged = !STATE.cache.summary || cachedSignature !== dataSignature;
 
-      BMA_LOG.log(`Summary check: cached="${cachedSignature}", new="${dataSignature}", changed=${hasChanged}, isAutoRefresh=${isAutoRefresh}`);
+      BMA_LOG.log(`Activity check: cached="${cachedSignature}", new="${dataSignature}", changed=${hasChanged}, isAutoRefresh=${isAutoRefresh}`);
 
       // Always show data if:
       // 1. Data has changed, OR
       // 2. This is NOT an auto-refresh (manual tab switch or first load)
       if (hasChanged || !isAutoRefresh) {
-        showData('summary', data.html);
+        showSummaryData(data.html_activity, data.activity_count);
         updateBadge('summary', data.critical_count || 0, data.warning_count || 0);
         STATE.cache.summary = data;
         STATE.loadedBookingIds.summary = true;
         STATE.lastSummaryUpdate = Date.now(); // Track update time only when data changes
-        BMA_LOG.log(hasChanged ? 'Summary updated with new data' : 'Summary displayed (no change but manual load)');
+        BMA_LOG.log(hasChanged ? 'Activity updated with new data' : 'Activity displayed (no change but manual load)');
 
         // Initialize group hover functionality
         initializeGroupHover();
       } else {
         // Only skip display during auto-refresh when nothing changed
-        BMA_LOG.log('Summary unchanged during auto-refresh - showing no changes message');
+        BMA_LOG.log('Activity unchanged during auto-refresh - showing no changes message');
         updateBadge('summary', data.critical_count || 0, data.warning_count || 0);
         // Don't update lastSummaryUpdate - keep the original timestamp
         showNoChangesMessage();
@@ -3551,17 +3910,22 @@ function showSummaryCountdown() {
     updateCountdownText(countdownText, secondsLeft);
 
     if (secondsLeft <= 0) {
+      // IMPORTANT: Clear this interval immediately to prevent it from firing again
+      // while loadSummaryTab() is running (which will create a new countdown)
+      clearInterval(STATE.timers.summaryCountdown);
+      STATE.timers.summaryCountdown = null;
+
       // Check if any booking cards are expanded (user is reading)
       const expandedCards = document.querySelectorAll('.booking-card.expanded');
       if (expandedCards.length > 0) {
         // Check how long since last user interaction
         const idleMinutes = (Date.now() - STATE.lastSummaryInteraction) / 1000 / 60;
-        const maxIdleMinutes = 5; // Resume refresh after 5 minutes of inactivity
+        const maxIdleMinutes = STATE.settings?.autoRefreshPauseIdleMinutes || 5; // Resume refresh after N minutes of inactivity (configurable)
 
         if (idleMinutes >= maxIdleMinutes) {
           // User has been idle too long - assume they've left, resume refresh
           BMA_LOG.log(`Auto-refresh resuming - user idle for ${idleMinutes.toFixed(1)} minutes`);
-          loadSummaryTab(true); // Pass true to indicate auto-refresh
+          loadSummaryTab(false); // Use cached matching data, fresh bookings list
         } else {
           // Don't refresh while user is reading - reset countdown
           BMA_LOG.log('Auto-refresh paused - user has expanded booking cards');
@@ -3570,10 +3934,12 @@ function showSummaryCountdown() {
           setTimeout(() => {
             secondsLeft = STATE.settings.summaryRefreshRate;
             updateCountdownText(countdownText, secondsLeft);
+            // Restart countdown timer
+            showSummaryCountdown();
           }, 2000);
         }
       } else {
-        loadSummaryTab(true); // Pass true to indicate auto-refresh
+        loadSummaryTab(false); // Use cached matching data, fresh bookings list
       }
     }
   }, 1000);
@@ -3654,69 +4020,39 @@ function showNoChangesMessage() {
   // Update the last updated text first
   updateLastUpdatedText();
 
-  // Show "No new bookings" message with last updated info
+  // Show "No changes detected" message with last updated info
   const lastUpdatedElement = document.querySelector('[data-content="summary"] .last-updated-text');
   const lastUpdatedText = lastUpdatedElement ? lastUpdatedElement.textContent : '';
 
-  countdownText.innerHTML = `<strong style="color: #10b981;">No new bookings</strong><br><span style="font-size: 11px; color: #6b7280;">${lastUpdatedText}</span>`;
+  countdownText.innerHTML = `<strong style="color: #10b981;">No changes detected</strong><br><span style="font-size: 11px; color: #6b7280;">${lastUpdatedText}</span>`;
 
   // Reset to countdown after 2 seconds
   setTimeout(() => {
-    const secondsLeft = STATE.settings.summaryRefreshRate;
-    updateCountdownText(countdownText, secondsLeft);
+    showSummaryCountdown(); // Restart the countdown timer
   }, 2000);
 }
 
 // Restaurant Tab
-async function loadRestaurantTab(force_refresh = true) {
+async function loadRestaurantTab(force_refresh = false) {
+  BMA_LOG.log('loadRestaurantTab called, booking ID:', STATE.currentBookingId, 'force_refresh:', force_refresh);
+
   if (!STATE.settings) {
+    BMA_LOG.error('Settings not configured!');
     showError('restaurant', 'Please configure settings first');
     return;
   }
 
+  // Determine view mode: summary (no booking ID) vs detail (has booking ID)
   if (!STATE.currentBookingId) {
-    showEmpty('restaurant');
-    updateBadge('restaurant', 0);
-    STATE.loadedBookingIds.restaurant = null;
+    BMA_LOG.log('No booking ID - showing restaurant summary view');
+    // Show restaurant summary view (date-based view)
+    loadRestaurantSummaryView(STATE.restaurantDate, force_refresh);
     return;
   }
 
-  // Smart refresh: Check if we're already showing the same booking
-  // Skip smart refresh if force_refresh is true
-  const isRestaurantTabActive = STATE.currentTab === 'restaurant';
-  const isSameBooking = STATE.loadedBookingIds.restaurant === STATE.currentBookingId;
-  const hasExistingData = STATE.cache.restaurant && STATE.cache.restaurant.html;
-
-  // TEMP: Disable cache for testing GROUP button
-  if (false && !force_refresh && isRestaurantTabActive && isSameBooking && hasExistingData) {
-    BMA_LOG.log('Smart refresh: Same booking already loaded, checking for changes...');
-
-    try {
-      // Fetch data silently in background
-      const api = new APIClient(STATE.settings);
-      const newData = await api.fetchRestaurantMatch(STATE.currentBookingId, force_refresh);
-
-      if (newData.success && newData.html) {
-        // Compare HTML content
-        const currentHtml = STATE.cache.restaurant.html;
-        const newHtml = newData.html;
-
-        if (currentHtml === newHtml) {
-          // No changes detected
-          BMA_LOG.log('Smart refresh: No changes detected, keeping current view');
-          // Update badge in case counts changed (though HTML is same)
-          updateBadge('restaurant', newData.critical_count || 0, newData.warning_count || 0);
-          return; // Don't reload
-        } else {
-          // Changes detected, proceed with refresh
-          BMA_LOG.log('Smart refresh: Changes detected, refreshing content');
-        }
-      }
-    } catch (error) {
-      BMA_LOG.error('Smart refresh check failed, proceeding with normal load:', error);
-      // Fall through to normal load on error
-    }
-  }
+  BMA_LOG.log('Has booking ID - showing restaurant detail view');
+  // Show restaurant detail view (booking-specific view)
+  showRestaurantDetailView();
 
   try {
     showLoading('restaurant');
@@ -3744,6 +4080,11 @@ async function loadRestaurantTab(force_refresh = true) {
       requestAnimationFrame(() => {
         setTimeout(() => {
           processNavigationContext();
+          // Clear navigation context after loading detail view
+          if (STATE.navigationContext?.preserveBookingId) {
+            BMA_LOG.log('Clearing navigation context after Restaurant detail view loaded');
+            STATE.navigationContext = null;
+          }
         }, 200);
       });
     } else if (data.success && !data.html) {
@@ -3761,8 +4102,862 @@ async function loadRestaurantTab(force_refresh = true) {
   }
 }
 
+// Restaurant Summary View (date-based view)
+async function loadRestaurantSummaryView(date, force_refresh = false) {
+  BMA_LOG.log('Loading restaurant summary view for date:', date);
+
+  // Increment request ID to track this request
+  STATE.restaurantRequestId++;
+  const thisRequestId = STATE.restaurantRequestId;
+  BMA_LOG.log('Restaurant request ID:', thisRequestId);
+
+  try {
+    // Show summary view, hide detail view
+    showRestaurantSummaryView();
+
+    // Update date input
+    const dateInput = document.getElementById('restaurant-date-input');
+    if (dateInput) {
+      dateInput.value = date;
+    } else {
+      BMA_LOG.error('Date input element not found!');
+    }
+
+    // Update state
+    STATE.restaurantDate = date;
+    STATE.loadedBookingIds.restaurant = `summary:${date}`;
+
+    // Try to get bookings from cache first
+    let bookings = STATE.restaurantBookings[date] || [];
+    BMA_LOG.log('Cached bookings for', date, ':', bookings.length, 'bookings');
+
+    // If no cached data or force refresh, fetch from API
+    if (bookings.length === 0 || force_refresh) {
+      BMA_LOG.log('Fetching restaurant bookings from API for date:', date);
+      try {
+        const api = new APIClient(STATE.settings);
+        const data = await api.fetchRestaurantBookings(date, force_refresh);
+
+        // Check if this is still the latest request
+        if (thisRequestId !== STATE.restaurantRequestId) {
+          BMA_LOG.log('Request superseded (ID', thisRequestId, 'vs current', STATE.restaurantRequestId, ') - ignoring results');
+          return;
+        }
+
+        BMA_LOG.log('Restaurant bookings API response:', data);
+
+        // Extract bookings from response
+        // The response might have bookings_by_date or bookings array
+        if (data.bookings_by_date && data.bookings_by_date[date]) {
+          bookings = data.bookings_by_date[date];
+          // Cache all bookings by date
+          STATE.restaurantBookings = data.bookings_by_date;
+        } else if (data.bookings && Array.isArray(data.bookings)) {
+          bookings = data.bookings;
+          // Cache for this date
+          if (!STATE.restaurantBookings) STATE.restaurantBookings = {};
+          STATE.restaurantBookings[date] = bookings;
+        } else {
+          BMA_LOG.warn('API response has no bookings_by_date or bookings array');
+        }
+
+        BMA_LOG.log('Extracted bookings:', bookings.length);
+      } catch (error) {
+        BMA_LOG.error('Error fetching restaurant bookings:', error);
+        // Continue with empty bookings array
+      }
+    }
+
+    // Filter out excluded statuses
+    const EXCLUDED_STATUSES = ['request', 'cancelled', 'canceled', 'no_show', 'no-show', 'deleted'];
+    const validBookings = bookings.filter(b =>
+      !EXCLUDED_STATUSES.includes(b.status?.toLowerCase())
+    );
+    BMA_LOG.log('Valid bookings after filtering:', validBookings.length, 'of', bookings.length);
+
+    // Sort by arrival time
+    validBookings.sort((a, b) => {
+      const timeA = a.time || '00:00';
+      const timeB = b.time || '00:00';
+      return timeA.localeCompare(timeB);
+    });
+
+    // Fetch opening hours and special events in parallel
+    let openingHours = [];
+    let specialEvents = [];
+    let onlineBookingAvailable = true;
+
+    try {
+      const [hoursData, eventsData] = await Promise.all([
+        fetchOpeningHours(date),
+        fetchSpecialEvents(date)
+      ]);
+
+      // Check if this is still the latest request
+      if (thisRequestId !== STATE.restaurantRequestId) {
+        BMA_LOG.log('Request superseded - ignoring results');
+        return;
+      }
+
+      openingHours = (hoursData.success && hoursData.data) ? hoursData.data : [];
+      BMA_LOG.log('Fetched opening hours:', openingHours.length, 'periods');
+
+      specialEvents = (eventsData.success && eventsData.data) ? eventsData.data : [];
+      onlineBookingAvailable = eventsData.onlineBookingAvailable !== false;
+      BMA_LOG.log('Fetched special events:', specialEvents.length, 'events');
+    } catch (error) {
+      BMA_LOG.error('Error fetching opening hours/special events:', error);
+      // Continue with empty arrays
+    }
+
+    // Final check before building UI - ensure this is still the latest request
+    if (thisRequestId !== STATE.restaurantRequestId) {
+      BMA_LOG.log('Request superseded - skipping UI update');
+      return;
+    }
+
+    // Build and display special events banner
+    if (specialEvents.length > 0 || !onlineBookingAvailable) {
+      const alertsHtml = buildSpecialEventsAlert(specialEvents, onlineBookingAvailable);
+      if (alertsHtml) {
+        const cardsSection = document.querySelector('.restaurant-cards-section');
+        if (cardsSection) {
+          // Remove existing banner if any
+          const existingBanner = cardsSection.querySelector('.special-events-banner');
+          if (existingBanner) {
+            existingBanner.remove();
+          }
+
+          // Insert banner before cards container
+          const bannerDiv = document.createElement('div');
+          bannerDiv.className = 'special-events-banner special-events-horizontal';
+          bannerDiv.innerHTML = alertsHtml;
+          cardsSection.insertBefore(bannerDiv, cardsSection.firstChild);
+        }
+      }
+    }
+
+    // Build Gantt chart with special events for grey overlays
+    if (validBookings.length > 0) {
+      BMA_LOG.log('Building Gantt chart with', validBookings.length, 'bookings');
+      buildRestaurantGanttChart(validBookings, date, openingHours, specialEvents);
+    } else {
+      BMA_LOG.log('No valid bookings - showing empty state');
+      // Clear gantt chart
+      const ganttContainer = document.getElementById('restaurant-summary-gantt');
+      if (ganttContainer) {
+        ganttContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #9ca3af;">No bookings for this date</div>';
+      }
+    }
+
+    // Build booking cards with opening hours grouping
+    BMA_LOG.log('Building booking cards with accordion grouping');
+    buildRestaurantCards(validBookings, openingHours, date);
+
+    // Update badge
+    updateBadge('restaurant', validBookings.length);
+
+    // Update last updated timestamp
+    STATE.lastRestaurantUpdate = Date.now();
+    updateRestaurantSummaryLastUpdated(STATE.lastRestaurantUpdate);
+
+    // Clear navigation context after loading summary view
+    if (STATE.navigationContext) {
+      BMA_LOG.log('Clearing navigation context after Restaurant summary view loaded');
+      STATE.navigationContext = null;
+    }
+
+  } catch (error) {
+    BMA_LOG.error('Error loading restaurant summary view:', error);
+    showRestaurantDetailView();
+    showError('restaurant', error.message);
+  }
+}
+
+// Show restaurant summary view, hide detail view
+function showRestaurantSummaryView() {
+  const restaurantTab = document.querySelector('[data-content="restaurant"]');
+  const summaryView = restaurantTab.querySelector('.restaurant-summary-view');
+  const detailView = restaurantTab.querySelector('.restaurant-detail-view');
+
+  if (summaryView) summaryView.classList.remove('hidden');
+  if (detailView) detailView.classList.add('hidden');
+}
+
+// Show restaurant detail view, hide summary view
+function showRestaurantDetailView() {
+  const restaurantTab = document.querySelector('[data-content="restaurant"]');
+  const summaryView = restaurantTab.querySelector('.restaurant-summary-view');
+  const detailView = restaurantTab.querySelector('.restaurant-detail-view');
+
+  if (summaryView) summaryView.classList.add('hidden');
+  if (detailView) detailView.classList.remove('hidden');
+}
+
+// Group bookings by opening hours periods
+function groupBookingsByOpeningHours(bookings, openingHours) {
+  const groups = [];
+  const OTHER_GROUP = {
+    name: 'Other Bookings',
+    open: null,
+    close: null,
+    bookings: []
+  };
+
+  // Create groups for each opening hours period
+  openingHours.forEach(period => {
+    groups.push({
+      name: period.name || 'Service Period',
+      open: period.open,
+      close: period.close,
+      _id: period._id,
+      bookings: []
+    });
+  });
+
+  // Assign each booking to the appropriate group
+  bookings.forEach(booking => {
+    const timeString = booking.timeString || booking.time || '';
+    const bookingTime = parseTimeToMinutes(timeString);
+    let assigned = false;
+    let matchMethod = '';
+
+    for (const group of groups) {
+      // Method 1: Direct ID matching (most reliable)
+      // ResOS bookings include openingHourId that references the period _id
+      if (booking.openingHourId && booking.openingHourId === group._id) {
+        group.bookings.push(booking);
+        assigned = true;
+        matchMethod = 'openingHourId';
+        break;
+      }
+    }
+
+    // Method 2: Time-based matching (fallback for old bookings without openingHourId)
+    // NOTE: This can fail for long bookings that span multiple periods
+    if (!assigned) {
+      for (const group of groups) {
+        const periodStart = group.open;
+        const periodEnd = group.close;
+
+        if (bookingTime >= periodStart && bookingTime < periodEnd) {
+          group.bookings.push(booking);
+          assigned = true;
+          matchMethod = 'time-based (fallback)';
+          BMA_LOG.warn('Booking', booking._id || booking.id, 'matched using time-based fallback (no openingHourId). This may be incorrect for long bookings.');
+          break;
+        }
+      }
+    }
+
+    // If still not assigned to any period, add to "Other"
+    if (!assigned) {
+      OTHER_GROUP.bookings.push(booking);
+      if (booking.openingHourId) {
+        BMA_LOG.warn('Booking', booking._id || booking.id, 'has openingHourId:', booking.openingHourId, 'but no matching period found');
+      }
+    } else {
+      BMA_LOG.log('Booking', booking._id || booking.id, 'matched to period using:', matchMethod);
+    }
+  });
+
+  // Add "Other" group at the end if it has bookings
+  if (OTHER_GROUP.bookings.length > 0) {
+    groups.push(OTHER_GROUP);
+  }
+
+  return groups;
+}
+
+// Helper: Parse time string to minutes since midnight
+function parseTimeToMinutes(timeString) {
+  if (!timeString) return 0;
+
+  // Handle formats: "14:30", "2:30 PM", "1430"
+  const match = timeString.match(/(\d{1,2}):?(\d{2})\s*(AM|PM)?/i);
+  if (!match) return 0;
+
+  let hours = parseInt(match[1]);
+  const minutes = parseInt(match[2]);
+  const ampm = match[3];
+
+  // Convert to 24-hour format if AM/PM specified
+  if (ampm) {
+    if (ampm.toUpperCase() === 'PM' && hours < 12) hours += 12;
+    if (ampm.toUpperCase() === 'AM' && hours === 12) hours = 0;
+  }
+
+  return (hours * 100) + minutes;
+}
+
+// Helper: Format minutes (HHMM format) to display time
+function formatTimeFromMinutes(minutes) {
+  const hours = Math.floor(minutes / 100);
+  const mins = minutes % 100;
+  return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+}
+
+// Build Gantt chart for restaurant summary
+function buildRestaurantGanttChart(bookings, date, openingHours = [], specialEvents = []) {
+  const ganttContainer = document.getElementById('restaurant-summary-gantt');
+  if (!ganttContainer) return;
+
+  // Use actual opening hours from API, or fallback to full day view
+  let ganttOpeningHours = openingHours;
+
+  if (!ganttOpeningHours || ganttOpeningHours.length === 0) {
+    // Fallback: Full day view if no opening hours available
+    BMA_LOG.warn('No opening hours available, using full day view (00:00-23:59)');
+    ganttOpeningHours = [{
+      open: 0,     // 12:00 AM (midnight)
+      close: 2359, // 11:59 PM
+      interval: 15,
+      duration: 120
+    }];
+  } else {
+    BMA_LOG.log('Using opening hours for gantt:', ganttOpeningHours.length, 'periods');
+  }
+
+  const availableTimes = []; // No availability indication needed for summary view
+  const onlineBookingAvailable = false; // Not applicable for summary view
+
+  // Build Gantt chart HTML using existing buildGanttChart function
+  const ganttHtml = buildGanttChart(
+    ganttOpeningHours,
+    specialEvents,            // Pass special events for grey overlays
+    availableTimes,
+    bookings,
+    'compact', // Use compact mode (smaller bars, no names)
+    'restaurant-summary-gantt',
+    onlineBookingAvailable
+  );
+
+  ganttContainer.innerHTML = ganttHtml;
+
+  // Attach tooltips
+  attachGanttTooltips();
+
+  // Auto-scroll gantt after rendering
+  setTimeout(() => {
+    const today = new Date().toISOString().split('T')[0];
+
+    if (date === today) {
+      // Today: scroll to current time
+      BMA_LOG.log('Auto-scrolling gantt to current time');
+      scrollGanttToTime('restaurant-summary-gantt', 'now', false);
+    } else if (bookings.length > 0) {
+      // Future date: scroll to first booking + 60 minutes
+      const firstBooking = bookings[0];
+      if (firstBooking.time) {
+        const timeParts = firstBooking.time.split(':');
+        if (timeParts.length === 2) {
+          const hours = parseInt(timeParts[0]);
+          const minutes = parseInt(timeParts[1]);
+          // Add 60 minutes
+          let targetMinutes = minutes + 60;
+          let targetHours = hours;
+          if (targetMinutes >= 60) {
+            targetMinutes -= 60;
+            targetHours += 1;
+          }
+          const targetTime = (targetHours * 100) + targetMinutes;
+          BMA_LOG.log('Auto-scrolling gantt to first booking +60min:', firstBooking.time, '→', `${targetHours}:${String(targetMinutes).padStart(2, '0')}`);
+          scrollGanttToTime('restaurant-summary-gantt', targetTime, false);
+        }
+      }
+    }
+  }, 100); // Small delay to ensure DOM is rendered
+}
+
+// Build restaurant booking cards with opening hours accordion grouping
+function buildRestaurantCards(bookings, openingHours = [], date = '') {
+  const cardsContainer = document.querySelector('.restaurant-cards-container');
+  const emptyState = document.querySelector('.restaurant-cards-empty');
+
+  if (!cardsContainer) return;
+
+  if (bookings.length === 0) {
+    cardsContainer.innerHTML = '';
+    if (emptyState) emptyState.classList.remove('hidden');
+    return;
+  }
+
+  if (emptyState) emptyState.classList.add('hidden');
+
+  // Group bookings by opening hours periods
+  const groups = groupBookingsByOpeningHours(bookings, openingHours);
+
+  let html = '';
+
+  // Build accordion sections for each opening hours period
+  groups.forEach((group, groupIndex) => {
+    const bookingCount = group.bookings.length;
+    const totalPax = group.bookings.reduce((sum, b) => sum + (b.people || 0), 0);
+
+    // Format time range
+    let timeRange = '';
+    if (group.open !== null && group.close !== null) {
+      const openTime = formatTimeFromMinutes(group.open);
+      const closeTime = formatTimeFromMinutes(group.close);
+      timeRange = `${openTime} - ${closeTime}`;
+    }
+
+    // Last group (typically dinner) should be expanded by default
+    const isLastGroup = groupIndex === groups.length - 1;
+    const expandedClass = isLastGroup ? ' expanded' : '';
+
+    // Build header with badges
+    html += `
+      <div class="service-period-section${expandedClass}" data-period-id="${group._id || groupIndex}">
+        <div class="period-header">
+          <div class="period-info">
+            <h3 class="period-name">${group.name}</h3>
+            ${timeRange ? `<span class="period-times">${timeRange}</span>` : ''}
+          </div>
+          <div class="period-badges">
+            <span class="period-badge bookings-badge" title="${bookingCount} booking(s)">
+              <span class="material-symbols-outlined">table_bar</span>
+              ${bookingCount}
+            </span>
+            <span class="period-badge pax-badge" title="${totalPax} people">
+              <span class="material-symbols-outlined">airline_seat_recline_normal</span>
+              ${totalPax}
+            </span>
+          </div>
+          <span class="period-expand-icon">▼</span>
+        </div>
+        <div class="period-bookings">
+    `;
+
+    // Add booking cards for this period
+    group.bookings.forEach(booking => {
+    // ResOS API field mappings
+    const resosId = booking._id || booking.id || booking.resos_id || booking.booking_id || '';
+    const guestName = booking.guest?.name || booking.guest_name || booking.name || 'Unknown Guest';
+    const time = booking.timeString || booking.time || booking.arrival_time || '';
+    const people = booking.people || 0;
+    const status = booking.status || 'confirmed';
+    const source = booking.source || 'resos';
+    const duration = booking.duration || 0; // Duration in minutes
+
+    // Extract allergies from customFields
+    const customFields = booking.customFields || [];
+    const dietaryField = customFields.find(f => f.name && f.name.toLowerCase().includes('dietary requirements') && !f.name.toLowerCase().includes('other'));
+    const otherDietaryField = customFields.find(f => f.name && f.name.toLowerCase().includes('other dietary'));
+
+    const allergies = dietaryField?.value || [];
+    const otherAllergies = otherDietaryField?.value || '';
+
+    const restaurantNotes = booking.restaurantNotes || [];
+    const comments = booking.comments || [];
+
+    // Debug allergies extraction
+    BMA_LOG.log('Allergies for', guestName, ':', {
+      dietaryField,
+      allergies,
+      otherDietaryField,
+      otherAllergies
+    });
+
+    // Title case helper
+    const titleCase = (str) => str.split(/[\s-_]/).map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
+
+    // Duration formatter
+    const formatDuration = (minutes) => {
+      if (!minutes || minutes === 0) return '';
+      const hours = Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      if (mins === 0) {
+        return `${hours} hour${hours !== 1 ? 's' : ''}`;
+      } else if (hours === 0) {
+        return `${mins} mins`;
+      } else {
+        return `${hours} hour${hours !== 1 ? 's' : ''} ${mins} mins`;
+      }
+    };
+
+    // Check if allergies exist
+    const hasAllergies = () => {
+      const allergyArray = Array.isArray(allergies) ? allergies : (allergies ? [allergies] : []);
+      return allergyArray.length > 0 || otherAllergies;
+    };
+
+    // Get room number from server-side matching (already enhanced by API)
+    const room = booking.room_number || '';
+    const isResident = booking.is_hotel_guest || false;
+    const groupedRooms = booking.grouped_rooms || [];
+
+    // Get source icon
+    const sourceIcon = getRestaurantSourceIcon(source);
+
+    // Build room badges display
+    let roomBadgesHtml = '';
+    if (isResident && room) {
+      // Total rooms = primary + grouped
+      const totalRooms = 1 + groupedRooms.length;
+
+      if (totalRooms === 2) {
+        // 2 rooms total: show inline
+        roomBadgesHtml = `<span class="room-badge">${room}</span><span class="room-badge">${groupedRooms[0]}</span>`;
+      } else if (totalRooms > 2) {
+        // 3+ rooms total: show primary on first line
+        roomBadgesHtml = `<span class="room-badge">${room}</span>`;
+      } else {
+        // Just 1 room (no group)
+        roomBadgesHtml = `<span class="room-badge">${room}</span>`;
+      }
+    }
+
+    html += `
+      <div class="restaurant-card" data-resos-id="${resosId}" data-status="${status}">
+        <div class="restaurant-header">
+          <div class="restaurant-main-info">
+            <span class="booking-time">${time}</span>
+            <span class="guest-name">${guestName}</span>
+            <span class="pax-badge">(${people})</span>
+            <span class="source-icon material-symbols-outlined" title="${source}">${sourceIcon}</span>
+            ${roomBadgesHtml}
+          </div>`;
+
+    // Add grouped rooms on second line if 3+ total rooms
+    if (isResident && room && groupedRooms.length > 1) {
+      const groupedBadges = groupedRooms.map(r => `<span class="room-badge">${r}</span>`).join('');
+      html += `
+          <div class="restaurant-grouped-rooms">
+            <span class="grouped-label">Joined by</span>
+            ${groupedBadges}
+          </div>`;
+    }
+
+    // Build room(s) display with + separator and lead underlined
+    let roomsDisplay = '';
+    if (isResident && room) {
+      if (groupedRooms.length > 0) {
+        const allRooms = [room, ...groupedRooms];
+        roomsDisplay = allRooms.map((r, i) => i === 0 ? `<u>${r}</u>` : r).join(' + ');
+      } else {
+        roomsDisplay = `<u>${room}</u>`;
+      }
+    }
+
+    // Format allergies badges
+    const allergyArray = Array.isArray(allergies) ? allergies : (allergies ? [allergies] : []);
+    let allergiesBadgesHtml = '';
+    if (allergyArray.length > 0) {
+      // Extract name from allergy objects (could be multipleChoiceValueName or name)
+      allergiesBadgesHtml = allergyArray.map(a => {
+        const allergyName = typeof a === 'string' ? a : (a.multipleChoiceValueName || a.name || a.label || a);
+        return `<span class="allergy-badge">${allergyName}</span>`;
+      }).join('');
+    } else {
+      allergiesBadgesHtml = '<span class="allergy-badge none-selected">None Selected</span>';
+    }
+
+    // Format room badges for details section (if hotel guest)
+    let roomBadgesDetailsHtml = '';
+    if (isResident && room) {
+      const allRooms = [room, ...groupedRooms];
+      roomBadgesDetailsHtml = allRooms.map((r, i) => {
+        const badgeClass = i === 0 ? 'room-badge-lead' : 'room-badge-grouped';
+        return `<span class="${badgeClass}">${r}</span>`;
+      }).join('');
+    }
+
+    html += `
+          ${hasAllergies() ? '<span class="allergy-icon material-symbols-outlined" title="Allergies">no_food</span>' : ''}
+          <span class="restaurant-expand-icon">▼</span>
+        </div>
+        <div class="restaurant-details">
+          <div class="restaurant-details-inline">
+            <span class="detail-line"><strong>Time:</strong> ${time}</span>
+            <span class="detail-line">(${people}) pax</span>
+            <span class="detail-line"><strong>Source:</strong> ${titleCase(source)}</span>
+            <span class="detail-line">${formatDuration(duration) || '<span style="color: #9ca3af;">No duration</span>'}</span>
+            <span class="detail-line"><strong>Status:</strong> ${titleCase(status)}</span>
+            <span class="detail-line">${roomBadgesDetailsHtml}</span>
+            <span class="detail-line full-span"><strong>Allergies:</strong> <span class="allergy-badges">${allergiesBadgesHtml}</span></span>
+            ${otherAllergies ? `<span class="detail-line full-span"><strong>Other Allergies:</strong> <span class="other-allergies-badge">${otherAllergies}</span></span>` : ''}
+          </div>
+          ${restaurantNotes.length > 0 ? `
+            <div class="restaurant-notes-section">
+              <h4>Internal Notes</h4>
+              ${restaurantNotes.map(note => `
+                <div class="restaurant-note-box">
+                  <div class="note-text">${note.restaurantNote || note.note || ''}</div>
+                  <div class="note-meta">${new Date(note.createdAt).toLocaleString()}</div>
+                </div>
+              `).join('')}
+            </div>
+          ` : ''}
+          ${(() => {
+            // Filter out system messages and sort chronologically
+            const allMessages = comments
+              .filter(c => c.role === 'user' || c.role === 'restaurant')
+              .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+
+            if (allMessages.length === 0) return '';
+
+            return `
+              <div class="restaurant-messages-section">
+                <h4>Messages</h4>
+                <div class="messages-chat-container">
+                  ${allMessages.map(message => `
+                    <div class="message-bubble ${message.role === 'user' ? 'message-guest' : 'message-restaurant'}">
+                      <div class="message-text">${message.comment || ''}</div>
+                      <div class="message-meta">${new Date(message.createdAt).toLocaleString()}</div>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            `;
+          })()}
+          <div class="restaurant-actions">
+            <button class="restaurant-btn-resos" data-resos-id="${resosId}" data-restaurant-id="${booking.restaurantId || ''}" data-date="${date}">
+              <span class="material-symbols-outlined">open_in_new</span> Open in ResOS
+            </button>
+            ${isResident && room ? `
+              <button class="restaurant-btn-newbook" data-booking-id="${booking.newbook_booking_id || booking.hotel_booking_id || ''}">
+                <span class="material-symbols-outlined">arrow_back</span> Open in NewBook
+              </button>
+            ` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+    });
+
+    // Close period section
+    html += `
+        </div>
+      </div>
+    `;
+  });
+
+  cardsContainer.innerHTML = html;
+
+  // Initialize accordion behavior for both period headers and booking cards
+  initializeRestaurantCards();
+}
+
+// Get source icon for restaurant booking
+function getRestaurantSourceIcon(source) {
+  const icons = {
+    'resos': 'restaurant',
+    'phone': 'phone_in_talk',
+    'email': 'mark_email_unread',
+    'walkin': 'directions_walk',
+    'walk-in': 'directions_walk',
+    'online': 'captive_portal',
+    'widget': 'captive_portal',
+    'web': 'captive_portal',
+    'website': 'captive_portal',
+    'api': 'integration_instructions',
+    'other': 'alt_route',
+    'facebook': 'share',
+    'instagram': 'share',
+    'google': 'search'
+  };
+  return icons[source?.toLowerCase()] || 'restaurant';
+}
+
+// Initialize restaurant card accordion behavior
+function initializeRestaurantCards() {
+  const cardsContainer = document.querySelector('.restaurant-cards-container');
+  if (!cardsContainer) return;
+
+  // Period header accordion (opening hours sections)
+  cardsContainer.querySelectorAll('.period-header').forEach(header => {
+    header.addEventListener('click', function(e) {
+      // Prevent event bubbling to card headers
+      e.stopPropagation();
+
+      const section = this.closest('.service-period-section');
+
+      // Toggle current section
+      section.classList.toggle('expanded');
+    });
+  });
+
+  // Booking card accordion (individual booking details)
+  cardsContainer.querySelectorAll('.restaurant-header').forEach(header => {
+    header.addEventListener('click', function(e) {
+      const card = this.closest('.restaurant-card');
+
+      // Close all other expanded cards within the same period (accordion)
+      const period = card.closest('.service-period-section');
+      if (period) {
+        period.querySelectorAll('.restaurant-card.expanded').forEach(expandedCard => {
+          if (expandedCard !== card) {
+            expandedCard.classList.remove('expanded');
+          }
+        });
+      }
+
+      // Toggle current card
+      card.classList.toggle('expanded');
+    });
+  });
+
+  // Highlight gantt bar on card hover
+  cardsContainer.querySelectorAll('.restaurant-card').forEach(card => {
+    const bookingId = card.getAttribute('data-resos-id');
+    if (!bookingId) return;
+
+    // Mouse enter - highlight gantt bar
+    card.addEventListener('mouseenter', function() {
+      const ganttBar = document.querySelector(`.gantt-booking-bar[data-booking-id="${bookingId}"]`);
+      if (ganttBar) {
+        ganttBar.classList.add('gantt-bar-highlighted');
+      }
+    });
+
+    // Mouse leave - remove highlight
+    card.addEventListener('mouseleave', function() {
+      const ganttBar = document.querySelector(`.gantt-booking-bar[data-booking-id="${bookingId}"]`);
+      if (ganttBar) {
+        ganttBar.classList.remove('gantt-bar-highlighted');
+      }
+    });
+
+    // Horizontal scroll gantt on booking-time hover
+    const bookingTimeElement = card.querySelector('.booking-time');
+    if (bookingTimeElement) {
+      bookingTimeElement.addEventListener('mouseenter', function() {
+        const timeText = this.textContent.trim();
+        // Parse time (format: "HH:MM")
+        const timeParts = timeText.split(':');
+        if (timeParts.length === 2) {
+          const hours = parseInt(timeParts[0]);
+          const minutes = parseInt(timeParts[1]);
+          // Add 60 minutes to center the viewport around the booking duration
+          let targetMinutes = minutes + 60;
+          let targetHours = hours;
+          if (targetMinutes >= 60) {
+            targetMinutes -= 60;
+            targetHours += 1;
+            if (targetHours >= 24) targetHours = 23;
+          }
+          // Convert to HHMM format
+          const targetTime = (targetHours * 100) + targetMinutes;
+          // Scroll gantt chart (centers target time in viewport)
+          scrollGanttToTime('restaurant-summary-gantt', targetTime, true);
+        }
+      });
+    }
+  });
+
+  // "Open in ResOS" button click handlers
+  cardsContainer.querySelectorAll('.restaurant-btn-resos').forEach(button => {
+    button.addEventListener('click', function(e) {
+      e.stopPropagation(); // Prevent card toggle
+      const resosId = this.dataset.resosId;
+      const restaurantId = this.dataset.restaurantId;
+      const date = this.dataset.date;
+
+      if (resosId && restaurantId && date) {
+        const resosUrl = `https://app.resos.com/${restaurantId}/bookings/timetable/${date}/${resosId}`;
+        BMA_LOG.log('Opening ResOS booking in new tab:', resosUrl);
+        chrome.tabs.create({ url: resosUrl });
+      }
+    });
+  });
+
+  // "Open in NewBook" button click handlers
+  cardsContainer.querySelectorAll('.restaurant-btn-newbook').forEach(button => {
+    button.addEventListener('click', function(e) {
+      e.stopPropagation(); // Prevent card toggle
+      const bookingId = this.dataset.bookingId;
+
+      if (bookingId) {
+        const newbookUrl = `https://appeu.newbook.cloud/bookings_view/${bookingId}`;
+        BMA_LOG.log('Opening NewBook booking in current tab:', newbookUrl);
+        chrome.tabs.update({ url: newbookUrl });
+      }
+    });
+  });
+}
+
+// Initialize restaurant date picker
+function initializeRestaurantDatePicker() {
+  const dateInput = document.getElementById('restaurant-date-input');
+  const prevBtn = document.getElementById('restaurant-prev-date');
+  const nextBtn = document.getElementById('restaurant-next-date');
+
+  if (dateInput) {
+    dateInput.value = STATE.restaurantDate;
+    dateInput.addEventListener('change', function() {
+      loadRestaurantSummaryView(this.value);
+    });
+  }
+
+  if (prevBtn) {
+    prevBtn.addEventListener('click', () => changeRestaurantDate(-1));
+  }
+
+  if (nextBtn) {
+    nextBtn.addEventListener('click', () => changeRestaurantDate(1));
+  }
+
+  // Initialize Gantt "Now" button
+  const ganttNowBtn = document.getElementById('restaurant-gantt-now-btn');
+  if (ganttNowBtn) {
+    ganttNowBtn.addEventListener('click', () => {
+      // Get today's date in YYYY-MM-DD format
+      const today = new Date().toISOString().split('T')[0];
+
+      // Check if we're already viewing today
+      if (STATE.restaurantDate !== today) {
+        // Load today's date (will auto-scroll to now after loading)
+        loadRestaurantSummaryView(today);
+      } else {
+        // Already on today, just scroll to current time
+        scrollGanttToTime('restaurant-summary-gantt', 'now', true);
+      }
+    });
+  }
+}
+
+// Change restaurant date by offset
+function changeRestaurantDate(offset) {
+  const currentDate = new Date(STATE.restaurantDate);
+  currentDate.setDate(currentDate.getDate() + offset);
+  const newDate = currentDate.toISOString().split('T')[0];
+  loadRestaurantSummaryView(newDate);
+}
+
+// Update restaurant summary last updated timestamp
+function updateRestaurantSummaryLastUpdated(timestamp) {
+  const lastUpdatedElement = document.querySelector('.restaurant-summary-updated .last-updated-text');
+  if (!lastUpdatedElement) return;
+
+  if (!timestamp) {
+    lastUpdatedElement.textContent = 'Never updated';
+    return;
+  }
+
+  const now = Date.now();
+  const diff = now - timestamp;
+  const seconds = Math.floor(diff / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+
+  let text = '';
+  if (days > 0) {
+    text = `Last updated ${days} day${days !== 1 ? 's' : ''} ago`;
+  } else if (hours > 0) {
+    text = `Last updated ${hours} hour${hours !== 1 ? 's' : ''} ago`;
+  } else if (minutes > 0) {
+    text = `Last updated ${minutes} minute${minutes !== 1 ? 's' : ''} ago`;
+  } else {
+    text = 'Last updated just now';
+  }
+
+  lastUpdatedElement.textContent = text;
+}
+
 // Checks Tab
-async function loadChecksTab(force_refresh = true) {
+async function loadChecksTab(force_refresh = false) {
   if (!STATE.settings) {
     showError('checks', 'Please configure settings first');
     return;
@@ -3886,9 +5081,74 @@ function resetInactivityTimer() {
   }
 }
 
+/**
+ * Check if user has active work in progress that shouldn't be interrupted
+ * @returns {Object|null} Returns interrupt info if user has active work, null otherwise
+ */
+function checkForActiveWork() {
+  // Check for expanded booking cards in Summary tab
+  const expandedCards = document.querySelectorAll('.booking-card.expanded');
+  if (expandedCards.length > 0) {
+    return { type: 'expanded-booking', element: expandedCards[0] };
+  }
+
+  // Check for open create booking form (state flag)
+  if (STATE.createFormOpen) {
+    return { type: 'create-form-open' };
+  }
+
+  // Check for open create booking form (DOM check as backup)
+  const createForms = document.querySelectorAll('[id^="create-form-"]');
+  for (const form of createForms) {
+    if (form.style.display === 'block') {
+      // Update state flag if out of sync
+      if (!STATE.createFormOpen) {
+        BMA_LOG.log('Warning: create form open in DOM but state flag was false - correcting');
+        STATE.createFormOpen = true;
+      }
+      return { type: 'create-form-open', element: form };
+    }
+  }
+
+  // Check for open comparison rows
+  const comparisonContainers = document.querySelectorAll('[id^="comparison-"]');
+  for (const container of comparisonContainers) {
+    if (container.style.display === 'block') {
+      return { type: 'comparison-open', element: container };
+    }
+  }
+
+  return null; // No active work
+}
+
 // Booking Detection Handler
-function handleBookingDetected(bookingId) {
-  BMA_LOG.log('Booking detected, updating sidepanel for booking:', bookingId);
+function handleBookingDetected(bookingId, isUrlTrigger = true) {
+  BMA_LOG.log('Booking detected, updating sidepanel for booking:', bookingId, 'isUrlTrigger:', isUrlTrigger);
+
+  // Check if user has active work in progress
+  const activeWork = checkForActiveWork();
+  if (activeWork) {
+    BMA_LOG.log('Interrupt prevented - user has active work:', activeWork.type);
+    BMA_LOG.log('Booking', bookingId, 'detection deferred until user completes current task');
+
+    // Store the booking ID but don't switch tabs yet
+    STATE.currentBookingId = bookingId;
+    STATE.isUrlTriggerBooking = isUrlTrigger;
+    chrome.storage.local.set({
+      currentBookingId: bookingId,
+      isUrlTriggerBooking: isUrlTrigger
+    });
+
+    // Load data silently in background for badges but don't switch tabs
+    Promise.all([
+      loadRestaurantTabSilently(),
+      loadChecksTabSilently()
+    ]).then(() => {
+      BMA_LOG.log('Booking data loaded silently - badges updated, waiting for user to finish current task');
+    });
+
+    return; // Don't proceed with tab switching
+  }
 
   // Clear loadedBookingIds only if switching to a different booking
   if (STATE.currentBookingId !== bookingId) {
@@ -3898,12 +5158,29 @@ function handleBookingDetected(bookingId) {
   }
 
   STATE.currentBookingId = bookingId;
+  STATE.isUrlTriggerBooking = isUrlTrigger; // Mark based on trigger source
+  chrome.storage.local.set({
+    currentBookingId: bookingId,
+    isUrlTriggerBooking: isUrlTrigger
+  });
+
+  if (isUrlTrigger) {
+    BMA_LOG.log('Booking marked as URL trigger (sticky)');
+  } else {
+    BMA_LOG.log('Booking marked as planner/temporary trigger (non-sticky)');
+  }
 
   // Load both Restaurant and Checks tabs in parallel
   Promise.all([
     loadRestaurantTabSilently(),
     loadChecksTabSilently()
   ]).then(([restaurantData, checksData]) => {
+    // Set navigation context to preserve booking ID when switching tabs
+    // This prevents the tab switch from clearing the booking context
+    STATE.navigationContext = {
+      preserveBookingId: true
+    };
+
     // Determine which tab to switch to based on priority
     const restaurantCritical = restaurantData?.critical_count || 0;
     const restaurantWarning = restaurantData?.warning_count || 0;
@@ -4049,6 +5326,27 @@ async function loadStayingTab(date = null, force_refresh = false) {
           // No changes detected
           BMA_LOG.log('Smart refresh: No changes detected in Staying, keeping current view');
           updateBadge('staying', newData.critical_count || 0, newData.warning_count || 0);
+
+          // IMPORTANT: If we're showing the tab for the first time (after silent load),
+          // we need to display the cached data even though nothing changed
+          const tabData = document.querySelector('[data-content="staying"] .tab-data');
+          if (tabData && tabData.classList.contains('hidden')) {
+            BMA_LOG.log('Smart refresh: First time showing Staying tab, displaying cached data');
+            showData('staying', currentHtml);
+            updateTabLastUpdated('staying', STATE.lastStayingUpdate);
+
+            // Initialize event listeners for cards
+            initializeGroupHover();
+            initializeStayingCards();
+
+            // Apply default filter if setting enabled
+            if (STATE.settings.stayingDefaultOccupiedFilter) {
+              BMA_LOG.log('Applying default occupied filter to Staying tab');
+              filterStayingByStat('in-house');
+              updateStatFilterUI('in-house');
+            }
+          }
+
           return; // Don't reload
         } else {
           // Changes detected, proceed with refresh
@@ -4091,6 +5389,13 @@ async function loadStayingTab(date = null, force_refresh = false) {
 
       // Initialize card expand/collapse
       initializeStayingCards();
+
+      // Apply default filter if setting enabled
+      if (STATE.settings.stayingDefaultOccupiedFilter) {
+        BMA_LOG.log('Applying default occupied filter to Staying tab');
+        filterStayingByStat('in-house');
+        updateStatFilterUI('in-house');
+      }
     } else if (data.success && (!data.html || data.html.trim() === '')) {
       showEmpty('staying');
       STATE.loadedBookingIds.staying = null;
@@ -4160,11 +5465,49 @@ function initializeStayingCards() {
   const stayingTab = document.querySelector('[data-content="staying"] .tab-data');
   if (!stayingTab) return;
 
-  // Expand/collapse headers
+  // Expand/collapse headers (with accordion behavior)
   stayingTab.querySelectorAll('.staying-header').forEach(header => {
     header.addEventListener('click', function(e) {
       const card = this.closest('.staying-card');
+      const isExpanded = card.classList.contains('expanded');
+
+      // Accordion behavior: close all other cards first
+      stayingTab.querySelectorAll('.staying-card.expanded').forEach(expandedCard => {
+        if (expandedCard !== card) {
+          expandedCard.classList.remove('expanded');
+        }
+      });
+
+      // Toggle current card
       card.classList.toggle('expanded');
+
+      // Auto-scroll if card was just expanded
+      if (!isExpanded) {
+        // Use requestAnimationFrame twice to ensure layout is fully recalculated
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            const tabContents = document.querySelector('.tab-contents');
+            if (tabContents) {
+              // Get height of sticky datepicker
+              const datePicker = document.querySelector('.staying-date-picker');
+              const datePickerHeight = datePicker ? datePicker.offsetHeight : 0;
+
+              // Get stats row height (it scrolls with content but sits between datepicker and staying-list)
+              const statsRow = document.querySelector('.staying-stats-row');
+              const statsRowHeight = statsRow ? statsRow.offsetHeight : 0;
+
+              // Position card 4px below datepicker, accounting for stats row + additional margin/padding (~23px)
+              const desiredGap = datePickerHeight + statsRowHeight + 23 + 4;
+              const scrollTo = card.offsetTop - desiredGap;
+
+              tabContents.scrollTo({
+                top: scrollTo,
+                behavior: 'smooth'
+              });
+            }
+          });
+        });
+      }
     });
   });
 
@@ -4220,22 +5563,105 @@ function initializeStayingCards() {
     });
   });
 
-  // Clickable issues - navigate to Restaurant tab with comparison row expansion
+  // Clickable issues - navigate to Restaurant tab with comparison row expansion OR navigate to lead booking
   stayingTab.querySelectorAll('.clickable-issue').forEach(issue => {
     issue.addEventListener('click', function(e) {
       e.stopPropagation();
-      const bookingId = this.dataset.bookingId;
-      const date = this.dataset.date;
-      const resosId = this.dataset.resosId;
-      BMA_LOG.log('Suggested match clicked - navigating to Restaurant tab:', { bookingId, date, resosId });
+      const leadRoom = this.dataset.leadRoom;
 
-      // Navigate to Restaurant tab with date and expand comparison row
-      if (date && resosId) {
-        navigateToRestaurantDate(date, parseInt(bookingId), resosId);
+      // Check if this is a group member (has data-lead-room)
+      if (leadRoom) {
+        BMA_LOG.log('Group member clicked - navigating to lead booking:', leadRoom);
+
+        // Find the lead booking card by room number
+        const leadCard = Array.from(stayingTab.querySelectorAll('.staying-card')).find(card => {
+          const roomNumberElement = card.querySelector('.room-number');
+          return roomNumberElement && roomNumberElement.textContent.trim() === leadRoom;
+        });
+
+        if (leadCard) {
+          // Close current card if expanded
+          const currentCard = this.closest('.staying-card');
+          if (currentCard && currentCard.classList.contains('expanded')) {
+            currentCard.classList.remove('expanded');
+          }
+
+          // Expand the lead card
+          leadCard.classList.add('expanded');
+
+          // Scroll to lead card
+          // Get the actual scroll container (.tab-contents), not .tab-data
+          const scrollContainer = document.querySelector('.tab-contents');
+          if (!scrollContainer) {
+            BMA_LOG.warn('Scroll container not found');
+            return;
+          }
+
+          requestAnimationFrame(() => {
+            setTimeout(() => {
+              // Verify leadCard still exists in DOM
+              if (!leadCard || !leadCard.isConnected) {
+                BMA_LOG.warn('Lead card no longer in DOM, cannot scroll');
+                return;
+              }
+
+              // Get the sticky date picker height dynamically
+              const datePicker = document.querySelector('.staying-date-picker');
+              const datePickerHeight = datePicker ? datePicker.offsetHeight : 45;
+
+              const containerRect = scrollContainer.getBoundingClientRect();
+              const elementRect = leadCard.getBoundingClientRect();
+
+              if (!elementRect || !containerRect) {
+                BMA_LOG.warn('Could not get bounding rects for scroll');
+                return;
+              }
+
+              // Account for sticky date picker + small visual spacing (10px)
+              const offset = datePickerHeight + 10;
+              const scrollTop = scrollContainer.scrollTop + (elementRect.top - containerRect.top) - offset;
+
+              BMA_LOG.log('Scrolling to lead booking - offset:', offset, 'datePickerHeight:', datePickerHeight, 'scrollTop:', scrollTop);
+
+              // Perform scroll
+              scrollContainer.scrollTop = scrollTop;
+              scrollContainer.scrollTo({ top: scrollTop, behavior: 'smooth' });
+
+              // Verify scroll happened
+              setTimeout(() => {
+                const actualScrollTop = scrollContainer.scrollTop;
+                BMA_LOG.log('Scroll verification - expected:', scrollTop, 'actual:', actualScrollTop);
+
+                // If scroll didn't happen at all (still at/near 0), try alternative method
+                if (actualScrollTop < 10 && scrollTop > 20) {
+                  BMA_LOG.warn('Scroll failed, trying scrollIntoView with offset');
+                  // Scroll element into view, then adjust for sticky header
+                  leadCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  setTimeout(() => {
+                    scrollContainer.scrollTop -= offset;
+                  }, 300);
+                }
+              }, 200);
+            }, 50);
+          });
+        } else {
+          BMA_LOG.warn('Lead booking card not found for room:', leadRoom);
+        }
       } else {
-        // Fallback if data attributes not available (shouldn't happen with updated templates)
-        STATE.currentBookingId = bookingId;
-        switchTab('restaurant');
+        // Regular clickable-issue behavior (navigate to Restaurant tab)
+        const bookingId = this.dataset.bookingId;
+        const date = this.dataset.date;
+        const resosId = this.dataset.resosId;
+        BMA_LOG.log('Suggested match clicked - navigating to Restaurant tab:', { bookingId, date, resosId });
+
+        // Navigate to Restaurant tab with date and expand comparison row
+        if (date && resosId) {
+          navigateToRestaurantDate(date, parseInt(bookingId), resosId);
+        } else {
+          // Fallback if data attributes not available (shouldn't happen with updated templates)
+          STATE.currentBookingId = bookingId;
+          switchTab('restaurant');
+        }
       }
     });
   });
@@ -4543,22 +5969,60 @@ function initializeRefreshButtons() {
   const refreshButtons = document.querySelectorAll('.tab-refresh-btn');
 
   refreshButtons.forEach(btn => {
+    // Update tooltip to explain left-click vs right-click
+    btn.title = 'Left-click: Refresh (uses cache) | Right-click: Force fresh data';
+
+    // Left-click: Soft refresh (force_refresh=false)
     btn.addEventListener('click', async function(e) {
       e.preventDefault();
       e.stopPropagation();
 
       const tabName = this.dataset.tab;
-      BMA_LOG.log('Refresh button clicked for tab:', tabName);
+      BMA_LOG.log('Refresh button (soft) clicked for tab:', tabName);
 
       // Add refreshing class for animation
       this.classList.add('refreshing');
 
       try {
-        // Clear cache for this tab to force full reload
+        // Clear local cache to ensure fresh fetch
         STATE.cache[tabName] = null;
         STATE.loadedBookingIds[tabName] = null;
 
-        // Trigger reload based on tab type with force_refresh=true
+        // Trigger reload with force_refresh=false (uses API cache)
+        if (tabName === 'summary') {
+          await loadSummaryTab(false);
+        } else if (tabName === 'restaurant') {
+          await loadRestaurantTab(false);
+        } else if (tabName === 'checks') {
+          await loadChecksTab(false);
+        } else if (tabName === 'staying') {
+          await loadStayingTab(STATE.stayingDate, false);
+        }
+      } catch (error) {
+        BMA_LOG.error(`Error refreshing ${tabName} tab:`, error);
+      } finally {
+        // Remove refreshing class
+        this.classList.remove('refreshing');
+      }
+    });
+
+    // Right-click: Hard refresh (force_refresh=true)
+    btn.addEventListener('contextmenu', async function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const tabName = this.dataset.tab;
+      BMA_LOG.log('Refresh button (hard) right-clicked for tab:', tabName);
+
+      // Add hard-refreshing class for different animation
+      this.classList.add('hard-refreshing');
+
+      try {
+        // Clear local cache
+        STATE.cache[tabName] = null;
+        STATE.loadedBookingIds[tabName] = null;
+
+        // Trigger reload with force_refresh=true (bypasses API cache)
         if (tabName === 'summary') {
           await loadSummaryTab(true);
         } else if (tabName === 'restaurant') {
@@ -4569,10 +6033,10 @@ function initializeRefreshButtons() {
           await loadStayingTab(STATE.stayingDate, true);
         }
       } catch (error) {
-        BMA_LOG.error(`Error refreshing ${tabName} tab:`, error);
+        BMA_LOG.error(`Error hard refreshing ${tabName} tab:`, error);
       } finally {
-        // Remove refreshing class
-        this.classList.remove('refreshing');
+        // Remove hard-refreshing class
+        this.classList.remove('hard-refreshing');
       }
     });
   });
@@ -4584,13 +6048,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.action === 'bookingDetected') {
     BMA_LOG.log('Processing bookingDetected message, source:', message.source);
-    handleBookingDetected(message.bookingId);
+    handleBookingDetected(message.bookingId, true); // URL trigger - sticky
   } else if (message.action === 'plannerClick') {
     if (STATE.settings?.enablePlannerClickUpdate) {
       BMA_LOG.log('Processing plannerClick message (setting enabled)');
-      handleBookingDetected(message.bookingId);
+      handleBookingDetected(message.bookingId, false); // Planner click - non-sticky
     } else {
       BMA_LOG.log('Ignoring plannerClick message (setting disabled)');
+    }
+  } else if (message.action === 'openStayingTab') {
+    BMA_LOG.log('Processing openStayingTab message for date:', message.date);
+    // Switch to staying tab and load the specified date
+    switchTab('staying');
+    // Load staying data for the clicked date
+    if (message.date && typeof window.loadStayingTab === 'function') {
+      // Set a small timeout to ensure tab switch completes first
+      setTimeout(() => {
+        window.loadStayingTab(message.date);
+      }, 100);
     }
   } else if (message.action === 'sessionLockChanged') {
     BMA_LOG.log('Processing sessionLockChanged message:', message.isLocked);
@@ -4640,8 +6115,37 @@ async function loadSettings() {
 
 // Event Listeners
 document.querySelectorAll('.tab-button').forEach(button => {
-  button.addEventListener('click', () => {
-    switchTab(button.dataset.tab);
+  button.addEventListener('click', async () => {
+    const tabName = button.dataset.tab;
+
+    // Handle Restaurant tab button clicks
+    if (tabName === 'restaurant') {
+      // Check if we're on a URL trigger pattern
+      const urlTrigger = await checkUrlTriggerPattern();
+      const isAlreadyOnRestaurant = STATE.currentTab === 'restaurant';
+      const hasCurrentBooking = !!STATE.currentBookingId;
+
+      if (urlTrigger && urlTrigger.bookingId) {
+        // On a URL trigger - preserve the booking (sticky)
+        BMA_LOG.log('Restaurant tab clicked - on URL trigger, preserving booking:', urlTrigger.bookingId);
+        STATE.currentBookingId = urlTrigger.bookingId;
+        STATE.isUrlTriggerBooking = true;
+      } else if (STATE.navigationContext?.preserveBookingId) {
+        // Has navigation context (active planner/popup click) - preserve temporarily
+        BMA_LOG.log('Restaurant tab button clicked with navigation context - preserving booking:', STATE.currentBookingId);
+      } else if (isAlreadyOnRestaurant && hasCurrentBooking) {
+        // Already on Restaurant tab with a booking loaded - preserve it (don't clear on re-click)
+        BMA_LOG.log('Restaurant tab re-clicked - preserving current booking:', STATE.currentBookingId);
+      } else {
+        // Clicking from another tab with no active trigger - clear booking to show summary
+        BMA_LOG.log('Restaurant tab button clicked from another tab - clearing booking context');
+        STATE.currentBookingId = null;
+        STATE.isUrlTriggerBooking = false;
+        chrome.storage.local.remove(['currentBookingId', 'isUrlTriggerBooking']);
+      }
+    }
+
+    switchTab(tabName);
   });
 });
 
@@ -4702,16 +6206,16 @@ async function openGroupManagementModal(resosBookingId, hotelBookingId, date, re
   GROUP_MODAL_STATE.resosBooking = { time: resosTime, guest_name: resosGuest, people: resosPeople };
   GROUP_MODAL_STATE.leadBookingId = resosBookingRef; // The booking ID from ResOS "Booking #" field
 
-  console.log('BMA: openGroupManagementModal - resosBookingRef (lead):', resosBookingRef);
-  console.log('BMA: openGroupManagementModal - groupExcludeField raw:', groupExcludeField);
+  BMA_LOG.log('openGroupManagementModal - resosBookingRef (lead):', resosBookingRef);
+  BMA_LOG.log('openGroupManagementModal - groupExcludeField raw:', groupExcludeField);
   GROUP_MODAL_STATE.groupExcludeData = parseGroupExcludeField(groupExcludeField);
-  console.log('BMA: openGroupManagementModal - parsed groupExcludeData:', GROUP_MODAL_STATE.groupExcludeData);
+  BMA_LOG.log('openGroupManagementModal - parsed groupExcludeData:', GROUP_MODAL_STATE.groupExcludeData);
 
   // Show modal
   modal.classList.remove('hidden');
 
   // Show ResOS booking info
-  console.log('BMA: ResOS data - time:', resosTime, 'guest:', resosGuest, 'people:', resosPeople);
+  BMA_LOG.log('ResOS data - time:', resosTime, 'guest:', resosGuest, 'people:', resosPeople);
   const time = (resosTime && resosTime.trim()) || 'N/A';
   const guestName = (resosGuest && resosGuest.trim()) || 'Unknown';
   const people = resosPeople || '0';
@@ -4771,7 +6275,7 @@ function parseGroupExcludeField(fieldValue) {
     }
   });
 
-  console.log('BMA: parseGroupExcludeField - input:', fieldValue, 'output:', result);
+  BMA_LOG.log('parseGroupExcludeField - input:', fieldValue, 'output:', result);
   return result;
 }
 
@@ -4832,7 +6336,7 @@ function renderBookingsTable(bookings) {
     const isLeadBooking = String(booking.booking_id) === String(GROUP_MODAL_STATE.leadBookingId);
     const checkedAttr = isLeadBooking ? ' checked' : '';
     if (isLeadBooking) {
-      console.log('BMA: Booking', booking.booking_id, 'matches ResOS Booking # field, pre-selected as lead');
+      BMA_LOG.log('Booking', booking.booking_id, 'matches ResOS Booking # field, pre-selected as lead');
     }
     html += `<input type="radio" name="lead-booking" value="${booking.booking_id}" class="lead-radio"${checkedAttr}>`;
     html += '</td>';
@@ -4841,7 +6345,7 @@ function renderBookingsTable(bookings) {
     html += '<td>';
     const isInGroupField = groupExcludeData.groups.includes(String(booking.booking_id));
     if (isInGroupField) {
-      console.log('BMA: Booking', booking.booking_id, 'is in GROUP/EXCLUDE field, should be pre-selected');
+      BMA_LOG.log('Booking', booking.booking_id, 'is in GROUP/EXCLUDE field, should be pre-selected');
     }
     const autoChecked = isLeadBooking || isInGroupField;
     const groupCheckedAttr = autoChecked ? ' checked' : '';
@@ -4907,7 +6411,8 @@ async function saveGroupConfiguration() {
   });
 
   if (!leadBookingId) {
-    showToast('Please select a lead booking', 'error');
+    BMA_LOG.error('No lead booking selected');
+    alert('Please select a lead booking');
     return;
   }
 
@@ -4919,7 +6424,41 @@ async function saveGroupConfiguration() {
     }
   });
 
-  // Make API call
+  // CREATE MODE: Store in form, don't call API yet
+  if (!GROUP_MODAL_STATE.resosBookingId) {
+    BMA_LOG.log('GROUP modal in CREATE mode - storing selections in form');
+
+    // Find the create form for this date
+    const formId = `create-form-${GROUP_MODAL_STATE.date}`;
+    const form = document.querySelector(`#${formId}`);
+
+    if (!form) {
+      BMA_LOG.error('Create form not found for date:', GROUP_MODAL_STATE.date);
+      alert('Error: Form not found');
+      return;
+    }
+
+    // Store lead booking ID
+    const leadField = form.querySelector('.form-lead-booking');
+    if (leadField) {
+      leadField.value = leadBookingId || '';
+    }
+
+    // Build and store group members (plain IDs: id,id,...)
+    const groupValue = individualIds.join(',');
+    const groupField = form.querySelector('.form-group-members');
+    if (groupField) {
+      groupField.value = groupValue;
+    }
+
+    BMA_LOG.log('Stored group data:', { leadBookingId, groupMembers: groupValue });
+
+    // Success - close modal
+    closeGroupModal();
+    return;
+  }
+
+  // UPDATE MODE: Make API call
   try {
     const config = getAPIConfig();
     const response = await fetch(`${config.baseUrl}/bookings/group`, {
@@ -5006,6 +6545,72 @@ function initializeGroupModal() {
 // INITIALIZATION
 // ============================================
 
+/**
+ * Query the content script for the current session lock status
+ * This ensures we know the actual lock state before deciding to show/hide the lock screen
+ * Uses retry logic to handle race conditions where content script isn't ready yet
+ * @returns {Promise<boolean>} True if session is locked, false otherwise
+ */
+async function queryCurrentSessionLockStatus() {
+  const maxRetries = 3;
+  const retryDelay = 100; // ms
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      // Get the active tab
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!tab) {
+        BMA_LOG.log('No active tab found for lock status query');
+        return false;
+      }
+
+      // Small delay on first attempt to let content script initialize
+      if (attempt === 1) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+
+      // Send message to content script asking for current lock status
+      const response = await chrome.tabs.sendMessage(tab.id, {
+        action: 'getSessionLockStatus'
+      });
+
+      const isLocked = response?.isLocked ?? false;
+      BMA_LOG.log(`Queried session lock status from content script (attempt ${attempt}):`, isLocked ? 'LOCKED' : 'UNLOCKED');
+
+      return isLocked;
+    } catch (error) {
+      // If content script isn't ready yet, retry
+      if (error.message?.includes('Receiving end does not exist') && attempt < maxRetries) {
+        BMA_LOG.log(`Content script not ready (attempt ${attempt}/${maxRetries}), retrying...`);
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        continue;
+      }
+
+      // Other errors or max retries reached
+      BMA_LOG.log(`Could not query session lock status after ${attempt} attempts:`, error.message);
+      return false;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Get the browser tab context for this sidepanel
+ * Stores the tab ID so we can notify the correct tab when sidepanel closes
+ */
+async function getTabContext() {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab) {
+      STATE.currentTabId = tab.id;
+      BMA_LOG.log('Sidepanel tab context initialized:', STATE.currentTabId);
+    }
+  } catch (error) {
+    BMA_LOG.log('Could not get tab context:', error);
+  }
+}
+
 // Initialize
 async function init() {
   const settingsLoaded = await loadSettings();
@@ -5015,8 +6620,17 @@ async function init() {
     window.apiClient = new APIClient(STATE.settings);
     BMA_LOG.log('Global apiClient initialized');
 
+    // Get tab context so we know which tab owns this sidepanel
+    await getTabContext();
+
     // Start cookie monitoring for NewBook auth
     AuthManager.startCookieMonitoring();
+
+    // Query current session lock status from content script FIRST
+    // This prevents race condition where sidepanel unlocks on reopen while lock dialog is still visible
+    const currentLockStatus = await queryCurrentSessionLockStatus();
+    STATE.sessionLocked = currentLockStatus;
+    BMA_LOG.log('Initialized STATE.sessionLocked from content script:', STATE.sessionLocked);
 
     // Check NewBook authentication status
     const isAuthenticated = await AuthManager.updateAuthState();
@@ -5028,6 +6642,9 @@ async function init() {
 
       // Initialize staying tab date picker
       initializeStayingDatePicker();
+
+      // Initialize restaurant tab date picker
+      initializeRestaurantDatePicker();
 
       // Initialize refresh buttons
       initializeRefreshButtons();
@@ -5042,9 +6659,15 @@ async function init() {
       loadStayingTabSilently();
 
       // Check if there's a current booking from storage
+      // Only restore if we're not already on the Restaurant tab (to avoid showing stale detail view)
       const result = await chrome.storage.local.get('currentBookingId');
-      if (result.currentBookingId) {
+      if (result.currentBookingId && STATE.currentTab !== 'restaurant') {
         STATE.currentBookingId = result.currentBookingId;
+        BMA_LOG.log('Restored booking ID from storage:', result.currentBookingId);
+      } else if (result.currentBookingId && STATE.currentTab === 'restaurant') {
+        // Clear stale booking ID if we're on Restaurant tab
+        BMA_LOG.log('Clearing stale booking ID from storage (already on Restaurant tab)');
+        chrome.storage.local.remove('currentBookingId');
       }
     }
   }
@@ -5085,8 +6708,11 @@ window.reloadRestaurantTab = function() {
 
 // Notify background when sidepanel is closing
 window.addEventListener('pagehide', () => {
-  BMA_LOG.log('Sidepanel closing, notifying background');
-  chrome.runtime.sendMessage({ action: 'sidepanelClosed' }).catch(() => {
+  BMA_LOG.log('Sidepanel closing, notifying background for tab:', STATE.currentTabId);
+  chrome.runtime.sendMessage({
+    action: 'sidepanelClosed',
+    tabId: STATE.currentTabId
+  }).catch(() => {
     // Background might not be available during unload
   });
 });

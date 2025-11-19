@@ -1,20 +1,58 @@
-# Chrome NewBook Assistant - CSS Styles Reference
+# CSS Styling Guide
 
-Complete CSS styling guide for all new UI components in the booking creation enhancement.
-
-## File: sidepanel.css
-
-Current file size: 606 lines
-Location: `chrome-newbook-assistant/sidepanel/sidepanel.css`
+Complete CSS styling guide for the Chrome NewBook Assistant extension's UI components and booking creation enhancements.
 
 ---
 
-## New Styles to Add
+## Table of Contents
+
+1. [Overview](#overview)
+2. [File Location](#file-location)
+3. [Core Components](#core-components)
+4. [Style Sections](#style-sections)
+5. [Color Palette](#color-palette)
+6. [Animation & Timing](#animation--timing)
+7. [Responsive Design](#responsive-design)
+8. [Accessibility](#accessibility)
+9. [Testing Guidelines](#testing-guidelines)
+10. [Performance Considerations](#performance-considerations)
+
+---
+
+## Overview
+
+This guide documents all CSS styling for the NewBook Assistant extension, with a focus on the booking creation enhancement UI components. The extension uses a clean, modern design with blue accents, smooth transitions, and responsive layouts optimized for Chrome's sidepanel.
+
+**Current File Size:** 606 lines (base styles)
+**Location:** `chrome-newbook-assistant/sidepanel/sidepanel.css`
+
+---
+
+## File Location
+
+All styles are contained in a single CSS file:
+
+```
+chrome-newbook-assistant/sidepanel/sidepanel.css
+```
+
+New booking creation styles should be added at the end of the file (after line 606) under the section header:
+
+```css
+/* ========================================
+   BOOKING CREATION ENHANCEMENTS
+   ======================================== */
+```
+
+---
+
+## Core Components
 
 ### 1. Date Section Wrapper
 
 **Purpose:** Container for navigation targeting and scroll margin
 
+**CSS:**
 ```css
 .bma-date-section {
   margin-bottom: 24px;
@@ -27,12 +65,20 @@ Location: `chrome-newbook-assistant/sidepanel/sidepanel.css`
 - Provides scroll target for navigation
 - `scroll-margin-top` prevents content from being hidden under fixed headers
 
+**HTML Example:**
+```html
+<div class="bma-date-section" id="date-2025-01-20">
+  <!-- Date content here -->
+</div>
+```
+
 ---
 
 ### 2. Compact Booking Header
 
-**Purpose:** Show guest summary at top of create form
+**Purpose:** Display guest summary at the top of the create booking form
 
+**CSS:**
 ```css
 .bma-booking-header {
   padding: 12px 16px;
@@ -54,7 +100,7 @@ Location: `chrome-newbook-assistant/sidepanel/sidepanel.css`
 }
 ```
 
-**Example HTML:**
+**HTML Example:**
 ```html
 <div class="bma-booking-header">
   <span class="bma-booking-summary">
@@ -63,17 +109,21 @@ Location: `chrome-newbook-assistant/sidepanel/sidepanel.css`
 </div>
 ```
 
+**Features:**
+- Light blue background for visual emphasis
+- Clear guest identification
+- Compact design to save space
+
 ---
 
 ### 3. Collapsible Sections
 
 **Purpose:** Space-efficient expandable form sections with content indicators
 
-**Current Implementation (Lines 664-719):**
-
+**CSS:**
 ```css
 .bma-expandable-section {
-  margin-bottom: 8px;  /* Reduced from 12px for compact layout */
+  margin-bottom: 8px;  /* Compact layout */
 }
 
 .bma-section-toggle {
@@ -84,9 +134,9 @@ Location: `chrome-newbook-assistant/sidepanel/sidepanel.css`
   background: #f3f4f6;
   border: 1px solid #e5e7eb;
   border-radius: 6px;
-  padding: 8px 12px;     /* Reduced from 12px 16px to match service period headers */
-  font-size: 12px;       /* Reduced from 14px */
-  font-weight: 600;      /* Increased from 500 for bold text */
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
   color: #374151;
   cursor: pointer;
   transition: all 0.2s;
@@ -97,7 +147,7 @@ Location: `chrome-newbook-assistant/sidepanel/sidepanel.css`
 }
 
 .bma-section-toggle .material-symbols-outlined {
-  font-size: 16px;       /* Reduced from 20px */
+  font-size: 16px;
   transition: transform 0.3s ease;
 }
 
@@ -133,27 +183,32 @@ Location: `chrome-newbook-assistant/sidepanel/sidepanel.css`
 ```
 
 **Features:**
-- **Compact sizing**: Matches service period header styling for visual consistency
-- **Content indicators**: Green "draw" icon appears when sections contain user data
-- **Smart detection**: JavaScript monitors form fields and shows indicator when:
+- **Compact sizing:** Matches service period header styling for visual consistency
+- **Content indicators:** Green "draw" icon appears when sections contain user data
+- **Smart detection:** JavaScript monitors form fields and shows indicator when:
   - Details section: phone, email, or checkboxes have non-default values
   - Allergies section: any dietary options checked or "other" text entered
   - Note section: note textarea contains text
-- **Real-time updates**: Indicators appear/disappear as user enters/removes content
-- **Accessibility**: Uses aria-expanded attribute for screen readers
+- **Real-time updates:** Indicators appear/disappear as user enters/removes content
+- **Accessibility:** Uses `aria-expanded` attribute for screen readers
 
 **JavaScript Integration:**
 ```javascript
 // Add 'expanded' class when toggling
 toggle.classList.toggle('expanded');
+toggle.setAttribute('aria-expanded', isExpanded);
+
+// Show content indicator when form has data
+indicator.classList.add('has-content');
 ```
 
 ---
 
 ### 4. Gantt Chart Container
 
-**Purpose:** Viewport wrapper with scroll controls
+**Purpose:** Viewport wrapper with scroll controls for the Gantt chart visualization
 
+**CSS:**
 ```css
 .bma-gantt-container {
   border: 1px solid #e5e7eb;
@@ -232,12 +287,20 @@ toggle.classList.toggle('expanded');
 }
 ```
 
+**Features:**
+- Horizontal scrolling viewport
+- Left/right navigation controls
+- Custom scrollbar styling
+- Compact 120px height
+- Clean, minimal controls
+
 ---
 
 ### 5. Gantt Chart Elements
 
-**Purpose:** Styles for Gantt chart content (supplement PHP-generated inline styles)
+**Purpose:** Interactive elements within the Gantt chart
 
+**CSS:**
 ```css
 /* Sight line for time button hover */
 .gantt-sight-line {
@@ -288,12 +351,19 @@ toggle.classList.toggle('expanded');
 }
 ```
 
+**Features:**
+- Red vertical sight line appears when hovering over time slots
+- Booking bars have hover effects with scale and shadow
+- Tooltips show booking details on hover
+- Smooth transitions for all interactions
+
 ---
 
 ### 6. Time Slot Button Grid
 
 **Purpose:** Interactive time selection interface
 
+**CSS:**
 ```css
 .bma-time-slots-wrapper {
   margin-bottom: 16px;
@@ -396,12 +466,26 @@ toggle.classList.toggle('expanded');
 }
 ```
 
+**Features:**
+- Organized by service period (Lunch, Dinner)
+- Clear visual states: available, selected, unavailable
+- Hover effects with blue highlight
+- Tooltips explain why times are unavailable
+- Responsive grid layout with wrapping
+
+**States:**
+- **Default:** White background, gray border
+- **Hover:** Light blue background, blue border
+- **Selected:** Blue background, white text
+- **Unavailable:** Gray background, can still be clicked (yellow on hover)
+
 ---
 
-### 7. Form Feedback Enhancements
+### 7. Form Feedback Messages
 
-**Purpose:** Inline form feedback styling
+**Purpose:** Inline form feedback and validation messaging
 
+**CSS:**
 ```css
 .bma-form-feedback {
   margin-top: 12px;
@@ -463,12 +547,26 @@ toggle.classList.toggle('expanded');
 }
 ```
 
+**Usage:**
+```html
+<div class="bma-form-feedback success">Booking created successfully!</div>
+<div class="bma-form-feedback error">Failed to create booking. Please try again.</div>
+<div class="bma-form-feedback info">Checking availability...</div>
+```
+
+**Features:**
+- Three message types: success, error, info
+- Icons automatically prepended
+- Fade-in animation
+- Color-coded for quick recognition
+
 ---
 
-### 8. Navigation Link Styles
+### 8. Navigation Links
 
 **Purpose:** "Create Booking" links in Summary tab
 
+**CSS:**
 ```css
 .bma-create-booking-link {
   display: inline-flex;
@@ -502,12 +600,27 @@ toggle.classList.toggle('expanded');
 }
 ```
 
+**Usage:**
+```html
+<a href="#" class="bma-create-booking-link">
+  <span class="material-symbols-outlined">add</span>
+  Create Booking
+</a>
+```
+
+**Features:**
+- Blue button styling for primary actions
+- Icon + text layout
+- Hover effects with shadow
+- Active state with subtle press effect
+
 ---
 
-### 9. Enhanced Form Row Styles
+### 9. Enhanced Form Rows
 
-**Purpose:** Improve existing form row styling
+**Purpose:** Improved styling for form inputs
 
+**CSS:**
 ```css
 .bma-form-row {
   margin-bottom: 12px;
@@ -564,12 +677,20 @@ toggle.classList.toggle('expanded');
 }
 ```
 
+**Features:**
+- Consistent input styling across all field types
+- Blue focus ring for accessibility
+- Read-only styling
+- Special handling for checkboxes
+- Clear label hierarchy
+
 ---
 
-### 10. Button Enhancements
+### 10. Button Styles
 
-**Purpose:** Improve button states and animations
+**Purpose:** Primary and secondary button styling
 
+**CSS:**
 ```css
 .bma-btn-submit,
 .bma-btn-cancel {
@@ -637,14 +758,128 @@ toggle.classList.toggle('expanded');
 }
 ```
 
+**Features:**
+- Primary (submit) and secondary (cancel) button styles
+- Disabled state with loading spinner
+- Hover and active states
+- Consistent sizing and padding
+
 ---
 
-### 11. Responsive Adjustments
+## Color Palette
 
-**Purpose:** Optimize for narrow sidebar width
+### Primary Colors
+```css
+--blue-600: #3b82f6;    /* Primary action color */
+--blue-700: #2563eb;    /* Primary hover */
+--blue-800: #1d4ed8;    /* Primary active */
+```
+
+### Success Colors
+```css
+--green-100: #d1fae5;   /* Success background */
+--green-800: #065f46;   /* Success text */
+--green-500: #10b981;   /* Success border */
+```
+
+### Error Colors
+```css
+--red-100: #fee2e2;     /* Error background */
+--red-800: #991b1b;     /* Error text */
+--red-500: #ef4444;     /* Error border */
+```
+
+### Info Colors
+```css
+--blue-100: #dbeafe;    /* Info background */
+--blue-800: #1e40af;    /* Info text */
+--blue-500: #3b82f6;    /* Info border */
+```
+
+### Neutral Colors
+```css
+--gray-50: #f9fafb;     /* Light background */
+--gray-100: #f3f4f6;    /* Hover background */
+--gray-200: #e5e7eb;    /* Border */
+--gray-300: #d1d5db;    /* Input border */
+--gray-400: #9ca3af;    /* Disabled text */
+--gray-500: #6b7280;    /* Secondary text */
+--gray-700: #374151;    /* Primary text */
+--gray-900: #1f2937;    /* Heading text */
+```
+
+---
+
+## Animation & Timing
+
+### Standard Transitions
+```css
+transition: all 0.2s ease-out;
+```
+
+### Hover Effects
+```css
+transition: background 0.2s, border-color 0.2s, transform 0.2s;
+```
+
+### Smooth Scrolling
+```css
+behavior: smooth;
+scroll-margin-top: 20px;
+```
+
+### Fade In Animation
+```css
+animation: fadeIn 0.2s ease-out;
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+```
+
+### Loading Spinner
+```css
+animation: spin 0.6s linear infinite;
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+```
+
+### Slide Down Animation
+```css
+animation: slideDown 0.3s ease-out;
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    max-height: 500px;
+  }
+}
+```
+
+---
+
+## Responsive Design
+
+### Narrow Viewport Adjustments
+
+For very narrow viewports (< 350px):
 
 ```css
-/* For very narrow viewports (< 350px) */
 @media (max-width: 350px) {
   .time-slot-btn {
     padding: 6px 8px;
@@ -671,14 +906,21 @@ toggle.classList.toggle('expanded');
 }
 ```
 
+**Optimization strategies:**
+- Reduce padding on buttons and containers
+- Decrease font sizes slightly
+- Adjust minimum widths
+- Maintain touch target sizes (minimum 44x44px)
+
 ---
 
-### 12. Accessibility Enhancements
+## Accessibility
 
-**Purpose:** Improve keyboard navigation and screen reader support
+### Focus Styles
+
+All interactive elements have clear focus indicators:
 
 ```css
-/* Focus styles */
 .time-slot-btn:focus,
 .gantt-scroll-btn:focus,
 .bma-section-toggle:focus,
@@ -687,8 +929,13 @@ toggle.classList.toggle('expanded');
   outline: 2px solid #3b82f6;
   outline-offset: 2px;
 }
+```
 
-/* Skip to content link (for keyboard users) */
+### Skip to Content Link
+
+For keyboard navigation:
+
+```css
 .skip-to-form:focus {
   position: absolute;
   top: 10px;
@@ -699,8 +946,11 @@ toggle.classList.toggle('expanded');
   border-radius: 4px;
   z-index: 10000;
 }
+```
 
-/* Screen reader only text */
+### Screen Reader Only Text
+
+```css
 .sr-only {
   position: absolute;
   width: 1px;
@@ -714,15 +964,155 @@ toggle.classList.toggle('expanded');
 }
 ```
 
+### ARIA Attributes
+
+Use appropriate ARIA attributes in HTML:
+- `aria-expanded` for collapsible sections
+- `aria-label` for icon-only buttons
+- `aria-live` for dynamic content updates
+- `role` attributes for custom components
+
+---
+
+## Z-Index Hierarchy
+
+Maintain consistent layering:
+
+```css
+.gantt-sight-line       { z-index: 100; }
+.gantt-booking-bar      { z-index: 1; }
+.gantt-booking-bar:hover { z-index: 10; }
+.time-slot-btn::before  { z-index: 1000; }  /* Tooltip */
+.gantt-booking-bar::after { z-index: 1000; }  /* Tooltip */
+.bma-custom-modal       { z-index: 10000; }  /* Modal overlay */
+.skip-to-form:focus     { z-index: 10000; }  /* Accessibility */
+```
+
+---
+
+## Testing Guidelines
+
+### Visual Testing Checklist
+
+- [ ] All sections collapse/expand smoothly
+- [ ] Gantt chart viewport scrolls correctly
+- [ ] Time slot buttons show correct states (available/unavailable/selected)
+- [ ] Form feedback messages display with correct colors
+- [ ] Buttons show proper hover/active/disabled states
+- [ ] Navigation links are clickable and styled correctly
+- [ ] Tooltips appear on hover for unavailable times
+- [ ] Gantt sight line appears/disappears correctly
+
+### Responsive Testing Checklist
+
+- [ ] Layout works at 350px width (minimum sidebar)
+- [ ] Layout works at 500px width (typical sidebar)
+- [ ] Text doesn't overflow or wrap incorrectly
+- [ ] Buttons remain clickable at all sizes
+- [ ] Gantt chart is usable with horizontal scroll
+
+### Accessibility Testing Checklist
+
+- [ ] All interactive elements are keyboard accessible
+- [ ] Focus indicators are visible
+- [ ] Color contrast meets WCAG AA standards (4.5:1 for text, 3:1 for UI components)
+- [ ] Screen reader announces form states correctly
+
+### Browser Testing Checklist
+
+- [ ] Chrome (primary target)
+- [ ] Edge (Chromium-based, should match Chrome)
+- [ ] Safari (if Mac users)
+
+---
+
+## Performance Considerations
+
+### Best Practices
+
+1. **Use CSS Transitions Over Animations** - More performant for simple changes
+2. **Limit Box Shadows** - Can impact scroll performance; use sparingly
+3. **Avoid Layout Thrashing** - Batch DOM reads/writes in JavaScript
+4. **Use `will-change` Sparingly** - Only for actively animating elements
+
+```css
+/* Only on interactive elements that will transform */
+.gantt-booking-bar {
+  will-change: transform;
+}
+```
+
+### Optimization Tips
+
+- Use `transform` instead of `left/top` for animations
+- Minimize repaints by animating `opacity` and `transform`
+- Use CSS containment where appropriate: `contain: layout style paint;`
+- Debounce scroll and resize event handlers
+
+---
+
+## Print Styles (Optional)
+
+For printing forms or reports:
+
+```css
+@media print {
+  .gantt-controls,
+  .time-slot-buttons,
+  .bma-section-toggle,
+  .bma-form-actions {
+    display: none;
+  }
+
+  .bma-section-content {
+    display: block !important;
+  }
+
+  .gantt-viewport {
+    overflow: visible;
+    height: auto;
+  }
+}
+```
+
+---
+
+## Dark Mode Support (Future Enhancement)
+
+For future dark mode implementation:
+
+```css
+@media (prefers-color-scheme: dark) {
+  .bma-booking-header {
+    background: #1e3a5f;
+    border-color: #2563eb;
+    color: #bfdbfe;
+  }
+
+  .bma-section-toggle {
+    background: #1f2937;
+    color: #f3f4f6;
+  }
+
+  .time-slot-btn {
+    background: #374151;
+    border-color: #4b5563;
+    color: #f3f4f6;
+  }
+
+  /* Additional dark mode styles... */
+}
+```
+
 ---
 
 ## Complete Style Integration
 
-### Where to Add
+### Adding New Styles
 
-Add all new styles to **`chrome-newbook-assistant/sidepanel/sidepanel.css`** at the end of the file (after line 606).
+Add all new styles to `chrome-newbook-assistant/sidepanel/sidepanel.css` at the end of the file (after line 606).
 
-### Organization
+### Organization Structure
 
 ```css
 /* ========================================
@@ -768,174 +1158,23 @@ Add all new styles to **`chrome-newbook-assistant/sidepanel/sidepanel.css`** at 
 
 ---
 
-## Testing Checklist
+## Additional Resources
 
-### Visual Testing
+### CSS Documentation
+- [MDN CSS Reference](https://developer.mozilla.org/en-US/docs/Web/CSS)
+- [CSS Tricks](https://css-tricks.com/)
+- [Can I Use](https://caniuse.com/) - Browser compatibility
 
-- [ ] All sections collapse/expand smoothly
-- [ ] Gantt chart viewport scrolls correctly
-- [ ] Time slot buttons show correct states (available/unavailable/selected)
-- [ ] Form feedback messages display with correct colors
-- [ ] Buttons show proper hover/active/disabled states
-- [ ] Navigation links are clickable and styled correctly
-- [ ] Tooltips appear on hover for unavailable times
-- [ ] Gantt sight line appears/disappears correctly
+### Design Tools
+- [Coolors](https://coolors.co/) - Color palette generator
+- [Material Design Color Tool](https://material.io/resources/color/)
+- [WebAIM Contrast Checker](https://webaim.org/resources/contrastchecker/)
 
-### Responsive Testing
-
-- [ ] Layout works at 350px width (minimum sidebar)
-- [ ] Layout works at 500px width (typical sidebar)
-- [ ] Text doesn't overflow or wrap incorrectly
-- [ ] Buttons remain clickable at all sizes
-- [ ] Gantt chart is usable with horizontal scroll
-
-### Accessibility Testing
-
-- [ ] All interactive elements are keyboard accessible
-- [ ] Focus indicators are visible
-- [ ] Color contrast meets WCAG AA standards
-- [ ] Screen reader announces form states correctly
-
-### Browser Testing
-
-- [ ] Chrome (primary target)
-- [ ] Edge (Chromium-based, should match Chrome)
-- [ ] Safari (if Mac users)
+### Related Documentation
+- [ARCHITECTURE.md](ARCHITECTURE.md) - Extension architecture
+- [FUNCTION_REFERENCE.md](FUNCTION_REFERENCE.md) - JavaScript functions
+- [FUNCTION_CHEAT_SHEET.md](FUNCTION_CHEAT_SHEET.md) - Quick reference
 
 ---
 
-## Color Palette Reference
-
-```css
-/* Primary Colors */
---blue-600: #3b82f6;    /* Primary action color */
---blue-700: #2563eb;    /* Primary hover */
---blue-800: #1d4ed8;    /* Primary active */
-
-/* Success Colors */
---green-100: #d1fae5;   /* Success background */
---green-800: #065f46;   /* Success text */
---green-500: #10b981;   /* Success border */
-
-/* Error Colors */
---red-100: #fee2e2;     /* Error background */
---red-800: #991b1b;     /* Error text */
---red-500: #ef4444;     /* Error border */
-
-/* Info Colors */
---blue-100: #dbeafe;    /* Info background */
---blue-800: #1e40af;    /* Info text */
---blue-500: #3b82f6;    /* Info border */
-
-/* Neutral Colors */
---gray-50: #f9fafb;     /* Light background */
---gray-100: #f3f4f6;    /* Hover background */
---gray-200: #e5e7eb;    /* Border */
---gray-300: #d1d5db;    /* Input border */
---gray-400: #9ca3af;    /* Disabled text */
---gray-500: #6b7280;    /* Secondary text */
---gray-700: #374151;    /* Primary text */
---gray-900: #1f2937;    /* Heading text */
-```
-
----
-
-## Animation Timing
-
-```css
-/* Standard transitions */
-transition: all 0.2s ease-out;
-
-/* Hover effects */
-transition: background 0.2s, border-color 0.2s, transform 0.2s;
-
-/* Smooth scrolling */
-behavior: smooth;
-
-/* Fade in */
-animation: fadeIn 0.2s ease-out;
-
-/* Loading spinner */
-animation: spin 0.6s linear infinite;
-```
-
----
-
-## Z-Index Hierarchy
-
-```css
-.gantt-sight-line       { z-index: 100; }
-.gantt-booking-bar      { z-index: 1; }
-.gantt-booking-bar:hover { z-index: 10; }
-.time-slot-btn::before  { z-index: 1000; }  /* Tooltip */
-.gantt-booking-bar::after { z-index: 1000; }  /* Tooltip */
-.bma-custom-modal       { z-index: 10000; }  /* Modal overlay */
-.skip-to-form:focus     { z-index: 10000; }  /* Accessibility */
-```
-
----
-
-## Performance Considerations
-
-1. **Use CSS Transitions Over Animations** - More performant
-2. **Limit Box Shadows** - Can impact scroll performance
-3. **Avoid Layout Thrashing** - Batch DOM reads/writes
-4. **Use `will-change` Sparingly** - Only for actively animating elements
-
-```css
-/* Only on interactive elements that will transform */
-.gantt-booking-bar {
-  will-change: transform;
-}
-```
-
----
-
-## Print Styles (Optional)
-
-```css
-@media print {
-  .gantt-controls,
-  .time-slot-buttons,
-  .bma-section-toggle,
-  .bma-form-actions {
-    display: none;
-  }
-
-  .bma-section-content {
-    display: block !important;
-  }
-
-  .gantt-viewport {
-    overflow: visible;
-    height: auto;
-  }
-}
-```
-
----
-
-## Dark Mode Support (Future)
-
-```css
-@media (prefers-color-scheme: dark) {
-  .bma-booking-header {
-    background: #1e3a5f;
-    border-color: #2563eb;
-    color: #bfdbfe;
-  }
-
-  .bma-section-toggle {
-    background: #1f2937;
-    color: #f3f4f6;
-  }
-
-  .time-slot-btn {
-    background: #374151;
-    border-color: #4b5563;
-    color: #f3f4f6;
-  }
-
-  /* ... etc */
-}
-```
+*Last updated: 2025-01-19*

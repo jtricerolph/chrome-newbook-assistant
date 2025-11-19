@@ -27,7 +27,7 @@ const BMA_LOG = {
   }
 };
 
-BMA_LOG.log('NewBook Assistant content script loaded');
+// Content script loaded (silent - only log important events)
 
 // Load settings
 async function loadSettings() {
@@ -178,7 +178,7 @@ function handlePlannerBlockClick(event) {
 }
 
 function setupPlannerClickListeners() {
-  BMA_LOG.log('Setting up planner click listeners...');
+  BMA_LOG.log('Setting up planner click listeners');
 
   // Attach click listeners to booking blocks
   const attachListenersToBlocks = () => {
@@ -186,7 +186,7 @@ function setupPlannerClickListeners() {
     // This avoids attaching to links, spans, or other elements
     const bookingBlocks = document.querySelectorAll('div[booking_id], div[data-booking-id]');
 
-    BMA_LOG.log(`Found ${bookingBlocks.length} planner booking blocks`);
+    BMA_LOG.log('Found', bookingBlocks.length, 'planner booking blocks');
 
     bookingBlocks.forEach(block => {
       // Skip if already has listener
@@ -233,6 +233,94 @@ function setupPlannerClickListeners() {
   });
 }
 
+// Setup click listeners for planner date header cells
+function setupPlannerDateHeaderListeners() {
+  BMA_LOG.log('Setting up planner date header click listeners');
+
+  // Only run on bookings_chart page
+  if (!window.location.pathname.includes('bookings_chart')) {
+    return;
+  }
+
+  const attachListenersToHeaders = () => {
+    // Find all th elements with chart_date attribute
+    const dateHeaders = document.querySelectorAll('th[chart_date]');
+
+    BMA_LOG.log('Found', dateHeaders.length, 'planner date headers');
+
+    dateHeaders.forEach(header => {
+      // Skip if already has listener
+      if (header.dataset.nbAssistantDateListener) return;
+
+      header.addEventListener('click', (e) => {
+        // Don't interfere with any existing functionality
+        const chartDate = header.getAttribute('chart_date');
+        if (!chartDate) return;
+
+        BMA_LOG.log('Planner date header clicked:', chartDate);
+
+        // Parse the date (format: "Sat 29 Nov 2025")
+        try {
+          const date = new Date(chartDate);
+          if (isNaN(date.getTime())) {
+            BMA_LOG.log('Could not parse date:', chartDate);
+            return;
+          }
+
+          // Format as YYYY-MM-DD
+          const formattedDate = date.toISOString().split('T')[0];
+          BMA_LOG.log('Opening staying tab for date:', formattedDate);
+
+          // Send message to sidepanel to open staying tab with this date
+          chrome.runtime.sendMessage({
+            action: 'openStayingTab',
+            date: formattedDate,
+            source: 'planner-date-header'
+          }).catch(error => {
+            BMA_LOG.log('Could not send planner date header click message:', error);
+          });
+        } catch (error) {
+          BMA_LOG.log('Error parsing date from header:', error);
+        }
+      });
+
+      header.dataset.nbAssistantDateListener = 'true';
+      // Add visual feedback that it's clickable
+      header.style.cursor = 'pointer';
+    });
+  };
+
+  // Setup listeners for existing headers
+  attachListenersToHeaders();
+
+  // Watch for new headers being added (planner navigation, etc.)
+  let debounceTimer = null;
+  const headerListenerObserver = new MutationObserver((mutations) => {
+    let hasNewHeaders = false;
+    for (const mutation of mutations) {
+      for (const node of mutation.addedNodes) {
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          if (node.matches && (node.matches('th[chart_date]') || node.querySelector('th[chart_date]'))) {
+            hasNewHeaders = true;
+            break;
+          }
+        }
+      }
+      if (hasNewHeaders) break;
+    }
+
+    if (hasNewHeaders) {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(attachListenersToHeaders, 100);
+    }
+  });
+
+  headerListenerObserver.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+}
+
 // EasyToolTip Popup Detection (Preview Popup)
 // Note: easyToolTip is NewBook's preview popup that opens on double-click
 // This is NOT a hover tooltip - it's a full popup dialog
@@ -259,15 +347,8 @@ function detectEasyToolTipPopup() {
 }
 
 function handleEasyToolTipPopup(popupElement) {
-  BMA_LOG.log('EasyToolTip element detected:', {
-    id: popupElement.id,
-    classes: popupElement.className,
-    hasPermanent: popupElement.classList.contains('permanent')
-  });
-
   // Check if already processed
   if (popupElement.dataset.nbAssistantProcessed) {
-    BMA_LOG.log('Already processed this tooltip');
     return;
   }
 
@@ -326,15 +407,8 @@ function handleEasyToolTipPopup(popupElement) {
 const processedPopupBookings = new Set();
 
 function handleBookingPopup(popupElement) {
-  BMA_LOG.log('handleBookingPopup called, element:', {
-    tagName: popupElement.tagName,
-    classList: popupElement.className,
-    display: popupElement.style.display
-  });
-
   // Check if we've already processed this popup element
   if (popupElement.dataset.nbAssistantProcessed) {
-    BMA_LOG.log('Already processed this popup element');
     return;
   }
 
@@ -349,7 +423,6 @@ function handleBookingPopup(popupElement) {
   }
 
   if (!bookingId) {
-    BMA_LOG.log('No booking ID found in popup class name');
     return;
   }
 
@@ -471,6 +544,13 @@ function createOpenButton() {
 
   // Don't show if sidepanel is open
   if (sidepanelOpen) return;
+
+  // Don't show if session is locked (sidepanel already handles login prompt)
+  const lockDialog = document.getElementById('locked_session_dialog');
+  if (lockDialog && lockDialog.style.display !== 'none') {
+    BMA_LOG.log('Session locked, not showing popup button');
+    return;
+  }
 
   const button = document.createElement('button');
   button.id = 'newbook-helper-btn';
@@ -626,19 +706,38 @@ function setupSessionLockDetection() {
     attributes: true,
     attributeFilter: ['style', 'class']
   });
+}
 
-  BMA_LOG.log('Session lock observer active');
+// Check if sidepanel is already open on initialization
+async function checkInitialSidepanelState() {
+  try {
+    const response = await chrome.runtime.sendMessage({
+      action: 'isSidepanelOpen'
+    });
+    if (response && response.isOpen) {
+      sidepanelOpen = true;
+      BMA_LOG.log('Sidepanel detected as already open on init');
+    }
+  } catch (error) {
+    BMA_LOG.log('Could not check initial sidepanel state:', error);
+  }
 }
 
 // Initialize
 async function init() {
   await loadSettings();
 
+  // Check if sidepanel is already open before showing popup button
+  await checkInitialSidepanelState();
+
   // Initial detection
   detectBookingPage();
 
   // Set up planner click detection with dynamic listeners
   setupPlannerClickListeners();
+
+  // Set up planner date header click listeners
+  setupPlannerDateHeaderListeners();
 
   // NOTE: easyToolTip detection disabled - it triggers on hover tooltips too
   // detectEasyToolTipPopup();
@@ -649,10 +748,10 @@ async function init() {
   // Set up session lock detection
   setupSessionLockDetection();
 
-  // Show floating button to prompt user to open sidepanel
+  // Show floating button to prompt user to open sidepanel (only if not already open)
   setTimeout(createOpenButton, 1000); // Small delay to let page load
 
-  BMA_LOG.log('NewBook Assistant ready');
+  BMA_LOG.log('NewBook Assistant content script ready');
 }
 
 // Start
@@ -672,5 +771,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     BMA_LOG.log('Sidepanel closed, showing button');
     sidepanelOpen = false;
     setTimeout(createOpenButton, 500);
+  } else if (message.action === 'getSessionLockStatus') {
+    // Respond with current session lock status
+    const lockDialog = document.getElementById('locked_session_dialog');
+    const isLocked = lockDialog && lockDialog.style.display !== 'none';
+    BMA_LOG.log('Returning current session lock status:', isLocked ? 'LOCKED' : 'UNLOCKED');
+    sendResponse({ isLocked: isLocked });
+    return true; // Keep message channel open for async response
   }
 });

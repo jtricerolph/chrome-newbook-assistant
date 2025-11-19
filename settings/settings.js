@@ -11,6 +11,10 @@ const DEFAULT_SETTINGS = {
   inactivityTimeout: 60,
   pauseInactivityWhenFormOpen: true,
   autoRefreshOnStaleCache: true,
+  autoRefreshPauseIdleMinutes: 5,
+  cancelledHours: 24,
+  includeFlaggedCancelled: true,
+  stayingDefaultOccupiedFilter: false,
   enableDebugLogging: false
 };
 
@@ -25,6 +29,10 @@ const elements = {
   enablePlannerClickUpdate: document.getElementById('enablePlannerClickUpdate'),
   highlightNewestMinutes: document.getElementById('highlightNewestMinutes'),
   autoRefreshOnStaleCache: document.getElementById('autoRefreshOnStaleCache'),
+  autoRefreshPauseIdleMinutes: document.getElementById('autoRefreshPauseIdleMinutes'),
+  cancelledHours: document.getElementById('cancelledHours'),
+  includeFlaggedCancelled: document.getElementById('includeFlaggedCancelled'),
+  stayingDefaultOccupiedFilter: document.getElementById('stayingDefaultOccupiedFilter'),
   inactivityTimeout: document.getElementById('inactivityTimeout'),
   pauseInactivityWhenFormOpen: document.getElementById('pauseInactivityWhenFormOpen'),
   enableDebugLogging: document.getElementById('enableDebugLogging'),
@@ -48,6 +56,10 @@ async function loadSettings() {
     elements.enablePlannerClickUpdate.checked = settings.enablePlannerClickUpdate !== false;
     elements.highlightNewestMinutes.value = settings.highlightNewestMinutes || 60;
     elements.autoRefreshOnStaleCache.checked = settings.autoRefreshOnStaleCache !== false;
+    elements.autoRefreshPauseIdleMinutes.value = settings.autoRefreshPauseIdleMinutes || 5;
+    elements.cancelledHours.value = settings.cancelledHours || 24;
+    elements.includeFlaggedCancelled.checked = settings.includeFlaggedCancelled !== false;
+    elements.stayingDefaultOccupiedFilter.checked = settings.stayingDefaultOccupiedFilter === true;
     elements.inactivityTimeout.value = settings.inactivityTimeout || 60;
     elements.pauseInactivityWhenFormOpen.checked = settings.pauseInactivityWhenFormOpen !== false;
     elements.enableDebugLogging.checked = settings.enableDebugLogging === true;
@@ -131,6 +143,10 @@ async function saveSettings() {
       enablePlannerClickUpdate: elements.enablePlannerClickUpdate.checked,
       highlightNewestMinutes: highlightMinutes,
       autoRefreshOnStaleCache: elements.autoRefreshOnStaleCache.checked,
+      autoRefreshPauseIdleMinutes: parseInt(elements.autoRefreshPauseIdleMinutes.value),
+      cancelledHours: parseInt(elements.cancelledHours.value),
+      includeFlaggedCancelled: elements.includeFlaggedCancelled.checked,
+      stayingDefaultOccupiedFilter: elements.stayingDefaultOccupiedFilter.checked,
       inactivityTimeout: inactivityTimeout,
       pauseInactivityWhenFormOpen: elements.pauseInactivityWhenFormOpen.checked,
       enableDebugLogging: elements.enableDebugLogging.checked

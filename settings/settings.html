@@ -105,6 +105,39 @@
           </label>
           <small>Automatically refresh the tab after 10 seconds when outdated cached data is shown (indicated by sync_problem icon)</small>
         </div>
+
+        <div class="form-group">
+          <label for="autoRefreshPauseIdleMinutes">Auto-refresh pause idle timeout (minutes)</label>
+          <input
+            type="number"
+            id="autoRefreshPauseIdleMinutes"
+            min="1"
+            max="30"
+            value="5"
+          >
+          <small>When bookings are expanded on Summary tab, auto-refresh pauses. Resume after this many minutes of inactivity (1-30 minutes)</small>
+        </div>
+
+        <div class="form-group">
+          <label for="cancelledHours">Show cancelled bookings from last</label>
+          <select id="cancelledHours">
+            <option value="24">24 hours (1 day)</option>
+            <option value="48">48 hours (2 days)</option>
+            <option value="72">72 hours (3 days)</option>
+            <option value="96">96 hours (4 days)</option>
+            <option value="120">120 hours (5 days)</option>
+            <option value="168">168 hours (7 days)</option>
+          </select>
+          <small>Display cancelled bookings from the last X hours in the Activity tab. Cancelled bookings with warnings/flags will show even past this threshold.</small>
+        </div>
+
+        <div class="form-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="includeFlaggedCancelled" checked>
+            <span>Include older cancelled bookings with flags</span>
+          </label>
+          <small>Show cancelled bookings older than the time window if they have critical flags (e.g., orphaned ResOS bookings)</small>
+        </div>
       </section>
 
       <section class="settings-section">
@@ -115,6 +148,17 @@
             <span>Update booking on planner single-click</span>
           </label>
           <small>Automatically update the sidepanel when clicking bookings in the planner view</small>
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <h2>Staying Tab Settings</h2>
+        <div class="form-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="stayingDefaultOccupiedFilter">
+            <span>Default to occupied rooms filter</span>
+          </label>
+          <small>Automatically filter to show only occupied (in-house) rooms when opening the Staying tab</small>
         </div>
       </section>
 
